@@ -1,0 +1,40 @@
+body {
+    font-family: Arial, sans-serif;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background-color: #f0f0f0;
+}
+
+#game-board-container {
+    /* Definindo um tamanho fixo para o tabuleiro */
+    width: 800px;
+    height: 800px;
+    
+    /* Usando a imagem como fundo */
+    background-image: url('images/bg-monopoly.png');
+    background-size: cover; /* Garante que a imagem cubra todo o container */
+    background-position: center;
+    
+    /* Essencial para posicionar os elementos filhos (os espaços) */
+    position: relative; 
+    border: 2px solid black;
+}
+
+.board-space {
+    /* Essencial para que possamos definir top, left, width e height */
+    position: absolute;
+    
+    /* Estilo de depuração: ajuda a ver onde estão os elementos clicáveis */
+    /* Você pode remover ou alterar isso depois */
+    background-color: rgba(7, 126, 238, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    box-sizing: border-box; /* Garante que a borda não aumente o tamanho do elemento */
+    cursor: pointer;
+}
+
+.board-space:hover {
+    /* Efeito visual ao passar o mouse */
+    background-color: rgba(255, 215, 0, 0.6);
+}

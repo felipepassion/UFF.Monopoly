@@ -1,0 +1,27 @@
+@using UFF.Monopoly.Models
+@inherits ComponentBase
+
+<div id="@Space.Id" class="board-space" style="@BuildStyle()" @onclick="() => OnClick.InvokeAsync(Space)"></div>
+
+@code {
+    [Parameter]
+    public BoardSpaceDto Space { get; set; } = new();
+
+    [Parameter]
+    public EventCallback<BoardSpaceDto> OnClick { get; set; }
+
+    private string BuildStyle()
+    {
+        var style = new System.Text.StringBuilder();
+        style.Append("position:absolute;");
+        style.Append($"top:{Space.Style.Top};");
+        style.Append($"left:{Space.Style.Left};");
+        style.Append($"width:{Space.Style.Width};");
+        style.Append($"height:{Space.Style.Height};");
+        if (!string.IsNullOrWhiteSpace(Space.Style.Transform))
+        {
+            style.Append($"transform:{Space.Style.Transform};");
+        }
+        return style.ToString();
+    }
+}
