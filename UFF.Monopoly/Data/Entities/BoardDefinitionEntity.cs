@@ -9,5 +9,11 @@ public class BoardDefinitionEntity
     public string Name { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+    // Persisted board layout
+    public int Rows { get; set; } = 5;
+    public int Cols { get; set; } = 5;
+    public int CellSizePx { get; set; } = 64;
+
     public ICollection<BlockTemplateEntity> Blocks { get; set; } = new List<BlockTemplateEntity>();
 }
+

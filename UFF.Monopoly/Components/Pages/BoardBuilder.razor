@@ -1,10 +1,12 @@
 @page "/board-builder"
+@page "/board-builder/{BoardId:guid}"
 @using UFF.Monopoly.Entities
 @using UFF.Monopoly.Data
 @using UFF.Monopoly.Data.Entities
 @using Microsoft.EntityFrameworkCore
 @using Microsoft.AspNetCore.Components.Web
 @inject IDbContextFactory<ApplicationDbContext> DbFactory
+@inject NavigationManager Nav
 
 <h3>Board Builder</h3>
 
@@ -43,17 +45,24 @@
                 {
                     if (CellToIndex.TryGetValue((r, c), out var index))
                     {
-                        var b = Blocks[index];
-                        <div class="grid-cell perimeter"
-                             style="background:@GetCellBackground(b); color:@GetTextColorForBackground(GetCellBackground(b));"
-                             title="@($"{b.Type} - {b.Name}")"
-                             @onclick="(e => OnCellClick(index, e))"
-                             @onclick:stopPropagation="true">
-                            <div>
-                                <div class="cell-type">@b.Type</div>
-                                <div class="cell-index">@index</div>
+                        var b = index >= 0 && index < Blocks.Count ? Blocks[index] : null;
+                        if (b is null)
+                        {
+                            <div class="grid-cell empty"></div>
+                        }
+                        else
+                        {
+                            <div class="grid-cell perimeter"
+                                 style="background:@GetCellBackground(b); color:@GetTextColorForBackground(GetCellBackground(b));"
+                                 title="@($"{b.Type} - {b.Name}")"
+                                 @onclick="(e => OnCellClick(index, e))"
+                                 @onclick:stopPropagation="true">
+                                <div>
+                                    <div class="cell-type">@b.Type</div>
+                                    <div class="cell-index">@index</div>
+                                </div>
                             </div>
-                        </div>
+                        }
                     }
                     else
                     {
@@ -83,6 +92,9 @@
 }
 
 @code {
+    [Parameter]
+    public Guid? BoardId { get; set; }
+
     private Guid CurrentBoardId;
     private string BoardName = string.Empty;
 
@@ -92,27 +104,46 @@
 
     private List<BlockTemplateEntity> Blocks = new();
 
-    // Mapa linha/coluna -> índice do bloco no caminho horário (perímetro)
     private Dictionary<(int r, int c), int> CellToIndex = new();
 
     private (bool Visible, int X, int Y, int Index) Popup;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (BoardId.HasValue && BoardId.Value != Guid.Empty && BoardId.Value != CurrentBoardId)
+        {
+            await LoadBoardAsync(BoardId.Value);
+        }
+    }
+
+    private async Task LoadBoardAsync(Guid id)
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var board = await db.Boards.Include(b => b.Blocks).FirstOrDefaultAsync(b => b.Id == id);
+        if (board is null)
+        {
+            return;
+        }
+
+        CurrentBoardId = id;
+        BoardName = board.Name;
+        Rows = board.Rows;
+        Cols = board.Cols;
+        CellSize = board.CellSizePx;
+
+        Blocks = board.Blocks.OrderBy(b => b.Position).ToList();
+        RebuildPerimeterMap();
+        StateHasChanged();
+    }
 
     private void GenerateGrid()
     {
         Rows = Math.Max(2, Rows);
         Cols = Math.Max(2, Cols);
+        RebuildPerimeterMap();
 
-        // Gera as coordenadas do perímetro em sentido horário
-        var coords = BuildPerimeterClockwise(Rows, Cols);
-        CellToIndex = new Dictionary<(int r, int c), int>(coords.Count);
-
-        for (int i = 0; i < coords.Count; i++)
-        {
-            CellToIndex[(coords[i].r, coords[i].c)] = i;
-        }
-
-        // Cria os blocos apenas para o perímetro
-        Blocks = Enumerable.Range(0, coords.Count).Select(i => new BlockTemplateEntity
+        var total = CellToIndex.Count;
+        Blocks = Enumerable.Range(0, total).Select(i => new BlockTemplateEntity
         {
             Id = Guid.NewGuid(),
             Position = i,
@@ -120,13 +151,23 @@
             Type = BlockType.Property,
             Color = GetTypeColor(BlockType.Property),
             Price = 0,
-            Rent = 0
+            Rent = 0,
+            BoardDefinitionId = CurrentBoardId
         }).ToList();
+    }
+
+    private void RebuildPerimeterMap()
+    {
+        var coords = BuildPerimeterClockwise(Rows, Cols);
+        CellToIndex = new Dictionary<(int r, int c), int>(coords.Count);
+        for (int i = 0; i < coords.Count; i++)
+            CellToIndex[(coords[i].r, coords[i].c)] = i;
     }
 
     private static List<(int r, int c)> BuildPerimeterClockwise(int rows, int cols)
     {
-        var list = new List<(int r, int c)>(2 * rows + 2 * cols - 4);
+        var list = new List<(int r, int c)>(Math.Max(0, 2 * rows + 2 * cols - 4));
+        if (rows < 2 || cols < 2) return list;
 
         int bottom = rows - 1;
         int top = 0;
@@ -150,6 +191,29 @@
             list.Add((r, right));
 
         return list;
+    }
+
+    private static (int rows, int cols) GuessDimensionsFromPerimeter(int perimeterCount)
+    {
+        // encontra par (r,c) tal que 2r + 2c - 4 == n, minimizando |r-c|
+        if (perimeterCount < 4) return (2, 2);
+        var best = (rows: 2, cols: Math.Max(2, perimeterCount / 2 + 1));
+        var bestScore = int.MaxValue;
+        for (int r = 2; r <= perimeterCount; r++)
+        {
+            var cNumerator = perimeterCount - 2 * r + 4;
+            if (cNumerator <= 0) continue;
+            if (cNumerator % 2 != 0) continue;
+            int c = cNumerator / 2;
+            if (c < 2) continue;
+            var score = Math.Abs(r - c);
+            if (score < bestScore)
+            {
+                bestScore = score;
+                best = (r, c);
+            }
+        }
+        return best;
     }
 
     private void OnCellClick(int index, MouseEventArgs e)
@@ -211,43 +275,70 @@
     private async Task SaveAsync()
     {
         await using var db = await DbFactory.CreateDbContextAsync();
-        BoardDefinitionEntity? board;
-        if (CurrentBoardId == Guid.Empty)
+        var isNew = CurrentBoardId == Guid.Empty;
+
+        if (isNew)
         {
-            board = new BoardDefinitionEntity
+            var newBoard = new BoardDefinitionEntity
             {
                 Id = Guid.NewGuid(),
-                Name = string.IsNullOrWhiteSpace(BoardName) ? $"Board {DateTime.UtcNow:yyyyMMddHHmmss}" : BoardName
+                Name = string.IsNullOrWhiteSpace(BoardName) ? $"Board {DateTime.UtcNow:yyyyMMddHHmmss}" : BoardName,
+                Rows = Rows,
+                Cols = Cols,
+                CellSizePx = CellSize
             };
-            db.Boards.Add(board);
-            CurrentBoardId = board.Id;
+            db.Boards.Add(newBoard);
+            await db.SaveChangesAsync();
+            CurrentBoardId = newBoard.Id;
         }
         else
         {
-            board = await db.Boards.Include(b => b.Blocks).FirstOrDefaultAsync(b => b.Id == CurrentBoardId);
-            if (board is null) return;
-            db.RemoveRange(board.Blocks);
+            var boardOnly = new BoardDefinitionEntity { Id = CurrentBoardId };
+            db.Attach(boardOnly);
+            db.Entry(boardOnly).Property(x => x.Name).CurrentValue = BoardName;
+            db.Entry(boardOnly).Property(x => x.Rows).CurrentValue = Rows;
+            db.Entry(boardOnly).Property(x => x.Cols).CurrentValue = Cols;
+            db.Entry(boardOnly).Property(x => x.CellSizePx).CurrentValue = CellSize;
+            db.Entry(boardOnly).Property(x => x.Name).IsModified = true;
+            db.Entry(boardOnly).Property(x => x.Rows).IsModified = true;
+            db.Entry(boardOnly).Property(x => x.Cols).IsModified = true;
+            db.Entry(boardOnly).Property(x => x.CellSizePx).IsModified = true;
             await db.SaveChangesAsync();
+
+            var existing = await db.BlockTemplates
+                .Where(x => x.BoardDefinitionId == CurrentBoardId)
+                .ToListAsync();
+            if (existing.Count > 0)
+            {
+                db.BlockTemplates.RemoveRange(existing);
+                await db.SaveChangesAsync();
+            }
         }
 
+        var toInsert = new List<BlockTemplateEntity>(Blocks.Count);
         for (var i = 0; i < Blocks.Count; i++)
         {
             var b = Blocks[i];
-            var entity = new BlockTemplateEntity
+            toInsert.Add(new BlockTemplateEntity
             {
                 Id = Guid.NewGuid(),
-                Position = i, // posição no caminho horário
+                Position = i,
                 Name = b.Name,
                 Description = b.Description,
                 ImageUrl = b.ImageUrl,
                 Color = b.Color,
                 Price = b.Price,
                 Rent = b.Rent,
-                Type = b.Type
-            };
-            board!.Blocks.Add(entity);
+                Type = b.Type,
+                BoardDefinitionId = CurrentBoardId
+            });
         }
-
+        db.BlockTemplates.AddRange(toInsert);
         await db.SaveChangesAsync();
+
+        if (isNew)
+        {
+            Nav.NavigateTo($"/board-builder/{CurrentBoardId}");
+        }
     }
 }

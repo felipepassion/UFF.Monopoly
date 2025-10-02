@@ -15,4 +15,7 @@ public class BlockTemplateEntity
     public int Price { get; set; }
     public int Rent { get; set; }
     public BlockType Type { get; set; }
+
+    // FK explícita para o board, necessária para compor índice único por board
+    public Guid BoardDefinitionId { get; set; }
 }

@@ -43,16 +43,21 @@ namespace UFF.Monopoly.Data
             builder.Entity<BlockTemplateEntity>(e =>
             {
                 e.HasKey(x => x.Id);
-                e.HasIndex(x => x.Position).IsUnique();
                 e.Property(x => x.Type).HasConversion<int>();
+                e.HasOne<BoardDefinitionEntity>()
+                 .WithMany(b => b.Blocks)
+                 .HasForeignKey(x => x.BoardDefinitionId)
+                 .OnDelete(DeleteBehavior.Cascade);
+                e.HasIndex(x => new { x.BoardDefinitionId, x.Position }).IsUnique();
             });
 
             builder.Entity<BoardDefinitionEntity>(e =>
             {
                 e.HasKey(x => x.Id);
-                e.HasMany<BlockTemplateEntity>()
-                 .WithOne()
-                 .OnDelete(DeleteBehavior.Cascade);
+                // basic constraints for layout fields
+                e.Property(x => x.Rows).HasDefaultValue(5);
+                e.Property(x => x.Cols).HasDefaultValue(5);
+                e.Property(x => x.CellSizePx).HasDefaultValue(64);
             });
         }
     }
