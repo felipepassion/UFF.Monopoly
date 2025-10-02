@@ -1,16 +1,12 @@
-﻿@using UFF.Monopoly.Components.Account.Shared
-@using UFF.Monopoly.Components.Pages
+﻿@using UFF.Monopoly.Components.Pages
 <Router AppAssembly="typeof(App).Assembly">
     <Found Context="routeData">
         <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)">
-            <NotAuthorized>
-                <RedirectToLogin />
-            </NotAuthorized>
+            
         </AuthorizeRouteView>
         <FocusOnNavigate RouteData="routeData" Selector="h1" />
     </Found>
     <NotFound>
         <PageTitle>Not Found</PageTitle>
-        <Pages.NotFound />
     </NotFound>
 </Router>

@@ -3,117 +3,240 @@
 @using UFF.Monopoly.Data
 @using UFF.Monopoly.Data.Entities
 @using Microsoft.EntityFrameworkCore
+@using Microsoft.AspNetCore.Components.Web
 @inject IDbContextFactory<ApplicationDbContext> DbFactory
 
 <h3>Board Builder</h3>
 
-<div>
-    <label>Board name</label>
-    <input @bind="BoardName" />
-    <button class="btn btn-primary" @onclick="CreateBoardAsync">Create</button>
+<div class="mb-3">
+    <label class="form-label">Nome do tabuleiro</label>
+    <input class="form-control" @bind="BoardName" />
 </div>
 
-@if (CurrentBoardId != Guid.Empty)
-{
-    <p>Editing board: @BoardName (@CurrentBoardId)</p>
-
-    <div class="mb-2">
-        <button class="btn btn-success" @onclick="AddBlock">Add Block</button>
-        <button class="btn btn-secondary" @onclick="SaveAsync">Save</button>
+<div class="row g-2 align-items-end mb-3">
+    <div class="col-auto">
+        <label class="form-label">Linhas</label>
+        <input class="form-control" type="number" min="2" @bind="Rows" />
     </div>
+    <div class="col-auto">
+        <label class="form-label">Colunas</label>
+        <input class="form-control" type="number" min="2" @bind="Cols" />
+    </div>
+    <div class="col-auto">
+        <label class="form-label">Tamanho da célula (px)</label>
+        <input class="form-control" type="number" min="20" @bind="CellSize" />
+    </div>
+    <div class="col-auto">
+        <button class="btn btn-primary" @onclick="GenerateGrid">Gerar tabuleiro</button>
+        <button class="btn btn-success ms-2" disabled="@(!Blocks?.Any() ?? true)" @onclick="SaveAsync">Salvar</button>
+    </div>
+</div>
 
-    <table class="table table-sm">
-        <thead>
-            <tr>
-                <th>#</th>
-                <th>Name</th>
-                <th>Type</th>
-                <th>Color</th>
-                <th>Price</th>
-                <th>Rent</th>
-                <th></th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var b in Blocks.OrderBy(b => b.Position))
+@if (Rows > 0 && Cols > 0)
+{
+    <div class="board-wrapper" @onclick="ClosePopup">
+        <div class="board-grid"
+             style="grid-template-columns: repeat(@Cols, @($"{CellSize}px")); grid-auto-rows: @($"{CellSize}px");">
+            @for (var r = 0; r < Rows; r++)
             {
-                <tr>
-                    <td><input type="number" style="width: 70px" @bind="b.Position" /></td>
-                    <td><input @bind="b.Name" /></td>
-                    <td>
-                        <select @bind="b.Type">
-                            @foreach (var t in Enum.GetValues<BlockType>())
-                            {
-                                <option value="@t">@t</option>
-                            }
-                        </select>
-                    </td>
-                    <td><input @bind="b.Color" style="width: 100px" /></td>
-                    <td><input type="number" @bind="b.Price" style="width: 80px" /></td>
-                    <td><input type="number" @bind="b.Rent" style="width: 80px" /></td>
-                    <td>
-                        <button class="btn btn-danger btn-sm" @onclick="(() => RemoveBlock(b))">X</button>
-                    </td>
-                </tr>
+                for (var c = 0; c < Cols; c++)
+                {
+                    if (CellToIndex.TryGetValue((r, c), out var index))
+                    {
+                        var b = Blocks[index];
+                        <div class="grid-cell perimeter"
+                             style="background:@GetCellBackground(b); color:@GetTextColorForBackground(GetCellBackground(b));"
+                             title="@($"{b.Type} - {b.Name}")"
+                             @onclick="(e => OnCellClick(index, e))"
+                             @onclick:stopPropagation="true">
+                            <div>
+                                <div class="cell-type">@b.Type</div>
+                                <div class="cell-index">@index</div>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="grid-cell empty"></div>
+                    }
+                }
             }
-        </tbody>
-    </table>
+        </div>
+
+        @if (Popup.Visible)
+        {
+            <div class="type-popup" style="top:@($"{Popup.Y}px"); left:@($"{Popup.X}px");"
+                 @onclick:stopPropagation="true">
+                <div class="type-list">
+                    @foreach (var t in Enum.GetValues<BlockType>())
+                    {
+                        <button class="type-option"
+                                style="background:@GetTypeColor(t); color:@GetTextColorForBackground(GetTypeColor(t));"
+                                @onclick="(() => SelectType(t))">
+                            @t
+                        </button>
+                    }
+                </div>
+            </div>
+        }
+    </div>
 }
 
 @code {
     private Guid CurrentBoardId;
     private string BoardName = string.Empty;
+
+    private int Rows = 5;
+    private int Cols = 5;
+    private int CellSize = 64;
+
     private List<BlockTemplateEntity> Blocks = new();
 
-    private async Task CreateBoardAsync()
-    {
-        await using var db = await DbFactory.CreateDbContextAsync();
-        var entity = new BoardDefinitionEntity
-        {
-            Id = Guid.NewGuid(),
-            Name = string.IsNullOrWhiteSpace(BoardName) ? $"Board {DateTime.UtcNow:yyyyMMddHHmmss}" : BoardName
-        };
-        db.Boards.Add(entity);
-        await db.SaveChangesAsync();
-        CurrentBoardId = entity.Id;
-        Blocks.Clear();
-    }
+    // Mapa linha/coluna -> índice do bloco no caminho horário (perímetro)
+    private Dictionary<(int r, int c), int> CellToIndex = new();
 
-    private void AddBlock()
+    private (bool Visible, int X, int Y, int Index) Popup;
+
+    private void GenerateGrid()
     {
-        Blocks.Add(new BlockTemplateEntity
+        Rows = Math.Max(2, Rows);
+        Cols = Math.Max(2, Cols);
+
+        // Gera as coordenadas do perímetro em sentido horário
+        var coords = BuildPerimeterClockwise(Rows, Cols);
+        CellToIndex = new Dictionary<(int r, int c), int>(coords.Count);
+
+        for (int i = 0; i < coords.Count; i++)
+        {
+            CellToIndex[(coords[i].r, coords[i].c)] = i;
+        }
+
+        // Cria os blocos apenas para o perímetro
+        Blocks = Enumerable.Range(0, coords.Count).Select(i => new BlockTemplateEntity
         {
             Id = Guid.NewGuid(),
-            Position = Blocks.Count,
-            Name = "Property",
+            Position = i,
+            Name = $"Bloco {i}",
             Type = BlockType.Property,
-            Price = 100,
-            Rent = 10,
-            Color = "#FFFFFF"
-        });
+            Color = GetTypeColor(BlockType.Property),
+            Price = 0,
+            Rent = 0
+        }).ToList();
     }
 
-    private void RemoveBlock(BlockTemplateEntity block)
+    private static List<(int r, int c)> BuildPerimeterClockwise(int rows, int cols)
     {
-        Blocks.Remove(block);
+        var list = new List<(int r, int c)>(2 * rows + 2 * cols - 4);
+
+        int bottom = rows - 1;
+        int top = 0;
+        int left = 0;
+        int right = cols - 1;
+
+        // Começa no canto inferior direito (GO) e vai para a esquerda
+        for (int c = right; c >= left; c--)
+            list.Add((bottom, c));
+
+        // Sobe a coluna da esquerda (exclui o canto inferior esquerdo já adicionado)
+        for (int r = bottom - 1; r >= top; r--)
+            list.Add((r, left));
+
+        // Vai para a direita na linha do topo (exclui o canto superior esquerdo)
+        for (int c = left + 1; c <= right; c++)
+            list.Add((top, c));
+
+        // Desce a coluna da direita (exclui os cantos superior direito e inferior direito)
+        for (int r = top + 1; r <= bottom - 1; r++)
+            list.Add((r, right));
+
+        return list;
+    }
+
+    private void OnCellClick(int index, MouseEventArgs e)
+    {
+        Popup = (true, (int)e.ClientX, (int)e.ClientY, index);
+        StateHasChanged();
+    }
+
+    private void ClosePopup()
+    {
+        Popup.Visible = false;
+        StateHasChanged();
+    }
+
+    private void SelectType(BlockType type)
+    {
+        var idx = Popup.Index;
+        if (idx >= 0 && idx < Blocks.Count)
+        {
+            Blocks[idx].Type = type;
+            Blocks[idx].Color = GetTypeColor(type);
+            Blocks[idx].Name = type.ToString();
+        }
+        Popup.Visible = false;
+        StateHasChanged();
+    }
+
+    private string GetCellBackground(BlockTemplateEntity b)
+        => string.IsNullOrWhiteSpace(b.Color) ? GetTypeColor(b.Type) : b.Color;
+
+    private string GetTypeColor(BlockType t) => t switch
+    {
+        BlockType.Go => "#27ae60",
+        BlockType.Property => "#3498db",
+        BlockType.Tax => "#e74c3c",
+        BlockType.Jail => "#f1c40f",
+        BlockType.GoToJail => "#d35400",
+        _ => "#95a5a6"
+    };
+
+    private string GetTextColorForBackground(string? bg)
+    {
+        if (string.IsNullOrWhiteSpace(bg)) return "#111827";
+        try
+        {
+            if (bg.StartsWith("#") && bg.Length == 7)
+            {
+                var r = Convert.ToInt32(bg.Substring(1, 2), 16);
+                var g = Convert.ToInt32(bg.Substring(3, 2), 16);
+                var b = Convert.ToInt32(bg.Substring(5, 2), 16);
+                var yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+                return yiq >= 128 ? "#111827" : "#ffffff";
+            }
+        }
+        catch { }
+        return "#111827";
     }
 
     private async Task SaveAsync()
     {
-        if (CurrentBoardId == Guid.Empty) return;
         await using var db = await DbFactory.CreateDbContextAsync();
-        var board = await db.Boards.Include(b => b.Blocks).FirstOrDefaultAsync(b => b.Id == CurrentBoardId);
-        if (board == null) return;
-
-        db.RemoveRange(board.Blocks);
-        await db.SaveChangesAsync();
-
-        foreach (var b in Blocks)
+        BoardDefinitionEntity? board;
+        if (CurrentBoardId == Guid.Empty)
         {
+            board = new BoardDefinitionEntity
+            {
+                Id = Guid.NewGuid(),
+                Name = string.IsNullOrWhiteSpace(BoardName) ? $"Board {DateTime.UtcNow:yyyyMMddHHmmss}" : BoardName
+            };
+            db.Boards.Add(board);
+            CurrentBoardId = board.Id;
+        }
+        else
+        {
+            board = await db.Boards.Include(b => b.Blocks).FirstOrDefaultAsync(b => b.Id == CurrentBoardId);
+            if (board is null) return;
+            db.RemoveRange(board.Blocks);
+            await db.SaveChangesAsync();
+        }
+
+        for (var i = 0; i < Blocks.Count; i++)
+        {
+            var b = Blocks[i];
             var entity = new BlockTemplateEntity
             {
                 Id = Guid.NewGuid(),
-                Position = b.Position,
+                Position = i, // posição no caminho horário
                 Name = b.Name,
                 Description = b.Description,
                 ImageUrl = b.ImageUrl,
@@ -122,7 +245,7 @@
                 Rent = b.Rent,
                 Type = b.Type
             };
-            board.Blocks.Add(entity);
+            board!.Blocks.Add(entity);
         }
 
         await db.SaveChangesAsync();

@@ -4,7 +4,7 @@ using UFF.Monopoly.Data.Entities;
 
 namespace UFF.Monopoly.Data
 {
-    public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : IdentityDbContext<ApplicationUser>(options)
+    public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : DbContext(options)
     {
         public DbSet<GameStateEntity> Games => Set<GameStateEntity>();
         public DbSet<PlayerStateEntity> Players => Set<PlayerStateEntity>();
