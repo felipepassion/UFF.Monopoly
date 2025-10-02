@@ -1,0 +1,130 @@
+@page "/board-builder"
+@using UFF.Monopoly.Entities
+@using UFF.Monopoly.Data
+@using UFF.Monopoly.Data.Entities
+@using Microsoft.EntityFrameworkCore
+@inject IDbContextFactory<ApplicationDbContext> DbFactory
+
+<h3>Board Builder</h3>
+
+<div>
+    <label>Board name</label>
+    <input @bind="BoardName" />
+    <button class="btn btn-primary" @onclick="CreateBoardAsync">Create</button>
+</div>
+
+@if (CurrentBoardId != Guid.Empty)
+{
+    <p>Editing board: @BoardName (@CurrentBoardId)</p>
+
+    <div class="mb-2">
+        <button class="btn btn-success" @onclick="AddBlock">Add Block</button>
+        <button class="btn btn-secondary" @onclick="SaveAsync">Save</button>
+    </div>
+
+    <table class="table table-sm">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Color</th>
+                <th>Price</th>
+                <th>Rent</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var b in Blocks.OrderBy(b => b.Position))
+            {
+                <tr>
+                    <td><input type="number" style="width: 70px" @bind="b.Position" /></td>
+                    <td><input @bind="b.Name" /></td>
+                    <td>
+                        <select @bind="b.Type">
+                            @foreach (var t in Enum.GetValues<BlockType>())
+                            {
+                                <option value="@t">@t</option>
+                            }
+                        </select>
+                    </td>
+                    <td><input @bind="b.Color" style="width: 100px" /></td>
+                    <td><input type="number" @bind="b.Price" style="width: 80px" /></td>
+                    <td><input type="number" @bind="b.Rent" style="width: 80px" /></td>
+                    <td>
+                        <button class="btn btn-danger btn-sm" @onclick="(() => RemoveBlock(b))">X</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private Guid CurrentBoardId;
+    private string BoardName = string.Empty;
+    private List<BlockTemplateEntity> Blocks = new();
+
+    private async Task CreateBoardAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var entity = new BoardDefinitionEntity
+        {
+            Id = Guid.NewGuid(),
+            Name = string.IsNullOrWhiteSpace(BoardName) ? $"Board {DateTime.UtcNow:yyyyMMddHHmmss}" : BoardName
+        };
+        db.Boards.Add(entity);
+        await db.SaveChangesAsync();
+        CurrentBoardId = entity.Id;
+        Blocks.Clear();
+    }
+
+    private void AddBlock()
+    {
+        Blocks.Add(new BlockTemplateEntity
+        {
+            Id = Guid.NewGuid(),
+            Position = Blocks.Count,
+            Name = "Property",
+            Type = BlockType.Property,
+            Price = 100,
+            Rent = 10,
+            Color = "#FFFFFF"
+        });
+    }
+
+    private void RemoveBlock(BlockTemplateEntity block)
+    {
+        Blocks.Remove(block);
+    }
+
+    private async Task SaveAsync()
+    {
+        if (CurrentBoardId == Guid.Empty) return;
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var board = await db.Boards.Include(b => b.Blocks).FirstOrDefaultAsync(b => b.Id == CurrentBoardId);
+        if (board == null) return;
+
+        db.RemoveRange(board.Blocks);
+        await db.SaveChangesAsync();
+
+        foreach (var b in Blocks)
+        {
+            var entity = new BlockTemplateEntity
+            {
+                Id = Guid.NewGuid(),
+                Position = b.Position,
+                Name = b.Name,
+                Description = b.Description,
+                ImageUrl = b.ImageUrl,
+                Color = b.Color,
+                Price = b.Price,
+                Rent = b.Rent,
+                Type = b.Type
+            };
+            board.Blocks.Add(entity);
+        }
+
+        await db.SaveChangesAsync();
+    }
+}

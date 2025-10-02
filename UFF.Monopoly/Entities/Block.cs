@@ -16,7 +16,6 @@ public class Block
     // Action to be executed when a player lands on this block.
     public virtual Task Action(Game game, Player player)
     {
-        // Default behavior based on type
         switch (Type)
         {
             case BlockType.Go:
@@ -35,10 +34,7 @@ public class Block
                 game.SendToJail(player);
                 break;
             case BlockType.Jail:
-            case BlockType.FreeParking:
-            case BlockType.Chance:
-            case BlockType.CommunityChest:
-                // Not implemented in minimal version
+                // just visiting when landing
                 break;
         }
         return Task.CompletedTask;

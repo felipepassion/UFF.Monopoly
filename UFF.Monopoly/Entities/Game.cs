@@ -4,7 +4,7 @@ namespace UFF.Monopoly.Entities;
 
 public class Game
 {
-    public const int BoardSize = 40;
+    public int BoardSize => _board.Count;
     public const int GoSalary = 200;
     public int CurrentPlayerIndex { get; private set; } = 0;
     public bool IsFinished { get; private set; } = false;
@@ -43,9 +43,9 @@ public class Game
         if (player.IsBankrupt) { NextTurn(); return; }
 
         var oldPos = player.CurrentPosition;
+        var looped = oldPos + steps >= BoardSize;
         var newPos = (oldPos + steps) % BoardSize;
-        // Passed or landed on GO
-        if (oldPos + steps >= BoardSize)
+        if (looped)
         {
             player.Money += GoSalary;
         }
@@ -56,7 +56,6 @@ public class Game
 
         if (player.Money < 0)
         {
-            // simple bankruptcy rule
             player.IsBankrupt = true;
             foreach (var prop in player.OwnedProperties)
             {
@@ -95,14 +94,15 @@ public class Game
     {
         player.InJail = true;
         player.JailTurns = 0;
-        player.CurrentPosition = BoardPositions.Jail;
+        // On reduced board, jail is first found block of type Jail
+        var jailPos = _board.First(b => b.Type == BlockType.Jail).Position;
+        player.CurrentPosition = jailPos;
     }
 
     public async Task HandleJailAsync(Player player, IRandomDice? dice = null)
     {
         if (!player.InJail) return;
         dice ??= new RandomDice();
-        // minimal rules: 3 turns max, doubles gets out, or pay 50
         if (player.GetOutOfJailFreeCards > 0)
         {
             player.GetOutOfJailFreeCards--;
@@ -126,13 +126,6 @@ public class Game
             player.InJail = false;
         }
     }
-}
-
-public static class BoardPositions
-{
-    public const int Go = 0;
-    public const int Jail = 10;
-    public const int GoToJail = 30;
 }
 
 public interface IRandomDice
