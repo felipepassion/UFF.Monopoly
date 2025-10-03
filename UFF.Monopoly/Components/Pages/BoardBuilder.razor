@@ -5,108 +5,212 @@
 @using UFF.Monopoly.Data.Entities
 @using Microsoft.EntityFrameworkCore
 @using Microsoft.AspNetCore.Components.Web
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.AspNetCore.Components
+@using System.ComponentModel.DataAnnotations
 @inject IDbContextFactory<ApplicationDbContext> DbFactory
 @inject NavigationManager Nav
 
-<h3>Board Builder</h3>
+<h3 class="mb-2">Board Builder</h3>
 
-<div class="mb-3">
-    <label class="form-label">Nome do tabuleiro</label>
-    <input class="form-control" @bind="BoardName" />
-</div>
-
-<div class="row g-2 align-items-end mb-3">
-    <div class="col-auto">
-        <label class="form-label">Linhas</label>
-        <input class="form-control" type="number" min="2" @bind="Rows" />
-    </div>
-    <div class="col-auto">
-        <label class="form-label">Colunas</label>
-        <input class="form-control" type="number" min="2" @bind="Cols" />
-    </div>
-    <div class="col-auto">
-        <label class="form-label">Tamanho da célula (px)</label>
-        <input class="form-control" type="number" min="20" @bind="CellSize" />
-    </div>
-    <div class="col-auto">
-        <button class="btn btn-primary" @onclick="GenerateGrid">Gerar tabuleiro</button>
-        <button class="btn btn-success ms-2" disabled="@(!Blocks?.Any() ?? true)" @onclick="SaveAsync">Salvar</button>
-    </div>
-</div>
-
-@if (Rows > 0 && Cols > 0)
+@if (ShowToast)
 {
-    <div class="board-wrapper" @onclick="ClosePopup">
-        <div class="board-grid"
-             style="grid-template-columns: repeat(@Cols, @($"{CellSize}px")); grid-auto-rows: @($"{CellSize}px");">
-            @for (var r = 0; r < Rows; r++)
-            {
-                for (var c = 0; c < Cols; c++)
+    <div class="position-fixed top-0 end-0 p-2" style="z-index:1080;">
+        <div class="alert alert-success shadow mb-0 py-1 px-2">@ToastMessage</div>
+    </div>
+}
+
+<div class="row gx-2 gy-2 align-items-start">
+    <!-- Left: Boards list + Configuration form stacked -->
+    <div class="col-12 col-xl-3">
+        <div class="card h-100 mb-2">
+            <div class="card-body p-2">
+                <div class="fw-semibold mb-2">Boards existentes</div>
+                @if (ExistingBoards.Count == 0)
                 {
-                    if (CellToIndex.TryGetValue((r, c), out var index))
-                    {
-                        var b = index >= 0 && index < Blocks.Count ? Blocks[index] : null;
-                        if (b is null)
-                        {
-                            <div class="grid-cell empty"></div>
-                        }
-                        else
-                        {
-                            <div class="grid-cell perimeter"
-                                 style="background:@GetCellBackground(b); color:@GetTextColorForBackground(GetCellBackground(b));"
-                                 title="@($"{b.Type} - {b.Name}")"
-                                 @onclick="(e => OnCellClick(index, e))"
-                                 @onclick:stopPropagation="true">
-                                <div>
-                                    <div class="cell-type">@b.Type</div>
-                                    <div class="cell-index">@index</div>
-                                </div>
-                            </div>
-                        }
-                    }
-                    else
-                    {
-                        <div class="grid-cell empty"></div>
-                    }
+                    <div class="text-muted small">Nenhum board salvo ainda.</div>
                 }
-            }
+                else
+                {
+                    <ul class="list-group list-group-flush">
+                        @foreach (var b in ExistingBoards.OrderByDescending(b => b.CreatedAt))
+                        {
+                            <li class="list-group-item py-2 px-2 d-flex justify-content-between align-items-center">
+                                <button class="btn btn-link p-0 text-start" @onclick="(() => EditBoard(b.Id))">@b.Name</button>
+                                <small class="text-muted">@b.Rows x @b.Cols</small>
+                            </li>
+                        }
+                    </ul>
+                }
+                <div class="mt-2">
+                    <button class="btn btn-sm btn-outline-secondary w-100" @onclick="NewBoard">Novo board</button>
+                </div>
+            </div>
         </div>
 
-        @if (Popup.Visible)
+        <div class="card">
+            <div class="card-body p-2">
+                <EditForm Model="Form" OnValidSubmit="SaveAsync">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary />
+
+                    <div class="mb-2">
+                        <label class="form-label mb-1">Nome do tabuleiro</label>
+                        <InputText class="form-control form-control-sm" @bind-Value="Form.Name" />
+                        <ValidationMessage For="@(() => Form.Name)" />
+                    </div>
+
+                    <div class="row gx-2">
+                        <div class="col-4 mb-2">
+                            <label class="form-label mb-1">Linhas</label>
+                            <InputNumber class="form-control form-control-sm" @bind-Value="Form.Rows" />
+                            <ValidationMessage For="@(() => Form.Rows)" />
+                        </div>
+                        <div class="col-4 mb-2">
+                            <label class="form-label mb-1">Colunas</label>
+                            <InputNumber class="form-control form-control-sm" @bind-Value="Form.Cols" />
+                            <ValidationMessage For="@(() => Form.Cols)" />
+                        </div>
+                        <div class="col-4 mb-2">
+                            <label class="form-label mb-1">Célula (px)</label>
+                            <InputNumber class="form-control form-control-sm" @bind-Value="Form.CellSize" />
+                            <ValidationMessage For="@(() => Form.CellSize)" />
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-1">
+                        <button type="button" class="btn btn-primary btn-sm" @onclick="GenerateGrid">Gerar tabuleiro</button>
+                        <button type="submit" class="btn btn-success btn-sm" disabled="@(!Blocks?.Any() ?? true)">Salvar</button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+
+    <!-- Center: Grid / Board preview fills remaining space -->
+    <div class="col-12 col-xl-9">
+        @if (Form.Rows > 0 && Form.Cols > 0)
         {
-            <div class="type-popup" style="top:@($"{Popup.Y}px"); left:@($"{Popup.X}px");"
-                 @onclick:stopPropagation="true">
-                <div class="type-list">
-                    @foreach (var t in Enum.GetValues<BlockType>())
+            <div class="board-wrapper position-relative" @onclick="ClosePopup">
+                <div class="board-grid"
+                     style="grid-template-columns: repeat(@Form.Cols, @($"{Form.CellSize}px")); grid-auto-rows: @($"{Form.CellSize}px");">
+                    @for (var r = 0; r < Form.Rows; r++)
                     {
-                        <button class="type-option"
-                                style="background:@GetTypeColor(t); color:@GetTextColorForBackground(GetTypeColor(t));"
-                                @onclick="(() => SelectType(t))">
-                            @t
-                        </button>
+                        for (var c = 0; c < Form.Cols; c++)
+                        {
+                            if (CellToIndex.TryGetValue((r, c), out var index))
+                            {
+                                var b = index >= 0 && index < Blocks.Count ? Blocks[index] : null;
+                                if (b is null)
+                                {
+                                    <div class="grid-cell empty"></div>
+                                }
+                                else
+                                {
+                                    <div class="grid-cell perimeter position-relative"
+                                         style="background:@GetCellBackground(b); color:@GetTextColorForBackground(GetCellBackground(b));"
+                                         title="@($"{b.Type} - {b.Name}")"
+                                         @onclick="(e => OnCellClick(index, e))"
+                                         @onclick:stopPropagation="true">
+                                        @if (!string.IsNullOrWhiteSpace(b.ImageUrl))
+                                        {
+                                            <img src="@b.ImageUrl" alt="@b.Name" style="position:absolute; inset:0; width:100%; height:100%; object-fit:contain;" />
+                                        }
+                                        else
+                                        {
+                                            <div>
+                                                <div class="cell-type">@b.Type</div>
+                                                <div class="cell-index">@index</div>
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                            }
+                            else
+                            {
+                                <div class="grid-cell empty"></div>
+                            }
+                        }
                     }
                 </div>
+
+                @if (Popup.Visible)
+                {
+                    <div class="type-popup shadow rounded bg-white border"
+                         style="position:fixed; top:@($"{Popup.Y}px"); left:@($"{Popup.X}px"); z-index: 1050; max-height:80vh; overflow:auto;"
+                         @onclick:stopPropagation="true">
+                        <div class="mb-1 fw-bold small px-2 pt-2">Tipo</div>
+                        <div class="type-list mb-2 px-2"> 
+                            @foreach (var t in Enum.GetValues<BlockType>())
+                            {
+                                <button class="type-option btn w-100 mb-1"
+                                        style="background:@GetTypeColor(t); color:@GetTextColorForBackground(GetTypeColor(t));"
+                                        @onclick="(() => SelectType(t))">
+                                    @t
+                                </button>
+                            }
+                        </div>
+
+                        <div class="mb-1 fw-bold small px-2">Visual</div>
+                        <div class="visual-list d-flex flex-wrap gap-2 px-2 pb-2">
+                            @foreach (var v in VisualOptions)
+                            {
+                                <button class="visual-option btn p-0 border" title="@v.Label" @onclick="(() => SelectVisual(v))">
+                                    <img src="@v.Url" alt="@v.Label" style="width:48px;height:48px;object-fit:contain;" />
+                                </button>
+                            }
+                            <button class="btn btn-sm btn-outline-secondary" title="Sem visual" @onclick="ClearVisual">Sem visual</button>
+                        </div>
+                    </div>
+                }
             </div>
         }
     </div>
-}
+</div>
 
 @code {
     [Parameter]
     public Guid? BoardId { get; set; }
 
-    private Guid CurrentBoardId;
-    private string BoardName = string.Empty;
+    [SupplyParameterFromQuery]
+    public bool Saved { get; set; }
 
-    private int Rows = 5;
-    private int Cols = 5;
-    private int CellSize = 64;
+    private bool _savedToastShown;
+
+    private Guid CurrentBoardId;
+
+    private BoardFormModel Form = new();
 
     private List<BlockTemplateEntity> Blocks = new();
+
+    private List<BoardDefinitionEntity> ExistingBoards = new();
 
     private Dictionary<(int r, int c), int> CellToIndex = new();
 
     private (bool Visible, int X, int Y, int Index) Popup;
+
+    private bool ShowToast;
+    private string ToastMessage = string.Empty;
+
+    private readonly List<VisualOption> VisualOptions = new()
+    {
+        new("/images/blocks/property_basic.svg", "Propriedade básica", BlockType.Property),
+        new("/images/blocks/property_praia.svg", "Propriedade praia", BlockType.Property),
+        new("/images/blocks/property_predio_av_atlantica.svg", "Propriedade prédio Av. Atlântica", BlockType.Property),
+        new("/images/blocks/caminho_praia.svg", "Caminho praia", null),
+        new("/images/blocks/caminho_reto_campo.svg", "Caminho reto campo", null),
+        new("/images/blocks/caminho_estrada_diagonal.svg", "Caminho estrada diagonal", null),
+        new("/images/blocks/go_to_jail.svg", "Vá para a prisão", BlockType.GoToJail),
+        new("/images/blocks/visitar_prisao.svg", "Visitar prisão", BlockType.Jail),
+        new("/images/blocks/volte-casas.svg", "Volte casas", null)
+    };
+
+    private record VisualOption(string Url, string Label, BlockType? InferredType);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadBoardsListAsync();
+    }
 
     protected override async Task OnParametersSetAsync()
     {
@@ -114,6 +218,18 @@
         {
             await LoadBoardAsync(BoardId.Value);
         }
+
+        if (Saved && !_savedToastShown)
+        {
+            _savedToastShown = true;
+            _ = ShowSuccessToast("Salvo com sucesso!");
+        }
+    }
+
+    private async Task LoadBoardsListAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        ExistingBoards = await db.Boards.AsNoTracking().OrderByDescending(b => b.CreatedAt).ToListAsync();
     }
 
     private async Task LoadBoardAsync(Guid id)
@@ -126,20 +242,34 @@
         }
 
         CurrentBoardId = id;
-        BoardName = board.Name;
-        Rows = board.Rows;
-        Cols = board.Cols;
-        CellSize = board.CellSizePx;
+        Form.Name = board.Name;
+        Form.Rows = board.Rows;
+        Form.Cols = board.Cols;
+        Form.CellSize = board.CellSizePx;
 
         Blocks = board.Blocks.OrderBy(b => b.Position).ToList();
         RebuildPerimeterMap();
         StateHasChanged();
     }
 
+    private void NewBoard()
+    {
+        CurrentBoardId = Guid.Empty;
+        Form = new BoardFormModel();
+        Blocks = new();
+        CellToIndex.Clear();
+        StateHasChanged();
+    }
+
+    private void EditBoard(Guid id)
+    {
+        Nav.NavigateTo($"/board-builder/{id}");
+    }
+
     private void GenerateGrid()
     {
-        Rows = Math.Max(2, Rows);
-        Cols = Math.Max(2, Cols);
+        Form.Rows = Math.Max(2, Form.Rows);
+        Form.Cols = Math.Max(2, Form.Cols);
         RebuildPerimeterMap();
 
         var total = CellToIndex.Count;
@@ -150,6 +280,7 @@
             Name = $"Bloco {i}",
             Type = BlockType.Property,
             Color = GetTypeColor(BlockType.Property),
+            ImageUrl = "/images/blocks/property_basic.svg",
             Price = 0,
             Rent = 0,
             BoardDefinitionId = CurrentBoardId
@@ -158,7 +289,7 @@
 
     private void RebuildPerimeterMap()
     {
-        var coords = BuildPerimeterClockwise(Rows, Cols);
+        var coords = BuildPerimeterClockwise(Form.Rows, Form.Cols);
         CellToIndex = new Dictionary<(int r, int c), int>(coords.Count);
         for (int i = 0; i < coords.Count; i++)
             CellToIndex[(coords[i].r, coords[i].c)] = i;
@@ -174,28 +305,16 @@
         int left = 0;
         int right = cols - 1;
 
-        // Começa no canto inferior direito (GO) e vai para a esquerda
-        for (int c = right; c >= left; c--)
-            list.Add((bottom, c));
-
-        // Sobe a coluna da esquerda (exclui o canto inferior esquerdo já adicionado)
-        for (int r = bottom - 1; r >= top; r--)
-            list.Add((r, left));
-
-        // Vai para a direita na linha do topo (exclui o canto superior esquerdo)
-        for (int c = left + 1; c <= right; c++)
-            list.Add((top, c));
-
-        // Desce a coluna da direita (exclui os cantos superior direito e inferior direito)
-        for (int r = top + 1; r <= bottom - 1; r++)
-            list.Add((r, right));
+        for (int c = right; c >= left; c--) list.Add((bottom, c));
+        for (int r = bottom - 1; r >= top; r--) list.Add((r, left));
+        for (int c = left + 1; c <= right; c++) list.Add((top, c));
+        for (int r = top + 1; r <= bottom - 1; r++) list.Add((r, right));
 
         return list;
     }
 
     private static (int rows, int cols) GuessDimensionsFromPerimeter(int perimeterCount)
     {
-        // encontra par (r,c) tal que 2r + 2c - 4 == n, minimizando |r-c|
         if (perimeterCount < 4) return (2, 2);
         var best = (rows: 2, cols: Math.Max(2, perimeterCount / 2 + 1));
         var bestScore = int.MaxValue;
@@ -235,7 +354,38 @@
         {
             Blocks[idx].Type = type;
             Blocks[idx].Color = GetTypeColor(type);
+            if (string.IsNullOrWhiteSpace(Blocks[idx].ImageUrl))
+            {
+                Blocks[idx].ImageUrl = GetDefaultImageForType(type);
+            }
             Blocks[idx].Name = type.ToString();
+        }
+        Popup.Visible = false;
+        StateHasChanged();
+    }
+
+    private void SelectVisual(VisualOption v)
+    {
+        var idx = Popup.Index;
+        if (idx >= 0 && idx < Blocks.Count)
+        {
+            Blocks[idx].ImageUrl = v.Url;
+            if (v.InferredType.HasValue)
+            {
+                Blocks[idx].Type = v.InferredType.Value;
+                Blocks[idx].Color = GetTypeColor(v.InferredType.Value);
+            }
+        }
+        Popup.Visible = false;
+        StateHasChanged();
+    }
+
+    private void ClearVisual()
+    {
+        var idx = Popup.Index;
+        if (idx >= 0 && idx < Blocks.Count)
+        {
+            Blocks[idx].ImageUrl = string.Empty;
         }
         Popup.Visible = false;
         StateHasChanged();
@@ -252,6 +402,16 @@
         BlockType.Jail => "#f1c40f",
         BlockType.GoToJail => "#d35400",
         _ => "#95a5a6"
+    };
+
+    private string GetDefaultImageForType(BlockType t) => t switch
+    {
+        BlockType.Property => "/images/blocks/property_basic.svg",
+        BlockType.GoToJail => "/images/blocks/go_to_jail.svg",
+        BlockType.Jail => "/images/blocks/visitar_prisao.svg",
+        BlockType.Tax => "/images/blocks/volte-casas.svg",
+        BlockType.Go => "/images/blocks/property_basic.svg",
+        _ => "/images/blocks/property_basic.svg"
     };
 
     private string GetTextColorForBackground(string? bg)
@@ -282,10 +442,10 @@
             var newBoard = new BoardDefinitionEntity
             {
                 Id = Guid.NewGuid(),
-                Name = string.IsNullOrWhiteSpace(BoardName) ? $"Board {DateTime.UtcNow:yyyyMMddHHmmss}" : BoardName,
-                Rows = Rows,
-                Cols = Cols,
-                CellSizePx = CellSize
+                Name = string.IsNullOrWhiteSpace(Form.Name) ? $"Board {DateTime.UtcNow:yyyyMMddHHmmss}" : Form.Name.Trim(),
+                Rows = Form.Rows,
+                Cols = Form.Cols,
+                CellSizePx = Form.CellSize
             };
             db.Boards.Add(newBoard);
             await db.SaveChangesAsync();
@@ -295,10 +455,10 @@
         {
             var boardOnly = new BoardDefinitionEntity { Id = CurrentBoardId };
             db.Attach(boardOnly);
-            db.Entry(boardOnly).Property(x => x.Name).CurrentValue = BoardName;
-            db.Entry(boardOnly).Property(x => x.Rows).CurrentValue = Rows;
-            db.Entry(boardOnly).Property(x => x.Cols).CurrentValue = Cols;
-            db.Entry(boardOnly).Property(x => x.CellSizePx).CurrentValue = CellSize;
+            db.Entry(boardOnly).Property(x => x.Name).CurrentValue = Form.Name.Trim();
+            db.Entry(boardOnly).Property(x => x.Rows).CurrentValue = Form.Rows;
+            db.Entry(boardOnly).Property(x => x.Cols).CurrentValue = Form.Cols;
+            db.Entry(boardOnly).Property(x => x.CellSizePx).CurrentValue = Form.CellSize;
             db.Entry(boardOnly).Property(x => x.Name).IsModified = true;
             db.Entry(boardOnly).Property(x => x.Rows).IsModified = true;
             db.Entry(boardOnly).Property(x => x.Cols).IsModified = true;
@@ -336,9 +496,45 @@
         db.BlockTemplates.AddRange(toInsert);
         await db.SaveChangesAsync();
 
+        await LoadBoardsListAsync();
+
         if (isNew)
         {
-            Nav.NavigateTo($"/board-builder/{CurrentBoardId}");
+            Nav.NavigateTo($"/board-builder/{CurrentBoardId}?saved=1");
         }
+        else
+        {
+            await ShowSuccessToast("Salvo com sucesso!");
+        }
+    }
+
+    private async Task ShowSuccessToast(string message)
+    {
+        ToastMessage = message;
+        ShowToast = true;
+        StateHasChanged();
+        try
+        {
+            await Task.Delay(2000);
+        }
+        catch { }
+        ShowToast = false;
+        StateHasChanged();
+    }
+
+    private class BoardFormModel
+    {
+        [Required(ErrorMessage = "Nome é obrigatório")]
+        [StringLength(100, MinimumLength = 3, ErrorMessage = "Nome deve ter entre 3 e 100 caracteres")]
+        public string Name { get; set; } = string.Empty;
+
+        [Range(2, 30, ErrorMessage = "Linhas deve estar entre 2 e 30")]
+        public int Rows { get; set; } = 5;
+
+        [Range(2, 30, ErrorMessage = "Colunas deve estar entre 2 e 30")]
+        public int Cols { get; set; } = 5;
+
+        [Range(20, 200, ErrorMessage = "Tamanho da célula deve estar entre 20 e 200")]
+        public int CellSize { get; set; } = 64;
     }
 }

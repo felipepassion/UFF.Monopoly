@@ -1,77 +1,183 @@
 ﻿@page "/"
 
+@using Microsoft.EntityFrameworkCore
+@using UFF.Monopoly.Data
+@using UFF.Monopoly.Data.Entities
+@using UFF.Monopoly.Models
+@using UFF.Monopoly.Repositories
+@using UFF.Monopoly.Entities
+@inject IDbContextFactory<ApplicationDbContext> DbFactory
+@inject IGameRepository GameRepo
+@inject NavigationManager Nav
+@inject UFF.Monopoly.Infrastructure.IUserProfileService Profiles
+
 @rendermode InteractiveServer
 
-<h1>Monopoly Web</h1>
+<GameHeader Boards="Boards" SelectedBoardId="SelectedBoardId" IsGameRunning="IsGameRunning"
+            PlayerName="PlayerName"
+            OnBoardChanged="OnBoardChangedFromHeader" OnStart="StartGame" OnEnd="ResetGame" OnRoll="RollAndMove"
+            OnPlayerNameChanged="OnPlayerNameChanged" OnPawnChanged="OnPawnChanged" />
 
-<div id="game-board-container" style="position:relative; width:800px; height:800px;">
-    @foreach (var space in BoardSpaces)
-    {
-        <BoardSpace Space="space" OnClick="HandleClick" />
-    }
+<div class="mt-2">
+    <div class="d-inline-block" style="background:#0e1620;border:1px solid #223444;border-radius:8px;padding:6px;">
+        <div id="game-board-container" style="position:relative; width:@(Cols * CellSize)px; height:@(Rows * CellSize)px;">
+            @foreach (var space in BoardSpaces)
+            {
+                <BoardSpace Space="space" OnClick="HandleClick" />
+            }
+
+            @if (IsGameRunning && CurrentPlayer is not null)
+            {
+                var renderIndex = _pawnAnimPosition >= 0 ? _pawnAnimPosition : CurrentPlayer.CurrentPosition;
+                var (pxTop, pxLeft) = GetTokenPosition(renderIndex);
+                <img src="@PawnUrl" alt="pawn"
+                     style="position:absolute; width:@($"{CellSize * 0.6}px"); height:@($"{CellSize * 0.6}px"); object-fit:contain; top:@pxTop; left:@pxLeft; transform:translate(20%,20%); transition: top @_animStepMs ms linear, left @_animStepMs ms linear; pointer-events:none;" />
+            }
+        </div>
+    </div>
 </div>
 
 @code {
+    private const string DefaultPawn = "/images/pawns/PawnsB1.png";
+
+    private List<BoardDefinitionEntity> Boards = new();
+    private Guid SelectedBoardId;
+    private int Rows;
+    private int Cols;
+    private int CellSize;
+    private List<(int r, int c)> Perimeter = new();
+
     private List<BoardSpaceDto> BoardSpaces { get; set; } = new();
 
-    protected override void OnInitialized()
+    private Guid _gameId;
+    private Game? _game;
+
+    private bool IsGameRunning => _game is not null;
+    private Player? CurrentPlayer => _game?.Players.FirstOrDefault();
+    private string PlayerName { get; set; } = "Player 1";
+
+    private string PawnUrl = DefaultPawn;
+
+    private int _pawnAnimPosition = -1;
+    private bool _isAnimating;
+    private int _animStepMs = 140;
+
+    protected override async Task OnInitializedAsync()
     {
-        BoardSpaces = new()
+        await LoadBoardsAsync();
+        if (Boards.Any())
         {
-            // --- Cantos ---
-            new() { Id = "space-0", Name = "Go", Style = new() { Top = "695px", Left = "702px", Width = "98px", Height = "105px" } },
-            new() { Id = "space-10", Name = "Jail", Style = new() { Top = "695px", Left = "0px", Width = "98px", Height = "105px" } },
-            new() { Id = "space-20", Name = "Free Parking", Style = new() { Top = "0px", Left = "0px", Width = "98px", Height = "105px" } },
-            new() { Id = "space-30", Name = "Go to Jail", Style = new() { Top = "0px", Left = "702px", Width = "98px", Height = "105px" } },
+            SelectedBoardId = Boards[0].Id;
+            await LoadBoardLayoutAsync(SelectedBoardId);
+        }
+    }
 
-            // --- Linha de baixo ---
-            new() { Id = "space-1", Name = "Mediterranean Avenue", Style = new() { Top = "695px", Left = "635px", Width = "67px", Height = "105px" } },
-            new() { Id = "space-2", Name = "Community Chest", Style = new() { Top = "695px", Left = "568px", Width = "67px", Height = "105px" } },
-            new() { Id = "space-3", Name = "Baltic Avenue", Style = new() { Top = "695px", Left = "501px", Width = "67px", Height = "105px" } },
-            new() { Id = "space-4", Name = "Income Tax", Style = new() { Top = "695px", Left = "434px", Width = "67px", Height = "105px" } },
-            new() { Id = "space-5", Name = "Reading Railroad", Style = new() { Top = "695px", Left = "367px", Width = "67px", Height = "105px" } },
-            new() { Id = "space-6", Name = "Oriental Avenue", Style = new() { Top = "695px", Left = "300px", Width = "67px", Height = "105px" } },
-            new() { Id = "space-7", Name = "Chance", Style = new() { Top = "695px", Left = "233px", Width = "67px", Height = "105px" } },
-            new() { Id = "space-8", Name = "Vermont Avenue", Style = new() { Top = "695px", Left = "166px", Width = "67px", Height = "105px" } },
-            new() { Id = "space-9", Name = "Connecticut Avenue", Style = new() { Top = "695px", Left = "98px", Width = "67px", Height = "105px" } },
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        var pawn = await Profiles.GetPawnFromSessionAsync();
+        if (!string.IsNullOrWhiteSpace(pawn))
+        {
+            PawnUrl = pawn;
+            StateHasChanged();
+        }
+        else
+        {
+            // guarantee default pawn everywhere
+            PawnUrl = DefaultPawn;
+            await Profiles.SetPawnInSessionAsync(PawnUrl);
+        }
+    }
 
-            // --- Coluna da esquerda ---
-            new() { Id = "space-11", Name = "St. Charles Place", Style = new() { Top = "634px", Left = "0px", Width = "98px", Height = "66px" } },
-            new() { Id = "space-12", Name = "Electric Company", Style = new() { Top = "568px", Left = "0px", Width = "98px", Height = "66px" } },
-            new() { Id = "space-13", Name = "States Avenue", Style = new() { Top = "502px", Left = "0px", Width = "98px", Height = "66px" } },
-            new() { Id = "space-14", Name = "Virginia Avenue", Style = new() { Top = "436px", Left = "0px", Width = "98px", Height = "66px" } },
-            new() { Id = "space-15", Name = "Pennsylvania Railroad", Style = new() { Top = "370px", Left = "0px", Width = "98px", Height = "66px" } },
-            new() { Id = "space-16", Name = "St. James Place", Style = new() { Top = "304px", Left = "0px", Width = "98px", Height = "66px" } },
-            new() { Id = "space-17", Name = "Community Chest", Style = new() { Top = "238px", Left = "0px", Width = "98px", Height = "66px" } },
-            new() { Id = "space-18", Name = "Tennessee Avenue", Style = new() { Top = "172px", Left = "0px", Width = "98px", Height = "66px" } },
-            new() { Id = "space-19", Name = "New York Avenue", Style = new() { Top = "106px", Left = "0px", Width = "98px", Height = "66px" } },
+    private async Task LoadBoardsAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        Boards = await db.Boards.AsNoTracking().OrderByDescending(b => b.CreatedAt).ToListAsync();
+    }
 
-            // --- Linha de cima ---
-            new() { Id = "space-21", Name = "Kentucky Avenue", Style = new() { Top = "0px", Left = "98px", Width = "67px", Height = "105px" } },
-            new() { Id = "space-22", Name = "Chance", Style = new() { Top = "0px", Left = "165px", Width = "67px", Height = "105px" } },
-            new() { Id = "space-23", Name = "Indiana Avenue", Style = new() { Top = "0px", Left = "232px", Width = "67px", Height = "105px" } },
-            new() { Id = "space-24", Name = "Illinois Avenue", Style = new() { Top = "0px", Left = "299px", Width = "67px", Height = "105px" } },
-            new() { Id = "space-25", Name = "B. & O. Railroad", Style = new() { Top = "0px", Left = "366px", Width = "67px", Height = "105px" } },
-            new() { Id = "space-26", Name = "Atlantic Avenue", Style = new() { Top = "0px", Left = "433px", Width = "67px", Height = "105px" } },
-            new() { Id = "space-27", Name = "Ventnor Avenue", Style = new() { Top = "0px", Left = "500px", Width = "67px", Height = "105px" } },
-            new() { Id = "space-28", Name = "Water Works", Style = new() { Top = "0px", Left = "567px", Width = "67px", Height = "105px" } },
-            new() { Id = "space-29", Name = "Marvin Gardens", Style = new() { Top = "0px", Left = "635px", Width = "67px", Height = "105px" } },
+    private async Task LoadBoardLayoutAsync(Guid boardId)
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var board = await db.Boards.AsNoTracking().FirstOrDefaultAsync(b => b.Id == boardId);
+        if (board is null) return;
+        Rows = board.Rows;
+        Cols = board.Cols;
+        CellSize = board.CellSizePx;
+        Perimeter = BuildPerimeterClockwise(Rows, Cols);
 
-            // --- Coluna da direita ---
-            new() { Id = "space-31", Name = "Pacific Avenue", Style = new() { Top = "106px", Left = "702px", Width = "98px", Height = "66px" } },
-            new() { Id = "space-32", Name = "North Carolina Avenue", Style = new() { Top = "172px", Left = "702px", Width = "98px", Height = "66px" } },
-            new() { Id = "space-33", Name = "Community Chest", Style = new() { Top = "238px", Left = "702px", Width = "98px", Height = "66px" } },
-            new() { Id = "space-34", Name = "Pennsylvania Avenue", Style = new() { Top = "304px", Left = "702px", Width = "98px", Height = "66px" } },
-            new() { Id = "space-35", Name = "Short Line", Style = new() { Top = "370px", Left = "702px", Width = "98px", Height = "66px" } },
-            new() { Id = "space-36", Name = "Chance", Style = new() { Top = "436px", Left = "702px", Width = "98px", Height = "66px" } },
-            new() { Id = "space-37", Name = "Park Place", Style = new() { Top = "502px", Left = "702px", Width = "98px", Height = "66px" } },
-            new() { Id = "space-38", Name = "Luxury Tax", Style = new() { Top = "568px", Left = "702px", Width = "98px", Height = "66px" } },
-            new() { Id = "space-39", Name = "Boardwalk", Style = new() { Top = "634px", Left = "702px", Width = "98px", Height = "66px" } },
+        var templates = await db.BlockTemplates.AsNoTracking()
+            .Where(t => t.BoardDefinitionId == boardId)
+            .OrderBy(t => t.Position)
+            .ToListAsync();
+        BoardSpaces = new List<BoardSpaceDto>(Perimeter.Count);
+        for (int i = 0; i < Perimeter.Count; i++)
+        {
+            var (r, c) = Perimeter[i];
+            var img = i < templates.Count && !string.IsNullOrWhiteSpace(templates[i].ImageUrl)
+                ? templates[i].ImageUrl
+                : GetImageForType(templates.ElementAtOrDefault(i)?.Type ?? BlockType.Property);
+            BoardSpaces.Add(new BoardSpaceDto
+            {
+                Id = $"space-{i}",
+                Name = (i < templates.Count ? templates[i].Name : $"Space {i}"),
+                ImageUrl = img,
+                Style = new BoardSpaceStyle
+                {
+                    Top = $"{r * CellSize}px",
+                    Left = $"{c * CellSize}px",
+                    Width = $"{CellSize}px",
+                    Height = $"{CellSize}px"
+                }
+            });
+        }
+    }
 
-            // --- Montes de cartas ---
-            new() { Id = "community-chest-pile", Name = "Monte de Cartas Cofre", Style = new() { Top = "175px", Left = "145px", Width = "140px", Height = "92px", Transform = "rotate(-45deg)" } },
-            new() { Id = "chance-pile", Name = "Monte de Cartas Sorte", Style = new() { Top = "535px", Left = "515px", Width = "140px", Height = "92px", Transform = "rotate(-45deg)" } },
-        };
+    private async Task StartGame()
+    {
+        if (SelectedBoardId == Guid.Empty) return;
+        var (id, game) = await GameRepo.CreateNewGameAsync(SelectedBoardId, new[] { PlayerName });
+        _gameId = id;
+        _game = game;
+        _pawnAnimPosition = CurrentPlayer?.CurrentPosition ?? 0;
+        await Profiles.UpdateAsync(displayName: PlayerName, lastBoardId: SelectedBoardId);
+        StateHasChanged();
+    }
+
+    private async Task RollAndMove()
+    {
+        if (_game is null || _isAnimating) return;
+        var (_, _, total) = _game.RollDice();
+        await AnimateAndApplyAsync(total);
+    }
+
+    private async Task AnimateAndApplyAsync(int steps)
+    {
+        if (CurrentPlayer is null) return;
+        _isAnimating = true;
+        if (_pawnAnimPosition < 0) _pawnAnimPosition = CurrentPlayer.CurrentPosition;
+
+        for (int i = 0; i < steps; i++)
+        {
+            _pawnAnimPosition = (_pawnAnimPosition + 1 + Perimeter.Count) % Perimeter.Count;
+            StateHasChanged();
+            try { await Task.Delay(_animStepMs); } catch { }
+        }
+
+        _isAnimating = false;
+        await _game!.MoveCurrentPlayerAsync(steps);
+        await GameRepo.SaveGameAsync(_gameId, _game);
+        _pawnAnimPosition = -1;
+        StateHasChanged();
+    }
+
+    private Task ResetGame()
+    {
+        _game = null;
+        _gameId = Guid.Empty;
+        _pawnAnimPosition = -1;
+        _isAnimating = false;
+        StateHasChanged();
+        return Task.CompletedTask;
     }
 
     private Task HandleClick(BoardSpaceDto space)
@@ -79,4 +185,69 @@
         Console.WriteLine($"id: {space.Id}");
         return Task.CompletedTask;
     }
+
+    private async Task OnBoardChanged(ChangeEventArgs e)
+    {
+        if (Guid.TryParse(Convert.ToString(e.Value), out var id))
+        {
+            await OnBoardChangedFromHeader(id);
+        }
+    }
+
+    private async Task OnBoardChangedFromHeader(Guid id)
+    {
+        SelectedBoardId = id;
+        await Profiles.UpdateAsync(lastBoardId: SelectedBoardId);
+        await LoadBoardLayoutAsync(SelectedBoardId);
+        await ResetGame();
+    }
+
+    private async Task OnPlayerNameChanged(string name)
+    {
+        PlayerName = string.IsNullOrWhiteSpace(name) ? "Player 1" : name.Trim();
+        await Profiles.UpdateAsync(displayName: PlayerName);
+        StateHasChanged();
+    }
+
+    private Task OnPawnChanged(string url)
+    {
+        PawnUrl = string.IsNullOrWhiteSpace(url) ? DefaultPawn : url;
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    private (string top, string left) GetTokenPosition(int boardIndex)
+    {
+        boardIndex = Math.Clamp(boardIndex, 0, Math.Max(0, Perimeter.Count - 1));
+        var (r, c) = Perimeter[boardIndex];
+        return ($"{r * CellSize}px", $"{c * CellSize}px");
+    }
+
+    private static List<(int r, int c)> BuildPerimeterClockwise(int rows, int cols)
+    {
+        var list = new List<(int r, int c)>(Math.Max(0, 2 * rows + 2 * cols - 4));
+        if (rows < 2 || cols < 2) return list;
+
+        int bottom = rows - 1;
+        int top = 0;
+        int left = 0;
+        int right = cols - 1;
+
+        for (int c = right; c >= left; c--) list.Add((bottom, c));
+        for (int r = bottom - 1; r >= top; r--) list.Add((r, left));
+        for (int c = left + 1; c <= right; c++) list.Add((top, c));
+        for (int r = top + 1; r <= bottom - 1; r++) list.Add((r, right));
+
+        return list;
+    }
+
+    private static string GetImageForType(BlockType type) => type switch
+    {
+        BlockType.Go => "/images/blocks/property_basic.svg",
+        BlockType.Property => "/images/blocks/property_basic.svg",
+        BlockType.Jail => "/images/blocks/visitar_prisao.svg",
+        BlockType.GoToJail => "/images/blocks/go_to_jail.svg",
+        BlockType.Tax => "/images/blocks/volte-casas.svg",
+        _ => "/images/blocks/property_basic.svg"
+    };
 }

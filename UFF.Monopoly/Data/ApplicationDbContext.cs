@@ -1,16 +1,18 @@
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using UFF.Monopoly.Data.Entities;
 
 namespace UFF.Monopoly.Data
 {
-    public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : DbContext(options)
+    public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : IdentityDbContext<IdentityUser>(options)
     {
         public DbSet<GameStateEntity> Games => Set<GameStateEntity>();
         public DbSet<PlayerStateEntity> Players => Set<PlayerStateEntity>();
         public DbSet<BlockStateEntity> Blocks => Set<BlockStateEntity>();
         public DbSet<BlockTemplateEntity> BlockTemplates => Set<BlockTemplateEntity>();
         public DbSet<BoardDefinitionEntity> Boards => Set<BoardDefinitionEntity>();
+        public DbSet<UserProfileEntity> UserProfiles => Set<UserProfileEntity>();
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -54,10 +56,15 @@ namespace UFF.Monopoly.Data
             builder.Entity<BoardDefinitionEntity>(e =>
             {
                 e.HasKey(x => x.Id);
-                // basic constraints for layout fields
                 e.Property(x => x.Rows).HasDefaultValue(5);
                 e.Property(x => x.Cols).HasDefaultValue(5);
                 e.Property(x => x.CellSizePx).HasDefaultValue(64);
+            });
+
+            builder.Entity<UserProfileEntity>(e =>
+            {
+                e.HasKey(x => x.Id);
+                e.HasIndex(x => x.ClientId).IsUnique();
             });
         }
     }

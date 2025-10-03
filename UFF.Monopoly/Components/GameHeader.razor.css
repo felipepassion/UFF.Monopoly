@@ -1,0 +1,18 @@
+.game-header{display:flex;justify-content:space-between;align-items:center;background:#16232d;color:#e6f0ff;border-radius:8px;padding:8px 12px;border:1px solid #223444}
+.game-header .left{display:flex;align-items:center;gap:12px}
+.game-header .brand{display:flex;align-items:center;gap:8px}
+.game-header .title{font-weight:600;font-size:1.05rem}
+.game-header .logo{font-size:1.1rem}
+.game-header .controls{display:flex;align-items:end;gap:6px}
+.game-header .board-select{min-width:220px}
+.game-header .right{display:flex;align-items:center;gap:10px}
+.game-header .player{display:flex;align-items:center;gap:6px}
+.game-header .avatar{background:#335a8a;color:#e6f0ff;border-radius:999px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-weight:700}
+.game-header .name-btn{padding:0 4px}
+
+/* Modal tweaks */
+.modal-backdrop{background:rgba(0,0,0,.6)}
+.modal .modal-content{box-shadow:0 10px 40px rgba(0,0,0,.5)}
+
+/* Button group consistency */
+.btn-group .btn{min-width:80px}

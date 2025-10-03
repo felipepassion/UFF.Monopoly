@@ -7,7 +7,7 @@ namespace UFF.Monopoly.Repositories;
 
 public interface IGameRepository
 {
-    Task<(Guid gameId, Game game)> CreateNewGameAsync(IEnumerable<string> playerNames, CancellationToken ct = default);
+    Task<(Guid gameId, Game game)> CreateNewGameAsync(Guid boardDefinitionId, IEnumerable<string> playerNames, CancellationToken ct = default);
     Task<Game?> GetGameAsync(Guid gameId, CancellationToken ct = default);
     Task SaveGameAsync(Guid gameId, Game game, CancellationToken ct = default);
 }
@@ -21,12 +21,17 @@ public class EfGameRepository : IGameRepository
         _factory = factory;
     }
 
-    public async Task<(Guid gameId, Game game)> CreateNewGameAsync(IEnumerable<string> playerNames, CancellationToken ct = default)
+    public async Task<(Guid gameId, Game game)> CreateNewGameAsync(Guid boardDefinitionId, IEnumerable<string> playerNames, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var id = Guid.NewGuid();
         var players = playerNames.Select(n => new Player { Name = n }).ToList();
-        var templates = await db.BlockTemplates.AsNoTracking().OrderBy(t => t.Position).ToListAsync(ct);
+
+        var templates = await db.BlockTemplates.AsNoTracking()
+            .Where(t => t.BoardDefinitionId == boardDefinitionId)
+            .OrderBy(t => t.Position)
+            .ToListAsync(ct);
+
         var board = templates.Select(t => new Block
         {
             Position = t.Position,
@@ -140,14 +145,13 @@ public class EfGameRepository : IGameRepository
             .FirstOrDefaultAsync(g => g.Id == gameId, ct);
         if (gameEntity == null)
         {
-            await CreateNewGameAsync(game.Players.Select(p => p.Name), ct);
+            await CreateNewGameAsync(Guid.Empty, game.Players.Select(p => p.Name), ct);
             return;
         }
 
         gameEntity.CurrentPlayerIndex = game.CurrentPlayerIndex;
         gameEntity.IsFinished = game.IsFinished;
 
-        // update players
         var playerMap = game.Players.ToDictionary(p => p.Id, p => p);
         foreach (var p in gameEntity.Players)
         {
@@ -161,7 +165,6 @@ public class EfGameRepository : IGameRepository
             p.IsBankrupt = model.IsBankrupt;
         }
 
-        // update blocks
         foreach (var b in gameEntity.Board)
         {
             var model = game.Board.First(x => x.Position == b.Position);
