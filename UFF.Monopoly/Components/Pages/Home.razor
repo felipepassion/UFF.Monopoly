@@ -19,9 +19,17 @@
             OnBoardChanged="OnBoardChangedFromHeader" OnStart="StartGame" OnEnd="ResetGame" OnRoll="RollAndMove"
             OnPlayerNameChanged="OnPlayerNameChanged" OnPawnChanged="OnPawnChanged" />
 
-<div class="mt-2 d-flex align-items-md-center justify-content-center">
-    <div class="d-inline-block" style="background:#0e1620;border:1px solid #223444;border-radius:8px;padding:6px;">
-        <div id="game-board-container" style="position:relative; width:@(Cols * CellSize)px; height:@(Rows * CellSize)px;">
+<div class="mt-2 d-flex align-items-md-center justify-content-center full-center-wrapper" style="min-height: calc(100vh - 120px);">
+    <div class="board-shell d-inline-block" style="background:var(--surface);border:1px solid rgba(255,255,255,0.03);border-radius:10px;padding:10px;">
+        @* scale factor applied to board and all visuals *@
+        @{
+            const double scale = 1.5;
+            var boardWidth = (int)(Cols * CellSize * scale);
+            var boardHeight = (int)(Rows * CellSize * scale);
+            var boardWidthCss = boardWidth + "px";
+            var boardHeightCss = boardHeight + "px";
+        }
+        <div id="game-board-container" class="game-board" style="position:relative; width:@boardWidthCss; height:@boardHeightCss; display:flex; align-items:center; justify-content:center;">
             @foreach (var space in BoardSpaces)
             {
                 <BoardSpace Space="space" OnClick="HandleClick" />
@@ -29,17 +37,17 @@
 
             @if (_showDiceOverlay)
             {
-                var diceImgSize = Math.Max(24, (int)(CellSize * 0.6)) + "px";
-                var gifSize = Math.Max(64, (int)(CellSize * 1.6)) + "px";
+                var diceImgSize = Math.Max(24, (int)(CellSize * 0.6 * scale)) + "px"; // scaled
+                var gifSize = Math.Max(64, (int)(CellSize * 1.6 * scale)) + "px"; // scaled
 
-                // offsets: move the gif up and the dice faces down so both are visible simultaneously
-                var gifOffsetPx = -(int)(CellSize * 0.6); // negative -> move up
-                var diceOffsetPx = (int)(CellSize * 0.8); // positive -> move down
+                // offsets: move the gif up and the dice faces down so both are visible simultaneously (scaled)
+                var gifOffsetPx = -(int)(CellSize * 0.6 * scale); // negative -> move up
+                var diceOffsetPx = (int)(CellSize * 0.8 * scale); // positive -> move down
                 var gifOffset = gifOffsetPx + "px";
                 var diceOffset = diceOffsetPx + "px";
 
                 <div class="dice-overlay" style="position:absolute; inset:0; z-index:9999; display:flex; align-items:center; justify-content:center; pointer-events:auto;">
-                    <div class="dice-faces" style="display:flex; gap:8px; align-items:center; z-index:1; transform:translateY(@diceOffset);">
+                    <div class="dice-faces" style="display:flex; gap:12px; align-items:center; z-index:1; transform:translateY(@diceOffset);">
                         <img src="@($"{Nav.BaseUri}images/dice/diceGreen{_diceFace1}.png")" alt="die1" style="width:@diceImgSize; height:@diceImgSize; object-fit:contain; z-index:1; pointer-events:none;" />
                         <img src="@($"{Nav.BaseUri}images/dice/diceGreen{_diceFace2}.png")" alt="die2" style="width:@diceImgSize; height:@diceImgSize; object-fit:contain; z-index:1; pointer-events:none;" />
                     </div>
@@ -54,7 +62,7 @@
             {
                 var renderIndex = _pawnAnimPosition >= 0 ? _pawnAnimPosition : CurrentPlayer.CurrentPosition;
                 var (pxTop, pxLeft) = GetTokenPosition(renderIndex);
-                var pawnSize = (CellSize * 0.6).ToString(CultureInfo.InvariantCulture) + "px";
+                var pawnSize = (CellSize * 0.45 * scale).ToString(CultureInfo.InvariantCulture) + "px";
                 <img src="@PawnUrl" alt="pawn"
                      style="position:absolute; width:@pawnSize; height:@pawnSize; object-fit:contain; top:@pxTop; left:@pxLeft; transform:translate(20%,20%); transition: top @_animStepMs ms linear, left @_animStepMs ms linear; pointer-events:none;" />
             }
@@ -94,6 +102,9 @@
     private string _rollingGifUrl = string.Empty;
     // use instance Random to avoid any static initialization edge cases in Blazor component lifecycle
     private readonly Random _rand = new();
+
+    // board scale factor - keep single source of truth
+    private const double _boardScale = 1.5;
 
     protected override async Task OnInitializedAsync()
     {
@@ -156,10 +167,10 @@
                 ImageUrl = img,
                 Style = new BoardSpaceStyle
                 {
-                    Top = $"{r * CellSize}px",
-                    Left = $"{c * CellSize}px",
-                    Width = $"{CellSize}px",
-                    Height = $"{CellSize}px"
+                    Top = $"{(int)(r * CellSize * _boardScale)}px",
+                    Left = $"{(int)(c * CellSize * _boardScale)}px",
+                    Width = $"{(int)(CellSize * _boardScale)}px",
+                    Height = $"{(int)(CellSize * _boardScale)}px"
                 }
             });
         }
@@ -194,17 +205,14 @@
 
     private async Task ShowDiceAnimationAsync(int finalDie1, int finalDie2)
     {
-        // guard and fail-safe: catch any runtime error inside animation so it can't crash the component
         try
         {
-            // choose random rolling gif (1..12) — use Nav.BaseUri so paths resolve to wwwroot/images/diceAnim
             var gifIndex = _rand.Next(1, 13);
             _rollingGifUrl = $"{Nav.BaseUri}images/diceAnim/dice-rolling-{gifIndex}.gif";
 
             _showDiceOverlay = true;
             StateHasChanged();
 
-            // quick randomized frames
             var animDurationMs = 800;
             var frameMs = 80;
             var frames = Math.Max(1, animDurationMs / frameMs);
@@ -217,7 +225,6 @@
                 try { await Task.Delay(frameMs); } catch { }
             }
 
-            // show actual result for 1 second
             _diceFace1 = Math.Clamp(finalDie1, 1, 6);
             _diceFace2 = Math.Clamp(finalDie2, 1, 6);
             StateHasChanged();
@@ -225,28 +232,24 @@
         }
         catch (Exception ex)
         {
-            // log and ensure overlay is hidden; don't let the animation crash the app
             Console.WriteLine($"ShowDiceAnimationAsync error: {ex}");
         }
         finally
         {
-            // hide overlay (movement will continue)
             _showDiceOverlay = false;
             _rollingGifUrl = string.Empty;
             StateHasChanged();
-            // NOTE: _isAnimating remains true here; AnimateAndApplyAsync will set it false when movement completes.
         }
     }
 
     private async Task AnimateAndApplyAsync(int steps)
     {
-        if (CurrentPlayer is null) 
+        if (CurrentPlayer is null)
         {
             _isAnimating = false;
             return;
         }
 
-        // already set _isAnimating at RollAndMove start; ensure true here as well
         _isAnimating = true;
         if (_pawnAnimPosition < 0) _pawnAnimPosition = CurrentPlayer.CurrentPosition;
 
@@ -261,7 +264,6 @@
         await GameRepo.SaveGameAsync(_gameId, _game);
         _pawnAnimPosition = -1;
 
-        // movement done — allow new actions
         _isAnimating = false;
         StateHasChanged();
     }
@@ -316,7 +318,7 @@
     {
         boardIndex = Math.Clamp(boardIndex, 0, Math.Max(0, Perimeter.Count - 1));
         var (r, c) = Perimeter[boardIndex];
-        return ($"{r * CellSize}px", $"{c * CellSize}px");
+        return ($"{(int)(r * CellSize * _boardScale)}px", $"{(int)(c * CellSize * _boardScale)}px");
     }
 
     private static List<(int r, int c)> BuildPerimeterClockwise(int rows, int cols)

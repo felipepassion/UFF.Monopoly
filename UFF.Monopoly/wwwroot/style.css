@@ -1,10 +1,13 @@
 body {
     font-family: Arial, sans-serif;
-    background-color: #f5f5f5;
+    background-color: var(--bg);
+    color: var(--text);
 }
 
 #game-board-container {
     position: relative;
+    /* make sure board is centered inside its shell */
+    display: block;
 }
 
 .board-space {
@@ -16,5 +19,11 @@ body {
 }
 
 .board-space:hover {
-    background: transparent;
+    background: rgba(255,255,255,0.02);
 }
+
+/* ensure the page fills viewport so centering works */
+html, body, .page { height: 100%; }
+
+/* center the board shell vertically in the viewport */
+.full-center-wrapper { min-height: calc(100vh - 120px); }

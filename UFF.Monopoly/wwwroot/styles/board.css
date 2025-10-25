@@ -1,0 +1,22 @@
+/* Centering utilities and scaling for board */
+.full-center-wrapper{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+}
+
+.board-shell{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+}
+
+.game-board{
+    position:relative;
+    transform-origin:center center;
+}
+
+.dice-overlay img{
+    /* ensure gifs slightly transparent to blend with dark background */
+    filter: drop-shadow(0 8px 24px rgba(0,0,0,0.6));
+}
