@@ -6,6 +6,7 @@
 @using UFF.Monopoly.Models
 @using UFF.Monopoly.Repositories
 @using UFF.Monopoly.Entities
+@using System.Globalization
 @inject IDbContextFactory<ApplicationDbContext> DbFactory
 @inject IGameRepository GameRepo
 @inject NavigationManager Nav
@@ -30,8 +31,9 @@
             {
                 var renderIndex = _pawnAnimPosition >= 0 ? _pawnAnimPosition : CurrentPlayer.CurrentPosition;
                 var (pxTop, pxLeft) = GetTokenPosition(renderIndex);
+                var pawnSize = (CellSize * 0.6).ToString(CultureInfo.InvariantCulture) + "px";
                 <img src="@PawnUrl" alt="pawn"
-                     style="position:absolute; width:@($"{CellSize * 0.6}px"); height:@($"{CellSize * 0.6}px"); object-fit:contain; top:@pxTop; left:@pxLeft; transform:translate(20%,20%); transition: top @_animStepMs ms linear, left @_animStepMs ms linear; pointer-events:none;" />
+                     style="position:absolute; width:@pawnSize; height:@pawnSize; object-fit:contain; top:@pxTop; left:@pxLeft; transform:translate(20%,20%); transition: top @_animStepMs ms linear, left @_animStepMs ms linear; pointer-events:none;" />
             }
         </div>
     </div>
