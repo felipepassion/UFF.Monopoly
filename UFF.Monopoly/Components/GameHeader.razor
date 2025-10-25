@@ -31,8 +31,8 @@
     </div>
     <div class="right">
         <div class="player" title="Alterar nome">
-            <div class="avatar" style="background:@PawnColorHex">@GetInitials(PlayerName)</div>
-            <button class="btn btn-link btn-sm text-light name-btn" @onclick="BeginEdit">@PlayerName</button>
+            <div class="avatar" style="background:@PawnColorHex">@GetInitials(_displayName)</div>
+            <button class="btn btn-link btn-sm text-light name-btn" @onclick="BeginEdit">@_displayName</button>
         </div>
     </div>
 </div>
@@ -80,13 +80,19 @@
     [Parameter] public List<BoardDefinitionEntity> Boards { get; set; } = new();
     [Parameter] public Guid SelectedBoardId { get; set; }
     [Parameter] public bool IsGameRunning { get; set; }
+
+    // parent property (two-way bind target)
     [Parameter] public string PlayerName { get; set; } = "Player 1";
+    // two-way binding callback (required for @bind-PlayerName)
+    [Parameter] public EventCallback<string> PlayerNameChanged { get; set; }
+
+    // kept for backward compatibility / extra notification
+    [Parameter] public EventCallback<string> OnPlayerNameChanged { get; set; }
 
     [Parameter] public EventCallback<Guid> OnBoardChanged { get; set; }
     [Parameter] public EventCallback OnStart { get; set; }
     [Parameter] public EventCallback OnEnd { get; set; }
     [Parameter] public EventCallback OnRoll { get; set; }
-    [Parameter] public EventCallback<string> OnPlayerNameChanged { get; set; }
     [Parameter] public EventCallback<string> OnPawnChanged { get; set; }
 
     [Inject] protected ProtectedLocalStorage Storage { get; set; } = default!;
@@ -113,9 +119,18 @@
         new("/images/pawns/PawnsB6.png","Vermelho"),
     };
 
+    // Local display copy so UI updates immediately and parent changes flow through bind
+    private string _displayName = "Player 1";
+
     private string HeaderTitle => IsGameRunning
         ? (Boards.FirstOrDefault(b => b.Id == SelectedBoardId)?.Name ?? "Partida")
         : "Pronto para jogar";
+
+    protected override void OnParametersSet()
+    {
+        // keep local display in sync with parent when parent updates the parameter
+        _displayName = PlayerName;
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -137,13 +152,15 @@
             var name = await Storage.GetAsync<string>("playerName");
             if (name.Success && !string.IsNullOrWhiteSpace(name.Value) && name.Value != PlayerName)
             {
-                PlayerName = name.Value!;
-                await OnPlayerNameChanged.InvokeAsync(PlayerName);
+                _displayName = name.Value!;
+                // keep parent in sync if needed
+                if (PlayerNameChanged.HasDelegate) await PlayerNameChanged.InvokeAsync(_displayName);
+                if (OnPlayerNameChanged.HasDelegate) await OnPlayerNameChanged.InvokeAsync(_displayName);
                 await SilentAuth();
             }
             else
             {
-                _showNameModal = string.IsNullOrWhiteSpace(PlayerName) || PlayerName == "Player 1";
+                _showNameModal = string.IsNullOrWhiteSpace(_displayName) || _displayName == "Player 1";
             }
 
             var lastBoard = await Storage.GetAsync<string>("lastBoardId");
@@ -186,25 +203,37 @@
 
     private void BeginEdit()
     {
-        _nameForm.Name = PlayerName;
+        _nameForm.Name = _displayName;
         _showNameModal = true;
     }
 
     private async Task ConfirmNameFromForm()
     {
         var trimmed = _nameForm.Name?.Trim();
-        if (!string.IsNullOrWhiteSpace(trimmed))
-        {
-            PlayerName = trimmed!;
-            await Storage.SetAsync("playerName", PlayerName);
-            // persist pawn + name
-            await Storage.SetAsync("pawnImageUrl", _pawnUrl);
-            await Profiles.UpdateAsync(displayName: PlayerName, pawnImageUrl: _pawnUrl);
-            _showNameModal = false;
-            await OnPlayerNameChanged.InvokeAsync(PlayerName);
+        if (string.IsNullOrWhiteSpace(trimmed)) return;
+
+        // update local display and close modal immediately
+        _displayName = trimmed!;
+        _showNameModal = false;
+        StateHasChanged();
+
+        // persist locally and remotely
+        await Storage.SetAsync("playerName", _displayName);
+        await Storage.SetAsync("pawnImageUrl", _pawnUrl);
+        await Profiles.UpdateAsync(displayName: _displayName, pawnImageUrl: _pawnUrl);
+
+        // notify parent: first update bound value, then call optional extra callback
+        if (PlayerNameChanged.HasDelegate)
+            await PlayerNameChanged.InvokeAsync(_displayName);
+        if (OnPlayerNameChanged.HasDelegate)
+            await OnPlayerNameChanged.InvokeAsync(_displayName);
+
+        if (OnPawnChanged.HasDelegate)
             await OnPawnChanged.InvokeAsync(_pawnUrl);
-            await SilentAuth();
-        }
+
+        await SilentAuth();
+
+        StateHasChanged();
     }
 
     private async Task SilentAuth()
@@ -215,7 +244,7 @@
             _clientId = cid.Success && !string.IsNullOrWhiteSpace(cid.Value) ? cid.Value! : Guid.NewGuid().ToString("N");
             await Storage.SetAsync("clientId", _clientId);
         }
-        var url = $"/auth/quick?name={Uri.EscapeDataString(PlayerName)}&cid={Uri.EscapeDataString(_clientId)}";
+        var url = $"/auth/quick?name={Uri.EscapeDataString(_displayName)}&cid={Uri.EscapeDataString(_clientId)}";
         try { await Http.GetAsync(url); } catch { }
     }
 

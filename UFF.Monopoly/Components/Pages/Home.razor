@@ -15,7 +15,7 @@
 @rendermode InteractiveServer
 
 <GameHeader Boards="Boards" SelectedBoardId="SelectedBoardId" IsGameRunning="IsGameRunning"
-            PlayerName="PlayerName"
+            @bind-PlayerName="PlayerName"
             OnBoardChanged="OnBoardChangedFromHeader" OnStart="StartGame" OnEnd="ResetGame" OnRoll="RollAndMove"
             OnPlayerNameChanged="OnPlayerNameChanged" OnPawnChanged="OnPawnChanged" />
 
