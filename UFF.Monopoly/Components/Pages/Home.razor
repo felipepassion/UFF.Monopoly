@@ -18,7 +18,7 @@
             OnBoardChanged="OnBoardChangedFromHeader" OnStart="StartGame" OnEnd="ResetGame" OnRoll="RollAndMove"
             OnPlayerNameChanged="OnPlayerNameChanged" OnPawnChanged="OnPawnChanged" />
 
-<div class="mt-2">
+<div class="mt-2 d-flex align-items-md-center justify-content-center">
     <div class="d-inline-block" style="background:#0e1620;border:1px solid #223444;border-radius:8px;padding:6px;">
         <div id="game-board-container" style="position:relative; width:@(Cols * CellSize)px; height:@(Rows * CellSize)px;">
             @foreach (var space in BoardSpaces)
