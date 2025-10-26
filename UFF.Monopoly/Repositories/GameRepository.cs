@@ -80,6 +80,11 @@ public class EfGameRepository : IGameRepository
             }
         }).ToList();
 
+        // Ensure players start on the 'Go' block if present
+        var goIndex = board.FindIndex(b => b.Type == BlockType.Go);
+        if (goIndex < 0) goIndex = 0;
+        foreach (var p in players) p.CurrentPosition = goIndex;
+
         var game = new Game(players, board);
 
         var gameEntity = new GameStateEntity
@@ -111,7 +116,9 @@ public class EfGameRepository : IGameRepository
                 Rent = b.Rent,
                 OwnerId = b.Owner?.Id,
                 IsMortgaged = b.IsMortgaged,
-                Type = b.Type
+                Type = b.Type,
+                Houses = (b is PropertyBlock pb) ? pb.Houses : 0,
+                Hotels = (b is PropertyBlock pb2) ? pb2.Hotels : 0,
             }).ToList()
         };
 
@@ -162,9 +169,10 @@ public class EfGameRepository : IGameRepository
                         Price = b.Price,
                         Rent = b.Rent,
                         IsMortgaged = b.IsMortgaged,
-                        Type = b.Type
+                        Type = b.Type,
+                        Houses = b.Houses,
+                        Hotels = b.Hotels
                     };
-                    // try parse rents if stored in Description or other - currently not stored in BlockState
                     return (Block)pb;
                 }
                 else
@@ -236,6 +244,11 @@ public class EfGameRepository : IGameRepository
             b.OwnerId = model.Owner?.Id;
             b.IsMortgaged = model.IsMortgaged;
             b.Type = model.Type;
+            if (model is PropertyBlock pb)
+            {
+                b.Houses = pb.Houses;
+                b.Hotels = pb.Hotels;
+            }
         }
 
         await db.SaveChangesAsync(ct);

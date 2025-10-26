@@ -50,8 +50,8 @@
                     var diceImgSize = Math.Max(24, (int)(CellSize * 0.6 * _boardScale)) + "px"; // scaled
                     var gifSize = Math.Max(64, (int)(CellSize * 1.6 * _boardScale)) + "px"; // scaled
 
-                    var gifOffsetPx = -(int)(CellSize * 0.45 * _boardScale); // negative -> move up
-                    var diceOffsetPx = (int)(CellSize * 0.35 * _boardScale); // positive -> move down
+                    var gifOffsetPx = -(int)(CellSize * 0.6 * _boardScale); // negative -> move up
+                    var diceOffsetPx = (int)(CellSize * 0.8 * _boardScale); // positive -> move down
                     var gifOffset = gifOffsetPx + "px";
                     var diceOffset = diceOffsetPx + "px";
 
@@ -210,14 +210,23 @@
         for (int i = 0; i < Perimeter.Count; i++)
         {
             var (r, c) = Perimeter[i];
-            var img = i < templates.Count && !string.IsNullOrWhiteSpace(templates[i].ImageUrl)
-                ? templates[i].ImageUrl
-                : GetImageForType(templates.ElementAtOrDefault(i)?.Type ?? BlockType.Property);
+            var template = templates.ElementAtOrDefault(i);
+            var img = template != null && !string.IsNullOrWhiteSpace(template.ImageUrl)
+                ? template.ImageUrl
+                : GetImageForType(template?.Type ?? BlockType.Property);
+
+            string? overlay = null;
+            if (template != null && template.Type == BlockType.Property && template.Level.HasValue)
+            {
+                overlay = GetLevelOverlayColor(template.Level.Value);
+            }
+
             BoardSpaces.Add(new BoardSpaceDto
             {
                 Id = $"space-{i}",
-                Name = (i < templates.Count ? templates[i].Name : $"Space {i}"),
+                Name = (template != null ? template.Name : $"Space {i}"),
                 ImageUrl = img,
+                OverlayColor = overlay,
                 Style = new BoardSpaceStyle
                 {
                     Top = $"{(int)(r * CellSize * _boardScale)}px",
@@ -445,5 +454,14 @@
         BlockType.GoToJail => "/images/blocks/go_to_jail.svg",
         BlockType.Tax => "/images/blocks/volte-casas.svg",
         _ => "/images/blocks/property_basic.svg"
+    };
+
+    private string GetLevelOverlayColor(PropertyLevel lvl) => lvl switch
+    {
+        PropertyLevel.Barata => "rgba(139,69,19,0.5)", // brown
+        PropertyLevel.Mediana => "rgba(52,152,219,0.5)", // blue
+        PropertyLevel.Rica => "rgba(155,89,182,0.5)", // purple
+        PropertyLevel.MuitoRica => "rgba(46,204,113,0.5)", // green
+        _ => "rgba(0,0,0,0.5)"
     };
 }

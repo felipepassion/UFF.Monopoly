@@ -77,6 +77,9 @@ public class PropertyBlock : Block
     public int Houses { get; set; } = 0; // 0..4
     public int Hotels { get; set; } = 0; // 0..2
 
+    // group id to identify monopoly sets
+    public Guid? GroupId { get; set; }
+
     // Price details for building
     public int HousePrice { get; set; } = 0;
     public int HotelPrice { get; set; } = 0;

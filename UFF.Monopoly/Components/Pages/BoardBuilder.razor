@@ -119,7 +119,6 @@
                                             @if (b.Type == BlockType.Property && b.Level.HasValue)
                                             {
                                                 <div style="position:absolute; inset:0; background:@GetLevelOverlayColor(b.Level.Value); pointer-events:none;"></div>
-                                                <div style="position:absolute; top=4px; left=6px; padding=2px 6px; font-size=11px; background=rgba(0,0,0,0.35); color=#fff; border-radius=4px;">@TranslatePropertyLevel(b.Level.Value)</div>
                                             }
                                         }
                                         else
@@ -178,7 +177,6 @@
                                         {
                                             <button class="btn btn-outline-light" style="text-align:left;" @onclick="(() => ApplyPropertyLevel(lvl))">
                                                 <div class="fw-semibold">@TranslatePropertyLevel(lvl)</div>
-                                                <div class="small text-muted">Preço padrão e aluguel serão aplicados automaticamente</div>
                                             </button>
                                         }
                                     </div>
@@ -436,11 +434,11 @@
 
     private string GetLevelOverlayColor(PropertyLevel lvl) => lvl switch
     {
-        PropertyLevel.Barata => "rgba(139,69,19,0.22)", // brown
-        PropertyLevel.Mediana => "rgba(52,152,219,0.18)", // blue
-        PropertyLevel.Rica => "rgba(155,89,182,0.18)", // purple
-        PropertyLevel.MuitoRica => "rgba(46,204,113,0.18)", // green
-        _ => "rgba(0,0,0,0.12)"
+        PropertyLevel.Barata => "rgba(139,69,19,0.5)", // brown
+        PropertyLevel.Mediana => "rgba(52,152,219,0.5)", // blue
+        PropertyLevel.Rica => "rgba(155,89,182,0.5)", // purple
+        PropertyLevel.MuitoRica => "rgba(46,204,113,0.5)", // green
+        _ => "rgba(0,0,0,0.5)"
     };
 
     private string TranslateBlockType(BlockType t) => t switch
@@ -575,7 +573,7 @@
 
         if (isNew)
         {
-            Nav.NavigateTo($"/board-builder/{CurrentBoardId}?saved=1");
+            Nav.NavigateTo($"/board-builder/{CurrentBoardId}?saved=true");
         }
         else
         {
