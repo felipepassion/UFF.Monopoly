@@ -7,6 +7,7 @@
 @using UFF.Monopoly.Repositories
 @using UFF.Monopoly.Entities
 @using System.Globalization
+@using Microsoft.AspNetCore.WebUtilities
 @inject IDbContextFactory<ApplicationDbContext> DbFactory
 @inject IGameRepository GameRepo
 @inject NavigationManager Nav
@@ -32,11 +33,12 @@
                     <BoardSpace Space="space" OnClick="HandleClick" />
                 }
 
-                @* Tokens for all players *@
+                @* Tokens for all players. For the active player, use _pawnAnimPosition when animating so token moves step-by-step *@
                 @for (int i = 0; i < _game.Players.Count; i++)
                 {
                     var p = _game.Players[i];
-                    var (top, left, z) = GetTokenOffsetPosition(p, i);
+                    var renderIndex = (i == _game.CurrentPlayerIndex && _pawnAnimPosition >= 0) ? _pawnAnimPosition : p.CurrentPosition;
+                    var (top, left, z) = GetTokenOffsetPositionByBoardIndex(renderIndex, i);
                     var pawnSize = (int)(CellSize * _boardScale * 0.6) + "px";
                     var pawnUrl = GetPawnUrlForPlayer(i);
                     <img src="@pawnUrl" alt="pawn"
@@ -94,7 +96,7 @@
     [SupplyParameterFromQuery]
     public Guid? boardId { get; set; }
 
-    [SupplyParameterFromQuery]
+    [SupplyParameterFromQuery(Name = "humanCount")]
     public int? HumanCountQuery { get; set; }
 
     [SupplyParameterFromQuery]
@@ -237,7 +239,7 @@
         if (_game is null || _isAnimating) return;
 
         // ensure only current human can roll
-        var humanCount = HumanCountQuery ?? 1;
+        var humanCount = GetHumanPlayersCount();
         if (_game.CurrentPlayerIndex >= humanCount) return; // not human
 
         await RollAndMove();
@@ -350,7 +352,47 @@
         return (top, left, z);
     }
 
-    private bool CanRollForCurrent => !_isAnimating && _game is not null && (_game.CurrentPlayerIndex < (HumanCountQuery ?? 1));
+    private (string top, string left, int z) GetTokenOffsetPositionByBoardIndex(int boardIndex, int playerIndex)
+    {
+        var (r, c) = Perimeter[Math.Clamp(boardIndex, 0, Perimeter.Count - 1)];
+        var baseTop = (int)(r * CellSize * _boardScale);
+        var baseLeft = (int)(c * CellSize * _boardScale);
+        var cellScaled = (int)(CellSize * _boardScale);
+        int offsetX = 0, offsetY = 0;
+        switch (playerIndex)
+        {
+            case 0:
+                offsetX = 0; offsetY = 0; break;
+            case 1:
+                offsetX = (int)(cellScaled * 0.28); offsetY = 0; break;
+            case 2:
+                offsetX = 0; offsetY = (int)(cellScaled * 0.28); break;
+            case 3:
+                offsetX = (int)(cellScaled * 0.28); offsetY = (int)(cellScaled * 0.28); break;
+        }
+        var top = (baseTop + offsetY) + "px";
+        var left = (baseLeft + offsetX) + "px";
+        var z = playerIndex >= 2 ? 1200 : 1100;
+        return (top, left, z);
+    }
+
+    private int GetHumanPlayersCount()
+    {
+        if (HumanCountQuery.HasValue) return Math.Max(0, HumanCountQuery.Value);
+        try
+        {
+            var uri = Nav.ToAbsoluteUri(Nav.Uri);
+            var q = QueryHelpers.ParseQuery(uri.Query);
+            if (q.TryGetValue("humanCount", out var v) || q.TryGetValue("humancount", out v))
+            {
+                if (int.TryParse(v.ToString(), out var parsed)) return Math.Max(0, parsed);
+            }
+        }
+        catch { }
+        return 1;
+    }
+
+    private bool CanRollForCurrent => !_isAnimating && _game is not null && (_game.CurrentPlayerIndex < GetHumanPlayersCount());
 
     private Task EndGame()
     {
@@ -367,7 +409,7 @@
     private async Task TryAutoRollForBotAsync()
     {
         if (_game is null) return;
-        var humanPlayers = HumanCountQuery ?? 1;
+        var humanPlayers = GetHumanPlayersCount();
         var currentIndex = _game.CurrentPlayerIndex;
         if (currentIndex >= humanPlayers && currentIndex < _game.Players.Count)
         {

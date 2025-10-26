@@ -15,20 +15,23 @@
 
         <div class="mb-3">
             <label class="form-label" style="color:var(--text);">Tabuleiro</label>
-            <select class="form-select" @bind="SelectedBoardId">
-                @if (Boards is not null)
-                {
-                    @foreach (var b in Boards)
+            <div class="d-flex gap-2">
+                <select class="form-select" style="flex: 0 0 62%;" @bind="SelectedBoardId">
+                    @if (Boards is not null)
                     {
-                        <option value="@b.Id">@b.Name (@b.Rows x @b.Cols)</option>
+                        @foreach (var b in Boards)
+                        {
+                            <option value="@b.Id">@b.Name (@b.Rows x @b.Cols)</option>
+                        }
                     }
-                }
-            </select>
+                </select>
+                <button class="btn btn-outline-light" style="flex: 0 0 38%;" @onclick="CreateBoard">Criar tabuleiro</button>
+            </div>
         </div>
 
         <div class="row g-2 mb-3">
             <div class="col-6">
-                <label class="form-label" style="color:var(--text);">Jogadores (humanos)</label>
+                <label class="form-label" style="color:var(--text);">Jogadores</label>
                 <input type="number" class="form-control" min="1" max="4" @bind="HumanCount" />
             </div>
             <div class="col-6">
@@ -38,22 +41,27 @@
         </div>
 
         <div class="mb-3">
-            <div class="fw-semibold mb-2" style="color:var(--text);">Nome dos jogadores</div>
+            <div class="fw-semibold mb-2" style="color:var(--text);">Perfil dos jogadores</div>
+
+            @* Human players rows: pawn picker + editable name *@
             @for (int i = 0; i < HumanCount; i++)
             {
                 <div class="input-group mb-2">
                     <button class="btn btn-outline-light" style="width:44px;padding:4px 6px;" @onclick="(() => ShowPawnPicker(i))">
                         <img src="@GetPawnUrlFor(i)" alt="pawn" style="width:28px;height:28px;object-fit:contain;" />
                     </button>
-                    <span class="input-group-text">#{i + 1}</span>
-                    <input class="form-control" @bind="HumanNames[i]" />
+                    <input class="form-control" value="@HumanNames[i]" @oninput="@(e => OnHumanNameInput(i, e))" />
                 </div>
             }
 
+            @* Bot rows: pawn picker + disabled bot name *@
             @for (int j = 0; j < BotCount; j++)
             {
+                var playerIndex = HumanCount + j;
                 <div class="input-group mb-2">
-                    <span class="input-group-text">Bot #{j + 1}</span>
+                    <button class="btn btn-outline-light" style="width:44px;padding:4px 6px;" @onclick="(() => ShowPawnPicker(playerIndex))">
+                        <img src="@GetPawnUrlFor(playerIndex)" alt="pawn" style="width:28px;height:28px;object-fit:contain;" />
+                    </button>
                     <input class="form-control" value="@($"Bot {j + 1}")" disabled />
                 </div>
             }
@@ -74,7 +82,8 @@
                             {
                                 var idx = p;
                                 var url = $"{Nav.BaseUri}images/pawns/PawnsB{p}.png";
-                                var takenBy = SelectedPawns.IndexOf(p);
+                                var totalPlayers = Math.Clamp(HumanCount + BotCount, 1, 4);
+                                var takenBy = SelectedPawns.Take(totalPlayers).ToList().IndexOf(p);
                                 var disabled = takenBy >= 0 && takenBy != _pawnPickerFor;
                                 <button class="btn p-0 border" style="width:64px;height:64px;" disabled="@disabled" @onclick="(() => PickPawnFor(_pawnPickerFor, idx))">
                                     <img src="@url" style="width:100%;height:100%;object-fit:contain;opacity:@(disabled ? 0.35 : 1)" />
@@ -87,10 +96,10 @@
         }
 
         <div class="d-flex justify-content-between align-items-center">
-            <div class="text-muted small" style="color:var(--text-muted);">Você deve ter pelo menos 1 jogador humano. Total de jogadores até 4.</div>
+            <div class="text-muted small" style="color:#ffffff !important;">Mínimo 2 jogadores, máximo 4.</div>
             <div>
                 <button class="btn btn-secondary me-2" @onclick="Back">Voltar</button>
-                <button class="btn btn-primary" @onclick="StartLocalGame" disabled="@(!CanStart)">Iniciar Jogo Local</button>
+                <button class="btn btn-primary" @onclick="StartLocalGame" disabled="@(!CanStart)">Iniciar jogo</button>
             </div>
         </div>
     </div>
@@ -100,13 +109,13 @@
     private List<BoardDefinitionEntity> Boards = new();
     private Guid SelectedBoardId = Guid.Empty;
 
-    private int _humanCount = 1;
+    private int _human_count = 1;
     private int HumanCount
     {
-        get => _humanCount;
+        get => _human_count;
         set
         {
-            _humanCount = Math.Clamp(value, 1, 4);
+            _human_count = Math.Clamp(value, 1, 4);
             EnsureHumanNamesSize();
             EnsureSelectedPawnsSize();
         }
@@ -132,7 +141,7 @@
 
     private int _pawnPickerFor = -1;
 
-    private bool CanStart => HumanCount >= 1 && HumanCount <= 4 && BotCount >= 0 && BotCount <= 3 && (HumanCount + BotCount) <= 4 && SelectedBoardId != Guid.Empty;
+    private bool CanStart => (HumanCount + BotCount) >= 2 && (HumanCount + BotCount) <= 4 && HumanCount >= 1 && BotCount >= 0 && SelectedBoardId != Guid.Empty;
 
     protected override async Task OnInitializedAsync()
     {
@@ -144,18 +153,19 @@
 
     private void EnsureHumanNamesSize()
     {
-        while (HumanNames.Count < 4) HumanNames.Add($"Player {HumanNames.Count + 1}");
-        // trim is not necessary; we keep up to 4
+        // ensure we have at least as many human name slots as HumanCount
+        while (HumanNames.Count < HumanCount) HumanNames.Add($"Player {HumanNames.Count + 1}");
     }
 
     private void EnsureSelectedPawnsSize()
     {
-        while (SelectedPawns.Count < 4) SelectedPawns.Add(SelectedPawns.Count + 1);
-        // ensure uniqueness naive: if duplicates exist, try to assign available
+        var totalPlayers = Math.Clamp(HumanCount + BotCount, 1, 4);
+        while (SelectedPawns.Count < totalPlayers) SelectedPawns.Add(SelectedPawns.Count + 1);
+        // ensure uniqueness among active players only
         var used = new HashSet<int>();
-        for (int i = 0; i < SelectedPawns.Count; i++)
+        for (int i = 0; i < totalPlayers; i++)
         {
-            if (used.Contains(SelectedPawns[i]) || SelectedPawns[i] < 1 || SelectedPawns[i] > 6)
+            if (SelectedPawns[i] < 1 || SelectedPawns[i] > 6 || used.Contains(SelectedPawns[i]))
             {
                 // find first available
                 for (int p = 1; p <= 6; p++)
@@ -186,9 +196,15 @@
 
     private void PickPawnFor(int playerIndex, int pawnIdx)
     {
-        // ensure pawn not used by others
-        if (SelectedPawns.IndexOf(pawnIdx) >= 0 && SelectedPawns.IndexOf(pawnIdx) != playerIndex)
-            return;
+        var totalPlayers = Math.Clamp(HumanCount + BotCount, 1, 4);
+        // ensure pawn not used by others among active players
+        for (int i = 0; i < totalPlayers; i++)
+        {
+            if (SelectedPawns.ElementAtOrDefault(i) == pawnIdx && i != playerIndex)
+                return;
+        }
+        // if list too small, expand
+        while (SelectedPawns.Count <= playerIndex) SelectedPawns.Add(1);
         SelectedPawns[playerIndex] = pawnIdx;
         _pawnPickerFor = -1;
     }
@@ -202,6 +218,14 @@
     private void Back()
     {
         Nav.NavigateTo("/");
+    }
+
+    private void OnHumanNameInput(int index, ChangeEventArgs e)
+    {
+        if (index < 0 || index >= HumanNames.Count) return;
+        var val = Convert.ToString(e.Value) ?? string.Empty;
+        val = string.IsNullOrWhiteSpace(val) ? $"Player {index + 1}" : val.Trim();
+        HumanNames[index] = val;
     }
 
     private async Task StartLocalGame()
@@ -227,5 +251,10 @@
         // pass humanCount so Play page knows which players are bots and pawns as comma-separated indexes
         var pawnsQuery = string.Join(',', pawnIndices.Select(i => i <=0 ? 1 : i));
         Nav.NavigateTo($"/play/{gameId}?boardId={SelectedBoardId}&humanCount={HumanCount}&pawns={pawnsQuery}");
+    }
+
+    private void CreateBoard()
+    {
+        Nav.NavigateTo("/board-builder");
     }
 }
