@@ -35,16 +35,49 @@ public class EfGameRepository : IGameRepository
             .OrderBy(t => t.Position)
             .ToListAsync(ct);
 
-        var board = templates.Select(t => new Block
+        var board = templates.Select(t =>
         {
-            Position = t.Position,
-            Name = t.Name,
-            Description = t.Description,
-            ImageUrl = t.ImageUrl,
-            Color = t.Color,
-            Price = t.Price,
-            Rent = t.Rent,
-            Type = t.Type
+            if (t.Type == BlockType.Property)
+            {
+                var pb = new PropertyBlock
+                {
+                    Position = t.Position,
+                    Name = t.Name,
+                    Description = t.Description,
+                    ImageUrl = t.ImageUrl,
+                    Color = t.Color,
+                    Price = t.Price,
+                    Rent = t.Rent,
+                    Type = t.Type,
+                    HousePrice = t.HousePrice,
+                    HotelPrice = t.HotelPrice,
+                    Level = t.Level ?? PropertyLevel.Barata
+                };
+                // parse rents csv
+                if (!string.IsNullOrWhiteSpace(t.RentsCsv))
+                {
+                    var parts = t.RentsCsv.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                    for (int i = 0; i < Math.Min(parts.Length, pb.Rents.Length); i++)
+                    {
+                        if (int.TryParse(parts[i], out var v)) pb.Rents[i] = v;
+                    }
+                }
+                return (Block)pb;
+            }
+            else
+            {
+                return new Block
+                {
+                    Position = t.Position,
+                    Name = t.Name,
+                    Description = t.Description,
+                    ImageUrl = t.ImageUrl,
+                    Color = t.Color,
+                    Price = t.Price,
+                    Rent = t.Rent,
+                    Type = t.Type
+                };
+            }
         }).ToList();
 
         var game = new Game(players, board);
@@ -117,24 +150,44 @@ public class EfGameRepository : IGameRepository
             .OrderBy(b => b.Position)
             .Select(b =>
             {
-                var block = new Block
+                if (b.Type == BlockType.Property)
                 {
-                    Position = b.Position,
-                    Name = b.Name,
-                    Description = b.Description,
-                    ImageUrl = b.ImageUrl,
-                    Color = b.Color,
-                    Price = b.Price,
-                    Rent = b.Rent,
-                    IsMortgaged = b.IsMortgaged,
-                    Type = b.Type
-                };
-                if (b.OwnerId.HasValue && idMap.TryGetValue(b.OwnerId.Value, out var owner))
-                {
-                    block.Owner = owner;
-                    owner.OwnedProperties.Add(block);
+                    var pb = new PropertyBlock
+                    {
+                        Position = b.Position,
+                        Name = b.Name,
+                        Description = b.Description,
+                        ImageUrl = b.ImageUrl,
+                        Color = b.Color,
+                        Price = b.Price,
+                        Rent = b.Rent,
+                        IsMortgaged = b.IsMortgaged,
+                        Type = b.Type
+                    };
+                    // try parse rents if stored in Description or other - currently not stored in BlockState
+                    return (Block)pb;
                 }
-                return block;
+                else
+                {
+                    var block = new Block
+                    {
+                        Position = b.Position,
+                        Name = b.Name,
+                        Description = b.Description,
+                        ImageUrl = b.ImageUrl,
+                        Color = b.Color,
+                        Price = b.Price,
+                        Rent = b.Rent,
+                        IsMortgaged = b.IsMortgaged,
+                        Type = b.Type
+                    };
+                    if (b.OwnerId.HasValue && idMap.TryGetValue(b.OwnerId.Value, out var owner))
+                    {
+                        block.Owner = owner;
+                        owner.OwnedProperties.Add(block);
+                    }
+                    return block;
+                }
             }).ToList();
 
         var game = new Game(players, blocks);
