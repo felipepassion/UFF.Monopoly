@@ -14,6 +14,9 @@ public class PlayerStateEntity
     public int JailTurns { get; set; }
     public bool IsBankrupt { get; set; }
 
+    // pawn index selection (1..6)
+    public int PawnIndex { get; set; } = 1;
+
     public Guid GameStateId { get; set; }
     public GameStateEntity Game { get; set; } = null!;
 }

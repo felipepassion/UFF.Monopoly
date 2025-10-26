@@ -19,6 +19,15 @@ html, body {
     height: 100%;
 }
 
+/* Remove transient focus outline that appears on some containers when clicked */
+.no-focus-wrapper:focus,
+.no-focus-wrapper *:focus {
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+.no-focus-wrapper h1 { outline: none; box-shadow: none; }
+
 a, .btn-link {
     color: var(--accent);
 }

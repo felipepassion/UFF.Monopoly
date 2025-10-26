@@ -10,6 +10,9 @@ public class Player
     public int GetOutOfJailFreeCards { get; set; } = 0;
     public int JailTurns { get; set; } = 0;
     public bool IsBankrupt { get; set; } = false;
-    
+
+    // Pawn selection index (1..6) - persisted to DB
+    public int PawnIndex { get; set; } = 1;
+
     public List<Block> OwnedProperties { get; set; } = new();
 }

@@ -7,7 +7,7 @@ namespace UFF.Monopoly.Repositories;
 
 public interface IGameRepository
 {
-    Task<(Guid gameId, Game game)> CreateNewGameAsync(Guid boardDefinitionId, IEnumerable<string> playerNames, CancellationToken ct = default);
+    Task<(Guid gameId, Game game)> CreateNewGameAsync(Guid boardDefinitionId, IEnumerable<string> playerNames, IEnumerable<int>? pawnIndices = null, CancellationToken ct = default);
     Task<Game?> GetGameAsync(Guid gameId, CancellationToken ct = default);
     Task SaveGameAsync(Guid gameId, Game game, CancellationToken ct = default);
 }
@@ -21,11 +21,14 @@ public class EfGameRepository : IGameRepository
         _factory = factory;
     }
 
-    public async Task<(Guid gameId, Game game)> CreateNewGameAsync(Guid boardDefinitionId, IEnumerable<string> playerNames, CancellationToken ct = default)
+    public async Task<(Guid gameId, Game game)> CreateNewGameAsync(Guid boardDefinitionId, IEnumerable<string> playerNames, IEnumerable<int>? pawnIndices = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var id = Guid.NewGuid();
-        var players = playerNames.Select(n => new Player { Name = n }).ToList();
+        var names = playerNames.ToList();
+        var pawnsList = pawnIndices?.ToList() ?? new List<int>();
+
+        var players = names.Select((n, idx) => new Player { Name = n, PawnIndex = (pawnsList.ElementAtOrDefault(idx) >= 1 && pawnsList.ElementAtOrDefault(idx) <= 6) ? pawnsList.ElementAtOrDefault(idx) : 1 }).ToList();
 
         var templates = await db.BlockTemplates.AsNoTracking()
             .Where(t => t.BoardDefinitionId == boardDefinitionId)
@@ -60,7 +63,8 @@ public class EfGameRepository : IGameRepository
                 InJail = p.InJail,
                 GetOutOfJailFreeCards = p.GetOutOfJailFreeCards,
                 JailTurns = p.JailTurns,
-                IsBankrupt = p.IsBankrupt
+                IsBankrupt = p.IsBankrupt,
+                PawnIndex = p.PawnIndex
             }).ToList(),
             Board = board.Select(b => new BlockStateEntity
             {
@@ -104,7 +108,8 @@ public class EfGameRepository : IGameRepository
                 InJail = p.InJail,
                 GetOutOfJailFreeCards = p.GetOutOfJailFreeCards,
                 JailTurns = p.JailTurns,
-                IsBankrupt = p.IsBankrupt
+                IsBankrupt = p.IsBankrupt,
+                PawnIndex = p.PawnIndex
             }).ToList();
         var idMap = players.ToDictionary(p => p.Id, p => p);
 
@@ -145,7 +150,7 @@ public class EfGameRepository : IGameRepository
             .FirstOrDefaultAsync(g => g.Id == gameId, ct);
         if (gameEntity == null)
         {
-            await CreateNewGameAsync(Guid.Empty, game.Players.Select(p => p.Name), ct);
+            await CreateNewGameAsync(Guid.Empty, game.Players.Select(p => p.Name), null, ct);
             return;
         }
 
@@ -163,6 +168,7 @@ public class EfGameRepository : IGameRepository
             p.GetOutOfJailFreeCards = model.GetOutOfJailFreeCards;
             p.JailTurns = model.JailTurns;
             p.IsBankrupt = model.IsBankrupt;
+            p.PawnIndex = model.PawnIndex;
         }
 
         foreach (var b in gameEntity.Board)
