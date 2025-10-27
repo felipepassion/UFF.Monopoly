@@ -137,8 +137,8 @@ public class EfGameRepository : IGameRepository
             .FirstOrDefaultAsync(g => g.Id == gameId, ct);
         if (gameEntity == null) return null;
 
+        // preserve stored player order instead of ordering by name
         var players = gameEntity.Players
-            .OrderBy(p => p.Name)
             .Select(p => new Player
             {
                 Id = p.Id,

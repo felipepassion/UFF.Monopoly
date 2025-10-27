@@ -46,11 +46,11 @@
             @* Human players rows: pawn picker + editable name *@
             @for (int i = 0; i < HumanCount; i++)
             {
-                <div class="input-group mb-2">
+                <div class="input-group mb-2" @key="i">
                     <button class="btn btn-outline-light" style="width:44px;padding:4px 6px;" @onclick="(() => ShowPawnPicker(i))">
                         <img src="@GetPawnUrlFor(i)" alt="pawn" style="width:28px;height:28px;object-fit:contain;" />
                     </button>
-                    <input class="form-control" value="@HumanNames[i]" @oninput="@(e => OnHumanNameInput(i, e))" />
+                    <input class="form-control" type="text" @bind="HumanNames[i]" @bind:event="oninput" />
                 </div>
             }
 
@@ -58,7 +58,7 @@
             @for (int j = 0; j < BotCount; j++)
             {
                 var playerIndex = HumanCount + j;
-                <div class="input-group mb-2">
+                <div class="input-group mb-2" @key="playerIndex">
                     <button class="btn btn-outline-light" style="width:44px;padding:4px 6px;" @onclick="(() => ShowPawnPicker(playerIndex))">
                         <img src="@GetPawnUrlFor(playerIndex)" alt="pawn" style="width:28px;height:28px;object-fit:contain;" />
                     </button>
@@ -220,6 +220,7 @@
         Nav.NavigateTo("/");
     }
 
+    // Keep method for backward compatibility if needed; not used when using @bind
     private void OnHumanNameInput(int index, ChangeEventArgs e)
     {
         if (index < 0 || index >= HumanNames.Count) return;

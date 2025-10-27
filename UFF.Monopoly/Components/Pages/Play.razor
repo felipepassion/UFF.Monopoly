@@ -39,7 +39,7 @@
                     var p = _game.Players[i];
                     var renderIndex = (i == _game.CurrentPlayerIndex && _pawnAnimPosition >= 0) ? _pawnAnimPosition : p.CurrentPosition;
                     var (top, left, z) = GetTokenOffsetPositionByBoardIndex(renderIndex, i);
-                    var pawnSize = (int)(CellSize * _boardScale * 0.6) + "px";
+                    var pawnSize = (int)(CellSize * _boardScale * 0.5) + "px";
                     var pawnUrl = GetPawnUrlForPlayer(i);
                     <img src="@pawnUrl" alt="pawn"
                          style="position:absolute; width:@pawnSize; height:@pawnSize; object-fit:contain; top:@top; left:@left; transform:translate(20%,20%); transition: top @_animStepMs ms linear, left @_animStepMs ms linear; pointer-events:none; z-index:@z;" />
@@ -76,7 +76,7 @@
                         @for (int i = 0; i < _game.Players.Count; i++)
                         {
                             var p = _game.Players[i];
-                            <li class="small">@((i == _game.CurrentPlayerIndex) ? "? " : "")@p.Name</li>
+                            <li class="small">@p.Name</li>
                         }
                     </ul>
                 </div>
@@ -355,6 +355,13 @@
             case 3:
                 offsetX = (int)(cellScaled * 0.28); offsetY = (int)(cellScaled * 0.28); break;
         }
+
+        // add a tiny extra spacing so pawns are not touching each other (2px right/down for shifted pawns)
+        const int extraSpacingX = 2; // px to add horizontally for right-side pawns
+        const int extraSpacingY = 2; // px to add vertically for bottom pawns
+        if (offsetX > 0) offsetX += extraSpacingX;
+        if (offsetY > 0) offsetY += extraSpacingY;
+
         var top = (baseTop + offsetY) + "px";
         var left = (baseLeft + offsetX) + "px";
         var z = playerIndex >= 2 ? 1200 : 1100;
@@ -379,6 +386,13 @@
             case 3:
                 offsetX = (int)(cellScaled * 0.28); offsetY = (int)(cellScaled * 0.28); break;
         }
+
+        // add the same small spacing here as well
+        const int extraSpacingX = 12; // px
+        const int extraSpacingY = 6; // px
+        if (offsetX > 0) offsetX += extraSpacingX;
+        if (offsetY > 0) offsetY += extraSpacingY;
+
         var top = (baseTop + offsetY) + "px";
         var left = (baseLeft + offsetX) + "px";
         var z = playerIndex >= 2 ? 1200 : 1100;
