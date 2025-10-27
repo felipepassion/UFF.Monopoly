@@ -50,7 +50,7 @@
                     <button class="btn btn-outline-light" style="width:44px;padding:4px 6px;" @onclick="(() => ShowPawnPicker(i))">
                         <img src="@GetPawnUrlFor(i)" alt="pawn" style="width:28px;height:28px;object-fit:contain;" />
                     </button>
-                    <input class="form-control" type="text" @bind="HumanNames[i]" @bind:event="oninput" />
+                    <input class="form-control" type="text" value="@GetHumanName(i)" @oninput="@(e => SetHumanName(i, Convert.ToString(e.Value) ?? string.Empty))" />
                 </div>
             }
 
@@ -229,6 +229,21 @@
         HumanNames[index] = val;
     }
 
+    private string GetHumanName(int index)
+    {
+        if (index < 0) return string.Empty;
+        if (index >= HumanNames.Count) return $"Player {index + 1}";
+        return HumanNames[index] ?? $"Player {index + 1}";
+    }
+
+    private void SetHumanName(int index, string value)
+    {
+        if (index < 0) return;
+        while (HumanNames.Count <= index) HumanNames.Add($"Player {HumanNames.Count + 1}");
+        var val = string.IsNullOrWhiteSpace(value) ? $"Player {index + 1}" : value.Trim();
+        HumanNames[index] = val;
+    }
+
     private async Task StartLocalGame()
     {
         if (!CanStart) return;
@@ -249,8 +264,7 @@
         }
 
         var (gameId, game) = await GameRepo.CreateNewGameAsync(SelectedBoardId, players, pawnIndices);
-        // pass humanCount so Play page knows which players are bots and pawns as comma-separated indexes
-        var pawnsQuery = string.Join(',', pawnIndices.Select(i => i <=0 ? 1 : i));
+        var pawnsQuery = string.Join(',', pawnIndices.Select(i => i <= 0 ? 1 : i));
         Nav.NavigateTo($"/play/{gameId}?boardId={SelectedBoardId}&humanCount={HumanCount}&pawns={pawnsQuery}");
     }
 
