@@ -6,6 +6,8 @@ public class BoardSpaceDto
     public string Name { get; set; } = string.Empty;
     public string ImageUrl { get; set; } = string.Empty;
     public BoardSpaceStyle Style { get; set; } = new();
+    // optional overlay color (e.g., property level color with transparency)
+    public string? OverlayColor { get; set; }
 }
 
 public class BoardSpaceStyle

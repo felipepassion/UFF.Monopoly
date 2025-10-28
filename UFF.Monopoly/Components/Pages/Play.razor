@@ -1,0 +1,642 @@
+@page "/play/{GameId:guid}"
+
+@using Microsoft.EntityFrameworkCore
+@using UFF.Monopoly.Data
+@using UFF.Monopoly.Data.Entities
+@using UFF.Monopoly.Models
+@using UFF.Monopoly.Repositories
+@using UFF.Monopoly.Entities
+@using System.Globalization
+@using Microsoft.AspNetCore.WebUtilities
+@inject IDbContextFactory<ApplicationDbContext> DbFactory
+@inject IGameRepository GameRepo
+@inject NavigationManager Nav
+@inject UFF.Monopoly.Infrastructure.IUserProfileService Profiles
+
+<h3 class="mb-2">Partida local</h3>
+
+<div class="mt-2 d-flex align-items-md-center justify-content-center full-center-wrapper" style="min-height: calc(100vh - 140px);">
+    <div class="board-shell d-inline-block" style="background:var(--surface);border:1px solid rgba(255,255,255,0.03);border-radius:10px;padding:10px;">
+        @if (_loading)
+        {
+            <div class="p-4">Carregando...</div>
+        }
+        else if (_game is null)
+        {
+            <div class="p-4">Jogo não encontrado.</div>
+        }
+        else
+        {
+            <div id="game-board-container" class="game-board" style="position:relative; width:@_boardWidthCss; height:@_boardHeightCss; display:flex; align-items:center; justify-content:center;">
+                @foreach (var space in BoardSpaces)
+                {
+                    <BoardSpace Space="space" OnClick="HandleClick" />
+                }
+
+                @* Tokens for all players. For the active player, use _pawnAnimPosition when animating so token moves step-by-step *@
+                @for (int i = 0; i < _game.Players.Count; i++)
+                {
+                    var p = _game.Players[i];
+                    var renderIndex = (i == _game.CurrentPlayerIndex && _pawnAnimPosition >= 0) ? _pawnAnimPosition : p.CurrentPosition;
+                    var (top, left, z) = GetTokenOffsetPositionByBoardIndex(renderIndex, i);
+                    var pawnSize = (int)(CellSize * _boardScale * 0.5) + "px";
+                    var pawnUrl = GetPawnUrlForPlayer(i);
+                    <img src="@pawnUrl" alt="pawn"
+                         style="position:absolute; width:@pawnSize; height:@pawnSize; object-fit:contain; top:@top; left:@left; transform:translate(20%,20%); transition: top @_animStepMs ms linear, left @_animStepMs ms linear; pointer-events:none; z-index:@z;" />
+                }
+
+                @if (_showDiceOverlay)
+                {
+                    var diceImgSize = Math.Max(24, (int)(CellSize * 0.6 * _boardScale)) + "px"; // scaled
+                    var gifSize = Math.Max(64, (int)(CellSize * 1.6 * _boardScale)) + "px"; // scaled
+
+                    var gifOffsetPx = -(int)(CellSize * 0.6 * _boardScale); // negative -> move up
+                    var diceOffsetPx = (int)(CellSize * 0.8 * _boardScale); // positive -> move down
+                    var gifOffset = gifOffsetPx + "px";
+                    var diceOffset = diceOffsetPx + "px";
+
+                    <div class="dice-overlay" style="position:absolute; inset:0; z-index:9999; display:flex; align-items:center; justify-content:center; pointer-events:auto;">
+                        <div class="dice-faces" style="display:flex; gap:12px; align-items:center; z-index:1; transform:translateY(@diceOffset);">
+                            <img src="@($"{Nav.BaseUri}images/dice/diceGreen{_diceFace1}.png")" alt="die1" style="width:@diceImgSize; height:@diceImgSize; object-fit:contain; z-index:1; pointer-events:none;" />
+                            <img src="@($"{Nav.BaseUri}images/dice/diceGreen{_diceFace2}.png")" alt="die2" style="width:@diceImgSize; height:@diceImgSize; object-fit:contain; z-index:1; pointer-events:none;" />
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(_rollingGifUrl))
+                        {
+                            <img src="@_rollingGifUrl" alt="rolling" style="position:absolute; z-index:2; width:@gifSize; height:@gifSize; object-fit:contain; pointer-events:none; opacity:0.95; transform:translateY(@gifOffset);" />
+                        }
+                    </div>
+                }
+
+                @* Post-move action modal *@
+                @if (_showBlockModal && _modalBlock is not null && _modalPlayer is not null)
+                {
+                    <div class="modal-backdrop show"></div>
+                    <div class="modal d-block" tabindex="-1">
+                        <div class="modal-dialog modal-md">
+                            <div class="modal-content p-2" style="background:var(--surface);border:1px solid rgba(255,255,255,0.04);">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">@_modalBlock.Name — @TranslateBlockType(_modalBlock.Type)</h5>
+                                    <button type="button" class="btn-close btn-close-white" aria-label="Close" @onclick="CloseBlockModal"></button>
+                                </div>
+                                <div class="modal-body">
+                                    @if (_modalBlock.Type == BlockType.Property)
+                                    {
+                                        var pb = (PropertyBlock)_modalBlock!;
+                                        <div><strong>Propriedade:</strong> @pb.Name</div>
+                                        <div><strong>Preço:</strong> R$ @pb.Price</div>
+                                        <div><strong>Aluguel atual:</strong> R$ @pb.CalculateRent()</div>
+                                        <div><strong>Casas:</strong> @pb.Houses &nbsp; <strong>Hotéis:</strong> @pb.Hotels</div>
+                                        <div class="mt-3">
+                                            @if (pb.Owner is null)
+                                            {
+                                                <button class="btn btn-success me-2" @onclick="OnBuyPropertyAsync" disabled="@(_modalPlayer.Money < pb.Price)">Comprar (R$ @pb.Price)</button>
+                                            }
+                                            else if (pb.Owner == _modalPlayer)
+                                            {
+                                                <button class="btn btn-primary me-2" @onclick="OnBuildHouseAsync" disabled="@(!pb.CanBuildHouse() || _modalPlayer.Money < pb.HousePrice)">Construir casa (R$ @pb.HousePrice)</button>
+                                                <button class="btn btn-primary me-2" @onclick="OnBuildHotelAsync" disabled="@(!pb.CanBuildHotel() || _modalPlayer.Money < pb.HotelPrice)">Construir hotel (R$ @pb.HotelPrice)</button>
+                                                <button class="btn btn-outline-danger" @onclick="OnSellPropertyAsync">Vender propriedade (50%)</button>
+                                            }
+                                            else
+                                            {
+                                                <div class="text-muted">Propriedade de: @pb.Owner?.Name</div>
+                                            }
+                                        </div>
+                                    }
+                                    else if (_modalBlock.Type == BlockType.Chance || _modalBlock.Type == BlockType.Reves)
+                                    {
+                                        var delta = _modalPlayer.Money - _preMovePlayerMoney;
+                                        if (delta >= 0)
+                                        {
+                                            <div>Você recebeu <strong>R$ @delta</strong> da banca.</div>
+                                        }
+                                        else
+                                        {
+                                            <div>Você pagou <strong>R$ @(-delta)</strong> à banca.</div>
+                                        }
+                                    }
+                                    else if (_modalBlock.Type == BlockType.Tax)
+                                    {
+                                        <div>Pagamento de taxa: <strong>R$ @_modalBlock.Rent</strong></div>
+                                    }
+                                    else if (_modalBlock.Type == BlockType.Go)
+                                    {
+                                        <div>Você chegou ao início / passou por ele e recebeu <strong>R$ @Game.GoSalary</strong>.</div>
+                                    }
+                                    else if (_modalBlock.Type == BlockType.GoToJail)
+                                    {
+                                        <div>Você foi enviado para a prisão.</div>
+                                    }
+                                    else
+                                    {
+                                        <div>@_modalBlock.Description</div>
+                                    }
+                                </div>
+                                <div class="modal-footer">
+                                    <button class="btn btn-secondary" @onclick="CloseBlockModal">Fechar</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center mt-3">
+                <div>
+                    <div class="fw-bold">Jogadores</div>
+                    <ul class="list-unstyled mb-0">
+                        @for (int i = 0; i < _game.Players.Count; i++)
+                        {
+                            var p = _game.Players[i];
+                            <li class="small">@p.Name</li>
+                        }
+                    </ul>
+                </div>
+                <div>
+                    <button class="btn btn-secondary me-2" @onclick="EndGame">Encerrar</button>
+                    <button class="btn btn-primary" @onclick="RollForCurrentPlayer" disabled="@(!CanRollForCurrent)">Rolar</button>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public Guid GameId { get; set; }
+
+    [SupplyParameterFromQuery]
+    public Guid? boardId { get; set; }
+
+    [SupplyParameterFromQuery(Name = "humanCount")]
+    public int? HumanCountQuery { get; set; }
+
+    [SupplyParameterFromQuery]
+    public string? pawns { get; set; }
+
+    private List<BoardSpaceDto> BoardSpaces { get; set; } = new();
+
+    private Game? _game;
+    private bool _loading = true;
+
+    private int Rows;
+    private int Cols;
+    private int CellSize;
+    private List<(int r, int c)> Perimeter = new();
+
+    private string PawnUrl = "/images/pawns/PawnsB1.png";
+
+    private int _pawnAnimPosition = -1;
+    private bool _isAnimating;
+    private int _animStepMs = 140;
+
+    // dice overlay
+    private bool _showDiceOverlay;
+    private int _diceFace1 = 1;
+    private int _diceFace2 = 1;
+    private string _rollingGifUrl = string.Empty;
+    private readonly Random _rand = new();
+
+    private const double _boardScale = 1.5;
+    private string _boardWidthCss = "0px";
+    private string _boardHeightCss = "0px";
+
+    // pawn selection per player
+    private List<int> _pawnsForPlayers = new();
+
+    // modal state for post-move actions
+    private bool _showBlockModal;
+    private Block? _modalBlock;
+    private Player? _modalPlayer;
+    private int _preMovePlayerMoney;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _loading = true;
+        if (!boardId.HasValue)
+        {
+            // no board selected, navigate back
+            Nav.NavigateTo("/local");
+            return;
+        }
+
+        await LoadBoardLayoutAsync(boardId.Value);
+        _game = await GameRepo.GetGameAsync(GameId);
+        if (_game is not null)
+        {
+            _pawnAnimPosition = _game.Players.FirstOrDefault()?.CurrentPosition ?? 0;
+            // prefer persisted pawns
+            _pawnsForPlayers = _game.Players.Select(p => Math.Clamp(p.PawnIndex, 1, 6)).ToList();
+        }
+
+        // if no pawns persisted, parse pawns query param
+        if (!_pawnsForPlayers.Any())
+            ParsePawnsQuery();
+
+        // load pawn image from session
+        try
+        {
+            var pawn = await Profiles.GetPawnFromSessionAsync();
+            if (!string.IsNullOrWhiteSpace(pawn)) PawnUrl = pawn;
+        }
+        catch { }
+
+        _loading = false;
+        StateHasChanged();
+
+        // if current player is bot, trigger automatic roll
+        await TryAutoRollForBotAsync();
+    }
+
+    private void ParsePawnsQuery()
+    {
+        _pawnsForPlayers.Clear();
+        if (string.IsNullOrWhiteSpace(pawns)) return;
+        var parts = pawns.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        foreach (var p in parts)
+        {
+            if (int.TryParse(p, out var v)) _pawnsForPlayers.Add(Math.Clamp(v, 1, 6));
+        }
+    }
+
+    private string GetPawnUrlForPlayer(int playerIndex)
+    {
+        if (playerIndex < _pawnsForPlayers.Count)
+        {
+            var idx = _pawnsForPlayers[playerIndex];
+            return $"{Nav.BaseUri}images/pawns/PawnsB{idx}.png";
+        }
+        return PawnUrl; // fallback
+    }
+
+    private async Task LoadBoardLayoutAsync(Guid bId)
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var board = await db.Boards.AsNoTracking().FirstOrDefaultAsync(b => b.Id == bId);
+        if (board is null) return;
+        Rows = board.Rows;
+        Cols = board.Cols;
+        CellSize = board.CellSizePx;
+        Perimeter = BuildPerimeterClockwise(Rows, Cols);
+
+        var templates = await db.BlockTemplates.AsNoTracking()
+            .Where(t => t.BoardDefinitionId == bId)
+            .OrderBy(t => t.Position)
+            .ToListAsync();
+
+        BoardSpaces = new List<BoardSpaceDto>(Perimeter.Count);
+        for (int i = 0; i < Perimeter.Count; i++)
+        {
+            var (r, c) = Perimeter[i];
+            var template = templates.ElementAtOrDefault(i);
+            var img = template != null && !string.IsNullOrWhiteSpace(template.ImageUrl)
+                ? template.ImageUrl
+                : GetImageForType(template?.Type ?? BlockType.Property);
+
+            string? overlay = null;
+            if (template != null && template.Type == BlockType.Property && template.Level.HasValue)
+            {
+                overlay = GetLevelOverlayColor(template.Level.Value);
+            }
+
+            BoardSpaces.Add(new BoardSpaceDto
+            {
+                Id = $"space-{i}",
+                Name = (template != null ? template.Name : $"Space {i}"),
+                ImageUrl = img,
+                OverlayColor = overlay,
+                Style = new BoardSpaceStyle
+                {
+                    Top = $"{(int)(r * CellSize * _boardScale)}px",
+                    Left = $"{(int)(c * CellSize * _boardScale)}px",
+                    Width = $"{(int)(CellSize * _boardScale)}px",
+                    Height = $"{(int)(CellSize * _boardScale)}px"
+                }
+            });
+        }
+
+        var boardWidth = (int)(Cols * CellSize * _boardScale);
+        var boardHeight = (int)(Rows * CellSize * _boardScale);
+        _boardWidthCss = boardWidth + "px";
+        _boardHeightCss = boardHeight + "px";
+    }
+
+    private async Task RollForCurrentPlayer()
+    {
+        if (_game is null || _isAnimating) return;
+
+        // ensure only current human can roll
+        var humanCount = GetHumanPlayersCount();
+        if (_game.CurrentPlayerIndex >= humanCount) return; // not human
+
+        await RollAndMove();
+    }
+
+    private async Task RollAndMove()
+    {
+        if (_game is null || _isAnimating) return;
+
+        _isAnimating = true;
+
+        var (die1, die2, total) = _game.RollDice();
+
+        await ShowDiceAnimationAsync(die1, die2);
+
+        // animate token movement
+        var playerIndex = _game.CurrentPlayerIndex;
+        var player = _game.Players[playerIndex];
+
+        var startPos = player.CurrentPosition;
+        var steps = total;
+        var pos = startPos;
+        for (int i = 0; i < steps; i++)
+        {
+            pos = (pos + 1) % Perimeter.Count;
+            // animate all tokens accordingly by updating _pawnAnimPosition temporarily
+            _pawnAnimPosition = pos;
+            StateHasChanged();
+            try { await Task.Delay(_animStepMs); } catch { }
+        }
+
+        // apply move to model (this will trigger block actions etc.)
+        _preMovePlayerMoney = player.Money;
+        await _game.MoveCurrentPlayerAsync(total);
+
+        // persist intermediate state so rent/tax results are saved even if user reloads
+        await GameRepo.SaveGameAsync(GameId, _game);
+
+        // open modal with info/actions for the landed block and delay turn advancement until player closes it
+        _modalPlayer = player;
+        _modalBlock = _game.Board.FirstOrDefault(b => b.Position == player.CurrentPosition);
+
+        _pawnAnimPosition = -1;
+        _isAnimating = false;
+        _showBlockModal = true;
+        StateHasChanged();
+
+        // do NOT call NextTurn here; NextTurn will be called when player closes modal
+    }
+
+    private async Task CloseBlockModal()
+    {
+        _showBlockModal = false;
+        // advance turn and persist
+        if (_game is not null)
+        {
+            _game.NextTurn();
+            await GameRepo.SaveGameAsync(GameId, _game);
+        }
+        StateHasChanged();
+        await TryAutoRollForBotAsync();
+    }
+
+    private async Task OnBuyPropertyAsync()
+    {
+        if (_modalBlock is PropertyBlock pb && _modalPlayer is not null)
+        {
+            var success = _game.TryBuyProperty(_modalPlayer, pb);
+            if (success)
+            {
+                if (_game is not null) await GameRepo.SaveGameAsync(GameId, _game);
+            }
+        }
+        StateHasChanged();
+    }
+
+    private async Task OnBuildHouseAsync()
+    {
+        if (_modalBlock is PropertyBlock pb && _modalPlayer is not null)
+        {
+            var ok = pb.BuildHouse(_modalPlayer);
+            if (ok)
+            {
+                if (_game is not null) await GameRepo.SaveGameAsync(GameId, _game);
+            }
+        }
+        StateHasChanged();
+    }
+
+    private async Task OnBuildHotelAsync()
+    {
+        if (_modalBlock is PropertyBlock pb && _modalPlayer is not null)
+        {
+            var ok = pb.BuildHotel(_modalPlayer);
+            if (ok)
+            {
+                if (_game is not null) await GameRepo.SaveGameAsync(GameId, _game);
+            }
+        }
+        StateHasChanged();
+    }
+
+    private async Task OnSellPropertyAsync()
+    {
+        if (_modalBlock is PropertyBlock pb && pb.Owner is not null)
+        {
+            var owner = pb.Owner;
+            // remove ownership and pay owner half price
+            owner.Money += pb.Price / 2;
+            owner.OwnedProperties.Remove(pb);
+            pb.Owner = null;
+            pb.IsMortgaged = false;
+            if (_game is not null) await GameRepo.SaveGameAsync(GameId, _game);
+        }
+        StateHasChanged();
+    }
+
+    private async Task ShowDiceAnimationAsync(int finalDie1, int finalDie2)
+    {
+        try
+        {
+            var gifIndex = _rand.Next(1, 13);
+            _rollingGifUrl = $"{Nav.BaseUri}images/diceAnim/dice-rolling-{gifIndex}.gif";
+
+            _showDiceOverlay = true;
+            StateHasChanged();
+
+            var animDurationMs = 800;
+            var frameMs = 80;
+            var frames = Math.Max(1, animDurationMs / frameMs);
+
+            for (int i = 0; i < frames; i++)
+            {
+                _diceFace1 = _rand.Next(1, 7);
+                _diceFace2 = _rand.Next(1, 7);
+                StateHasChanged();
+                try { await Task.Delay(frameMs); } catch { }
+            }
+
+            _diceFace1 = Math.Clamp(finalDie1, 1, 6);
+            _diceFace2 = Math.Clamp(finalDie2, 1, 6);
+            StateHasChanged();
+            try { await Task.Delay(1000); } catch { }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"ShowDiceAnimationAsync error: {ex}");
+        }
+        finally
+        {
+            _showDiceOverlay = false;
+            _rollingGifUrl = string.Empty;
+            StateHasChanged();
+        }
+    }
+
+    private (string top, string left, int z) GetTokenOffsetPosition(Player p, int playerIndex)
+    {
+        var boardIndex = Math.Clamp(p.CurrentPosition, 0, Math.Max(0, Perimeter.Count - 1));
+        var (r, c) = Perimeter[boardIndex];
+        var baseTop = (int)(r * CellSize * _boardScale);
+        var baseLeft = (int)(c * CellSize * _boardScale);
+        var cellScaled = (int)(CellSize * _boardScale);
+        int offsetX = 0, offsetY = 0;
+        switch (playerIndex)
+        {
+            case 0:
+                offsetX = 0; offsetY = 0; break;
+            case 1:
+                offsetX = (int)(cellScaled * 0.28); offsetY = 0; break;
+            case 2:
+                offsetX = 0; offsetY = (int)(cellScaled * 0.28); break;
+            case 3:
+                offsetX = (int)(cellScaled * 0.28); offsetY = (int)(cellScaled * 0.28); break;
+        }
+
+        // add a tiny extra spacing so pawns are not touching each other (2px right/down for shifted pawns)
+        const int extraSpacingX = 2; // px to add horizontally for right-side pawns
+        const int extraSpacingY = 2; // px to add vertically for bottom pawns
+        if (offsetX > 0) offsetX += extraSpacingX;
+        if (offsetY > 0) offsetY += extraSpacingY;
+
+        var top = (baseTop + offsetY) + "px";
+        var left = (baseLeft + offsetX) + "px";
+        var z = playerIndex >= 2 ? 1200 : 1100;
+        return (top, left, z);
+    }
+
+    private (string top, string left, int z) GetTokenOffsetPositionByBoardIndex(int boardIndex, int playerIndex)
+    {
+        var (r, c) = Perimeter[Math.Clamp(boardIndex, 0, Perimeter.Count - 1)];
+        var baseTop = (int)(r * CellSize * _boardScale);
+        var baseLeft = (int)(c * CellSize * _boardScale);
+        var cellScaled = (int)(CellSize * _boardScale);
+        int offsetX = 0, offsetY = 0;
+        switch (playerIndex)
+        {
+            case 0:
+                offsetX = 0; offsetY = 0; break;
+            case 1:
+                offsetX = (int)(cellScaled * 0.28); offsetY = 0; break;
+            case 2:
+                offsetX = 0; offsetY = (int)(cellScaled * 0.28); break;
+            case 3:
+                offsetX = (int)(cellScaled * 0.28); offsetY = (int)(cellScaled * 0.28); break;
+        }
+
+        // add the same small spacing here as well
+        const int extraSpacingX = 12; // px
+        const int extraSpacingY = 6; // px
+        if (offsetX > 0) offsetX += extraSpacingX;
+        if (offsetY > 0) offsetY += extraSpacingY;
+
+        var top = (baseTop + offsetY) + "px";
+        var left = (baseLeft + offsetX) + "px";
+        var z = playerIndex >= 2 ? 1200 : 1100;
+        return (top, left, z);
+    }
+
+    private int GetHumanPlayersCount()
+    {
+        if (HumanCountQuery.HasValue) return Math.Max(0, HumanCountQuery.Value);
+        try
+        {
+            var uri = Nav.ToAbsoluteUri(Nav.Uri);
+            var q = QueryHelpers.ParseQuery(uri.Query);
+            if (q.TryGetValue("humanCount", out var v) || q.TryGetValue("humancount", out v))
+            {
+                if (int.TryParse(v.ToString(), out var parsed)) return Math.Max(0, parsed);
+            }
+        }
+        catch { }
+        return 1;
+    }
+
+    private bool CanRollForCurrent => !_isAnimating && _game is not null && (_game.CurrentPlayerIndex < GetHumanPlayersCount());
+
+    private Task EndGame()
+    {
+        Nav.NavigateTo("/");
+        return Task.CompletedTask;
+    }
+
+    private Task HandleClick(BoardSpaceDto space)
+    {
+        // left as placeholder
+        return Task.CompletedTask;
+    }
+
+    private async Task TryAutoRollForBotAsync()
+    {
+        if (_game is null) return;
+        var humanPlayers = GetHumanPlayersCount();
+        var currentIndex = _game.CurrentPlayerIndex;
+        if (currentIndex >= humanPlayers && currentIndex < _game.Players.Count)
+        {
+            // bot's turn
+            try { await Task.Delay(700); } catch { }
+            if (!_isAnimating) await RollAndMove();
+        }
+    }
+
+    private static List<(int r, int c)> BuildPerimeterClockwise(int rows, int cols)
+    {
+        var list = new List<(int r, int c)>(Math.Max(0, 2 * rows + 2 * cols - 4));
+        if (rows < 2 || cols < 2) return list;
+
+        int bottom = rows - 1;
+        int top = 0;
+        int left = 0;
+        int right = cols - 1;
+
+        for (int c = right; c >= left; c--) list.Add((bottom, c));
+        for (int r = bottom - 1; r >= top; r--) list.Add((r, left));
+        for (int c = left + 1; c <= right; c++) list.Add((top, c));
+        for (int r = top + 1; r <= bottom - 1; r++) list.Add((r, right));
+
+        return list;
+    }
+
+    private static string GetImageForType(BlockType? type) => type switch
+    {
+        BlockType.Go => "/images/blocks/property_basic.svg",
+        BlockType.Property => "/images/blocks/property_basic.svg",
+        BlockType.Jail => "/images/blocks/visitar_prisao.svg",
+        BlockType.GoToJail => "/images/blocks/go_to_jail.svg",
+        BlockType.Tax => "/images/blocks/volte-casas.svg",
+        _ => "/images/blocks/property_basic.svg"
+    };
+
+    private string GetLevelOverlayColor(PropertyLevel lvl) => lvl switch
+    {
+        PropertyLevel.Barata => "rgba(139,69,19,0.5)", // brown
+        PropertyLevel.Mediana => "rgba(52,152,219,0.5)", // blue
+        PropertyLevel.Rica => "rgba(155,89,182,0.5)", // purple
+        PropertyLevel.MuitoRica => "rgba(46,204,113,0.5)", // green
+        _ => "rgba(0,0,0,0.5)"
+    };
+
+    private string TranslateBlockType(BlockType t) => t switch
+    {
+        BlockType.Go => "Início",
+        BlockType.Property => "Propriedade",
+        BlockType.Tax => "Taxa",
+        BlockType.Jail => "Visitar Prisão",
+        BlockType.GoToJail => "Vá para Prisão",
+        BlockType.Chance => "Sorte",
+        BlockType.Reves => "Revés",
+        BlockType.FreeParking => "Parada Livre",
+        _ => t.ToString()
+    };
+}

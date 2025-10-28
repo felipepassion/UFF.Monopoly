@@ -1,0 +1,275 @@
+@page "/local"
+
+@using Microsoft.EntityFrameworkCore
+@using UFF.Monopoly.Data
+@using UFF.Monopoly.Data.Entities
+@using UFF.Monopoly.Models
+@using UFF.Monopoly.Repositories
+@inject IDbContextFactory<ApplicationDbContext> DbFactory
+@inject IGameRepository GameRepo
+@inject NavigationManager Nav
+
+<div class="d-flex align-items-center justify-content-center" style="min-height: calc(100vh - 80px);">
+    <div class="card p-4" style="background:var(--surface); border:1px solid rgba(255,255,255,0.04); width:720px;">
+        <h2 class="mb-3">Local</h2>
+
+        <div class="mb-3">
+            <label class="form-label" style="color:var(--text);">Tabuleiro</label>
+            <div class="d-flex gap-2">
+                <select class="form-select" style="flex: 0 0 62%;" @bind="SelectedBoardId">
+                    @if (Boards is not null)
+                    {
+                        @foreach (var b in Boards)
+                        {
+                            <option value="@b.Id">@b.Name (@b.Rows x @b.Cols)</option>
+                        }
+                    }
+                </select>
+                <button class="btn btn-outline-light" style="flex: 0 0 38%;" @onclick="CreateBoard">Criar tabuleiro</button>
+            </div>
+        </div>
+
+        <div class="row g-2 mb-3">
+            <div class="col-6">
+                <label class="form-label" style="color:var(--text);">Jogadores</label>
+                <input type="number" class="form-control" min="1" max="4" @bind="HumanCount" />
+            </div>
+            <div class="col-6">
+                <label class="form-label" style="color:var(--text);">Bots</label>
+                <input type="number" class="form-control" min="0" max="3" @bind="BotCount" />
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <div class="fw-semibold mb-2" style="color:var(--text);">Perfil dos jogadores</div>
+
+            @* Human players rows: pawn picker + editable name *@
+            @for (int i = 0; i < HumanCount; i++)
+            {
+                <div class="input-group mb-2" @key="i">
+                    <button class="btn btn-outline-light" style="width:44px;padding:4px 6px;" @onclick="(() => ShowPawnPicker(i))">
+                        <img src="@GetPawnUrlFor(i)" alt="pawn" style="width:28px;height:28px;object-fit:contain;" />
+                    </button>
+                    <input class="form-control" type="text" value="@GetHumanName(i)" @oninput="@(e => SetHumanName(i, Convert.ToString(e.Value) ?? string.Empty))" />
+                </div>
+            }
+
+            @* Bot rows: pawn picker + disabled bot name *@
+            @for (int j = 0; j < BotCount; j++)
+            {
+                var playerIndex = HumanCount + j;
+                <div class="input-group mb-2" @key="playerIndex">
+                    <button class="btn btn-outline-light" style="width:44px;padding:4px 6px;" @onclick="(() => ShowPawnPicker(playerIndex))">
+                        <img src="@GetPawnUrlFor(playerIndex)" alt="pawn" style="width:28px;height:28px;object-fit:contain;" />
+                    </button>
+                    <input class="form-control" value="@($"Bot {j + 1}")" disabled />
+                </div>
+            }
+        </div>
+
+        @if (_pawnPickerFor >= 0)
+        {
+            <div class="modal-backdrop show"></div>
+            <div class="modal d-block" tabindex="-1">
+                <div class="modal-dialog modal-sm">
+                    <div class="modal-content p-2" style="background:var(--surface);border:1px solid rgba(255,255,255,0.04);">
+                        <div class="modal-header">
+                            <h6 class="modal-title">Escolha um peão</h6>
+                            <button type="button" class="btn-close btn-close-white" aria-label="Close" @onclick="ClosePawnPicker"></button>
+                        </div>
+                        <div class="modal-body d-flex flex-wrap gap-2 p-2">
+                            @for (int p = 1; p <= 6; p++)
+                            {
+                                var idx = p;
+                                var url = $"{Nav.BaseUri}images/pawns/PawnsB{p}.png";
+                                var totalPlayers = Math.Clamp(HumanCount + BotCount, 1, 4);
+                                var takenBy = SelectedPawns.Take(totalPlayers).ToList().IndexOf(p);
+                                var disabled = takenBy >= 0 && takenBy != _pawnPickerFor;
+                                <button class="btn p-0 border" style="width:64px;height:64px;" disabled="@disabled" @onclick="(() => PickPawnFor(_pawnPickerFor, idx))">
+                                    <img src="@url" style="width:100%;height:100%;object-fit:contain;opacity:@(disabled ? 0.35 : 1)" />
+                                </button>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <div class="d-flex justify-content-between align-items-center">
+            <div class="text-muted small" style="color:#ffffff !important;">Mínimo 2 jogadores, máximo 4.</div>
+            <div>
+                <button class="btn btn-secondary me-2" @onclick="Back">Voltar</button>
+                <button class="btn btn-primary" @onclick="StartLocalGame" disabled="@(!CanStart)">Iniciar jogo</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<BoardDefinitionEntity> Boards = new();
+    private Guid SelectedBoardId = Guid.Empty;
+
+    private int _human_count = 1;
+    private int HumanCount
+    {
+        get => _human_count;
+        set
+        {
+            _human_count = Math.Clamp(value, 1, 4);
+            EnsureHumanNamesSize();
+            EnsureSelectedPawnsSize();
+        }
+    }
+
+    private int _botCount = 0;
+    private int BotCount
+    {
+        get => _botCount;
+        set
+        {
+            _botCount = Math.Clamp(value, 0, 3);
+            // enforce total players <=4
+            if (HumanCount + _botCount > 4) _botCount = 4 - HumanCount;
+            EnsureSelectedPawnsSize();
+        }
+    }
+
+    private List<string> HumanNames = new() { "Player 1", "Player 2", "Player 3", "Player 4" };
+
+    // Selected pawn index (1..6) per player (humans followed by bots)
+    private List<int> SelectedPawns = new() { 1, 2, 3, 4 };
+
+    private int _pawnPickerFor = -1;
+
+    private bool CanStart => (HumanCount + BotCount) >= 2 && (HumanCount + BotCount) <= 4 && HumanCount >= 1 && BotCount >= 0 && SelectedBoardId != Guid.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadBoardsAsync();
+        if (Boards.Any()) SelectedBoardId = Boards[0].Id;
+        EnsureHumanNamesSize();
+        EnsureSelectedPawnsSize();
+    }
+
+    private void EnsureHumanNamesSize()
+    {
+        // ensure we have at least as many human name slots as HumanCount
+        while (HumanNames.Count < HumanCount) HumanNames.Add($"Player {HumanNames.Count + 1}");
+    }
+
+    private void EnsureSelectedPawnsSize()
+    {
+        var totalPlayers = Math.Clamp(HumanCount + BotCount, 1, 4);
+        while (SelectedPawns.Count < totalPlayers) SelectedPawns.Add(SelectedPawns.Count + 1);
+        // ensure uniqueness among active players only
+        var used = new HashSet<int>();
+        for (int i = 0; i < totalPlayers; i++)
+        {
+            if (SelectedPawns[i] < 1 || SelectedPawns[i] > 6 || used.Contains(SelectedPawns[i]))
+            {
+                // find first available
+                for (int p = 1; p <= 6; p++)
+                {
+                    if (!used.Contains(p)) { SelectedPawns[i] = p; used.Add(p); break; }
+                }
+            }
+            else used.Add(SelectedPawns[i]);
+        }
+    }
+
+    private string GetPawnUrlFor(int playerIndex)
+    {
+        var idx = SelectedPawns.ElementAtOrDefault(playerIndex);
+        if (idx < 1 || idx > 6) idx = 1;
+        return $"{Nav.BaseUri}images/pawns/PawnsB{idx}.png";
+    }
+
+    private void ShowPawnPicker(int playerIndex)
+    {
+        _pawnPickerFor = playerIndex;
+    }
+
+    private void ClosePawnPicker()
+    {
+        _pawnPickerFor = -1;
+    }
+
+    private void PickPawnFor(int playerIndex, int pawnIdx)
+    {
+        var totalPlayers = Math.Clamp(HumanCount + BotCount, 1, 4);
+        // ensure pawn not used by others among active players
+        for (int i = 0; i < totalPlayers; i++)
+        {
+            if (SelectedPawns.ElementAtOrDefault(i) == pawnIdx && i != playerIndex)
+                return;
+        }
+        // if list too small, expand
+        while (SelectedPawns.Count <= playerIndex) SelectedPawns.Add(1);
+        SelectedPawns[playerIndex] = pawnIdx;
+        _pawnPickerFor = -1;
+    }
+
+    private async Task LoadBoardsAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        Boards = await db.Boards.AsNoTracking().OrderByDescending(b => b.CreatedAt).ToListAsync();
+    }
+
+    private void Back()
+    {
+        Nav.NavigateTo("/");
+    }
+
+    // Keep method for backward compatibility if needed; not used when using @bind
+    private void OnHumanNameInput(int index, ChangeEventArgs e)
+    {
+        if (index < 0 || index >= HumanNames.Count) return;
+        var val = Convert.ToString(e.Value) ?? string.Empty;
+        val = string.IsNullOrWhiteSpace(val) ? $"Player {index + 1}" : val.Trim();
+        HumanNames[index] = val;
+    }
+
+    private string GetHumanName(int index)
+    {
+        if (index < 0) return string.Empty;
+        if (index >= HumanNames.Count) return $"Player {index + 1}";
+        return HumanNames[index] ?? $"Player {index + 1}";
+    }
+
+    private void SetHumanName(int index, string value)
+    {
+        if (index < 0) return;
+        while (HumanNames.Count <= index) HumanNames.Add($"Player {HumanNames.Count + 1}");
+        var val = string.IsNullOrWhiteSpace(value) ? $"Player {index + 1}" : value.Trim();
+        HumanNames[index] = val;
+    }
+
+    private async Task StartLocalGame()
+    {
+        if (!CanStart) return;
+
+        var players = new List<string>();
+        var pawnIndices = new List<int>();
+        for (int i = 0; i < HumanCount; i++)
+        {
+            var name = HumanNames.ElementAtOrDefault(i) ?? $"Player {i + 1}";
+            name = string.IsNullOrWhiteSpace(name) ? $"Player {i + 1}" : name.Trim();
+            players.Add(name);
+            pawnIndices.Add(SelectedPawns.ElementAtOrDefault(i));
+        }
+        for (int j = 0; j < BotCount; j++)
+        {
+            players.Add($"Bot {j + 1}");
+            pawnIndices.Add(SelectedPawns.ElementAtOrDefault(HumanCount + j));
+        }
+
+        var (gameId, game) = await GameRepo.CreateNewGameAsync(SelectedBoardId, players, pawnIndices);
+        var pawnsQuery = string.Join(',', pawnIndices.Select(i => i <= 0 ? 1 : i));
+        Nav.NavigateTo($"/play/{gameId}?boardId={SelectedBoardId}&humanCount={HumanCount}&pawns={pawnsQuery}");
+    }
+
+    private void CreateBoard()
+    {
+        Nav.NavigateTo("/board-builder");
+    }
+}

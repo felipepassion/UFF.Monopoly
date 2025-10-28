@@ -6,5 +6,8 @@ public enum BlockType
     Property,
     Tax,
     Jail,
-    GoToJail
+    GoToJail,
+    Chance, // Sorte
+    Reves,  // Revés
+    FreeParking // Parada Livre
 }

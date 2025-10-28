@@ -7,7 +7,7 @@ namespace UFF.Monopoly.Repositories;
 
 public interface IGameRepository
 {
-    Task<(Guid gameId, Game game)> CreateNewGameAsync(Guid boardDefinitionId, IEnumerable<string> playerNames, CancellationToken ct = default);
+    Task<(Guid gameId, Game game)> CreateNewGameAsync(Guid boardDefinitionId, IEnumerable<string> playerNames, IEnumerable<int>? pawnIndices = null, CancellationToken ct = default);
     Task<Game?> GetGameAsync(Guid gameId, CancellationToken ct = default);
     Task SaveGameAsync(Guid gameId, Game game, CancellationToken ct = default);
 }
@@ -21,28 +21,69 @@ public class EfGameRepository : IGameRepository
         _factory = factory;
     }
 
-    public async Task<(Guid gameId, Game game)> CreateNewGameAsync(Guid boardDefinitionId, IEnumerable<string> playerNames, CancellationToken ct = default)
+    public async Task<(Guid gameId, Game game)> CreateNewGameAsync(Guid boardDefinitionId, IEnumerable<string> playerNames, IEnumerable<int>? pawnIndices = null, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         var id = Guid.NewGuid();
-        var players = playerNames.Select(n => new Player { Name = n }).ToList();
+        var names = playerNames.ToList();
+        var pawnsList = pawnIndices?.ToList() ?? new List<int>();
+
+        var players = names.Select((n, idx) => new Player { Name = n, PawnIndex = (pawnsList.ElementAtOrDefault(idx) >= 1 && pawnsList.ElementAtOrDefault(idx) <= 6) ? pawnsList.ElementAtOrDefault(idx) : 1 }).ToList();
 
         var templates = await db.BlockTemplates.AsNoTracking()
             .Where(t => t.BoardDefinitionId == boardDefinitionId)
             .OrderBy(t => t.Position)
             .ToListAsync(ct);
 
-        var board = templates.Select(t => new Block
+        var board = templates.Select(t =>
         {
-            Position = t.Position,
-            Name = t.Name,
-            Description = t.Description,
-            ImageUrl = t.ImageUrl,
-            Color = t.Color,
-            Price = t.Price,
-            Rent = t.Rent,
-            Type = t.Type
+            if (t.Type == BlockType.Property)
+            {
+                var pb = new PropertyBlock
+                {
+                    Position = t.Position,
+                    Name = t.Name,
+                    Description = t.Description,
+                    ImageUrl = t.ImageUrl,
+                    Color = t.Color,
+                    Price = t.Price,
+                    Rent = t.Rent,
+                    Type = t.Type,
+                    HousePrice = t.HousePrice,
+                    HotelPrice = t.HotelPrice,
+                    Level = t.Level ?? PropertyLevel.Barata
+                };
+                // parse rents csv
+                if (!string.IsNullOrWhiteSpace(t.RentsCsv))
+                {
+                    var parts = t.RentsCsv.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                    for (int i = 0; i < Math.Min(parts.Length, pb.Rents.Length); i++)
+                    {
+                        if (int.TryParse(parts[i], out var v)) pb.Rents[i] = v;
+                    }
+                }
+                return (Block)pb;
+            }
+            else
+            {
+                return new Block
+                {
+                    Position = t.Position,
+                    Name = t.Name,
+                    Description = t.Description,
+                    ImageUrl = t.ImageUrl,
+                    Color = t.Color,
+                    Price = t.Price,
+                    Rent = t.Rent,
+                    Type = t.Type
+                };
+            }
         }).ToList();
+
+        // Ensure players start on the 'Go' block if present
+        var goIndex = board.FindIndex(b => b.Type == BlockType.Go);
+        if (goIndex < 0) goIndex = 0;
+        foreach (var p in players) p.CurrentPosition = goIndex;
 
         var game = new Game(players, board);
 
@@ -60,7 +101,8 @@ public class EfGameRepository : IGameRepository
                 InJail = p.InJail,
                 GetOutOfJailFreeCards = p.GetOutOfJailFreeCards,
                 JailTurns = p.JailTurns,
-                IsBankrupt = p.IsBankrupt
+                IsBankrupt = p.IsBankrupt,
+                PawnIndex = p.PawnIndex
             }).ToList(),
             Board = board.Select(b => new BlockStateEntity
             {
@@ -74,7 +116,9 @@ public class EfGameRepository : IGameRepository
                 Rent = b.Rent,
                 OwnerId = b.Owner?.Id,
                 IsMortgaged = b.IsMortgaged,
-                Type = b.Type
+                Type = b.Type,
+                Houses = (b is PropertyBlock pb) ? pb.Houses : 0,
+                Hotels = (b is PropertyBlock pb2) ? pb2.Hotels : 0,
             }).ToList()
         };
 
@@ -93,8 +137,8 @@ public class EfGameRepository : IGameRepository
             .FirstOrDefaultAsync(g => g.Id == gameId, ct);
         if (gameEntity == null) return null;
 
+        // preserve stored player order instead of ordering by name
         var players = gameEntity.Players
-            .OrderBy(p => p.Name)
             .Select(p => new Player
             {
                 Id = p.Id,
@@ -104,7 +148,8 @@ public class EfGameRepository : IGameRepository
                 InJail = p.InJail,
                 GetOutOfJailFreeCards = p.GetOutOfJailFreeCards,
                 JailTurns = p.JailTurns,
-                IsBankrupt = p.IsBankrupt
+                IsBankrupt = p.IsBankrupt,
+                PawnIndex = p.PawnIndex
             }).ToList();
         var idMap = players.ToDictionary(p => p.Id, p => p);
 
@@ -112,24 +157,45 @@ public class EfGameRepository : IGameRepository
             .OrderBy(b => b.Position)
             .Select(b =>
             {
-                var block = new Block
+                if (b.Type == BlockType.Property)
                 {
-                    Position = b.Position,
-                    Name = b.Name,
-                    Description = b.Description,
-                    ImageUrl = b.ImageUrl,
-                    Color = b.Color,
-                    Price = b.Price,
-                    Rent = b.Rent,
-                    IsMortgaged = b.IsMortgaged,
-                    Type = b.Type
-                };
-                if (b.OwnerId.HasValue && idMap.TryGetValue(b.OwnerId.Value, out var owner))
-                {
-                    block.Owner = owner;
-                    owner.OwnedProperties.Add(block);
+                    var pb = new PropertyBlock
+                    {
+                        Position = b.Position,
+                        Name = b.Name,
+                        Description = b.Description,
+                        ImageUrl = b.ImageUrl,
+                        Color = b.Color,
+                        Price = b.Price,
+                        Rent = b.Rent,
+                        IsMortgaged = b.IsMortgaged,
+                        Type = b.Type,
+                        Houses = b.Houses,
+                        Hotels = b.Hotels
+                    };
+                    return (Block)pb;
                 }
-                return block;
+                else
+                {
+                    var block = new Block
+                    {
+                        Position = b.Position,
+                        Name = b.Name,
+                        Description = b.Description,
+                        ImageUrl = b.ImageUrl,
+                        Color = b.Color,
+                        Price = b.Price,
+                        Rent = b.Rent,
+                        IsMortgaged = b.IsMortgaged,
+                        Type = b.Type
+                    };
+                    if (b.OwnerId.HasValue && idMap.TryGetValue(b.OwnerId.Value, out var owner))
+                    {
+                        block.Owner = owner;
+                        owner.OwnedProperties.Add(block);
+                    }
+                    return block;
+                }
             }).ToList();
 
         var game = new Game(players, blocks);
@@ -145,7 +211,7 @@ public class EfGameRepository : IGameRepository
             .FirstOrDefaultAsync(g => g.Id == gameId, ct);
         if (gameEntity == null)
         {
-            await CreateNewGameAsync(Guid.Empty, game.Players.Select(p => p.Name), ct);
+            await CreateNewGameAsync(Guid.Empty, game.Players.Select(p => p.Name), null, ct);
             return;
         }
 
@@ -163,6 +229,7 @@ public class EfGameRepository : IGameRepository
             p.GetOutOfJailFreeCards = model.GetOutOfJailFreeCards;
             p.JailTurns = model.JailTurns;
             p.IsBankrupt = model.IsBankrupt;
+            p.PawnIndex = model.PawnIndex;
         }
 
         foreach (var b in gameEntity.Board)
@@ -177,6 +244,11 @@ public class EfGameRepository : IGameRepository
             b.OwnerId = model.Owner?.Id;
             b.IsMortgaged = model.IsMortgaged;
             b.Type = model.Type;
+            if (model is PropertyBlock pb)
+            {
+                b.Houses = pb.Houses;
+                b.Hotels = pb.Hotels;
+            }
         }
 
         await db.SaveChangesAsync(ct);

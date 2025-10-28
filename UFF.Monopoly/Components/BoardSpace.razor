@@ -5,6 +5,10 @@
     @if (!string.IsNullOrWhiteSpace(Space.ImageUrl))
     {
         <img src="@Space.ImageUrl" alt="@Space.Name" style="width:100%; height:100%; object-fit:cover;" />
+        @if (!string.IsNullOrWhiteSpace(Space.OverlayColor))
+        {
+            <div style="position:absolute; inset:0; background:@Space.OverlayColor; pointer-events:none;"></div>
+        }
     }
 </div>
 

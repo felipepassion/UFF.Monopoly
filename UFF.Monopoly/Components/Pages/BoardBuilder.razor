@@ -93,7 +93,7 @@
         {
             <div class="board-wrapper position-relative" @onclick="ClosePopup">
                 <div class="board-grid"
-                     style="grid-template-columns: repeat(@Form.Cols, @($"{Form.CellSize}px")); grid-auto-rows: @($"{Form.CellSize}px");">
+                     style="grid-template-columns: repeat(@Form.Cols, @(Form.CellSize + "px")); grid-auto-rows: @(Form.CellSize + "px");">
                     @for (var r = 0; r < Form.Rows; r++)
                     {
                         for (var c = 0; c < Form.Cols; c++)
@@ -109,17 +109,22 @@
                                 {
                                     <div class="grid-cell perimeter position-relative"
                                          style="background:@GetCellBackground(b); color:@GetTextColorForBackground(GetCellBackground(b));"
-                                         title="@($"{b.Type} - {b.Name}")"
+                                         title="@($"{TranslateBlockType(b.Type)} - {b.Name}")"
                                          @onclick="(e => OnCellClick(index, e))"
                                          @onclick:stopPropagation="true">
                                         @if (!string.IsNullOrWhiteSpace(b.ImageUrl))
                                         {
                                             <img src="@b.ImageUrl" alt="@b.Name" style="position:absolute; inset:0; width:100%; height:100%; object-fit:contain;" />
+                                            @* Overlay to indicate property level *@
+                                            @if (b.Type == BlockType.Property && b.Level.HasValue)
+                                            {
+                                                <div style="position:absolute; inset:0; background:@GetLevelOverlayColor(b.Level.Value); pointer-events:none;"></div>
+                                            }
                                         }
                                         else
                                         {
                                             <div>
-                                                <div class="cell-type">@b.Type</div>
+                                                <div class="cell-type">@TranslateBlockType(b.Type)</div>
                                                 <div class="cell-index">@index</div>
                                             </div>
                                         }
@@ -134,10 +139,11 @@
                     }
                 </div>
 
+                @* Type selection popup *@
                 @if (Popup.Visible)
                 {
                     <div class="type-popup shadow rounded bg-white border"
-                         style="position:fixed; top:@($"{Popup.Y}px"); left:@($"{Popup.X}px"); z-index: 1050; max-height:80vh; overflow:auto;"
+                         style="position:fixed; top:@(Popup.Y + "px") ; left:@(Popup.X + "px") ; z-index: 1050; max-height:80vh; overflow:auto;"
                          @onclick:stopPropagation="true">
                         <div class="mb-1 fw-bold small px-2 pt-2">Tipo</div>
                         <div class="type-list mb-2 px-2"> 
@@ -146,23 +152,40 @@
                                 <button class="type-option btn w-100 mb-1"
                                         style="background:@GetTypeColor(t); color:@GetTextColorForBackground(GetTypeColor(t));"
                                         @onclick="(() => SelectType(t))">
-                                    @t
+                                    @TranslateBlockType(t)
                                 </button>
                             }
                         </div>
 
-                        <div class="mb-1 fw-bold small px-2">Visual</div>
-                        <div class="visual-list d-flex flex-wrap gap-2 px-2 pb-2">
-                            @foreach (var v in VisualOptions)
-                            {
-                                <button class="visual-option btn p-0 border" title="@v.Label" @onclick="(() => SelectVisual(v))">
-                                    <img src="@v.Url" alt="@v.Label" style="width:48px;height:48px;object-fit:contain;" />
-                                </button>
-                            }
-                            <button class="btn btn-sm btn-outline-secondary" title="Sem visual" @onclick="ClearVisual">Sem visual</button>
+                    </div>
+                }
+
+                @* Property level modal shown when user selects Property *@
+                @if (PropertyModal.Visible)
+                {
+                    <div class="modal-backdrop show"></div>
+                    <div class="modal d-block" tabindex="-1">
+                        <div class="modal-dialog modal-sm">
+                            <div class="modal-content p-2" style="background:var(--surface);border:1px solid rgba(255,255,255,0.04); color:var(--text);">
+                                <div class="modal-header">
+                                    <h6 class="modal-title">Escolha o nível da propriedade</h6>
+                                    <button type="button" class="btn-close btn-close-white" aria-label="Close" @onclick="ClosePropertyModal"></button>
+                                </div>
+                                <div class="modal-body p-2">
+                                    <div class="d-grid gap-2">
+                                        @foreach (PropertyLevel lvl in Enum.GetValues<PropertyLevel>())
+                                        {
+                                            <button class="btn btn-outline-light" style="text-align:left;" @onclick="(() => ApplyPropertyLevel(lvl))">
+                                                <div class="fw-semibold">@TranslatePropertyLevel(lvl)</div>
+                                            </button>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 }
+
             </div>
         }
     </div>
@@ -192,20 +215,8 @@
     private bool ShowToast;
     private string ToastMessage = string.Empty;
 
-    private readonly List<VisualOption> VisualOptions = new()
-    {
-        new("/images/blocks/property_basic.svg", "Propriedade básica", BlockType.Property),
-        new("/images/blocks/property_praia.svg", "Propriedade praia", BlockType.Property),
-        new("/images/blocks/property_predio_av_atlantica.svg", "Propriedade prédio Av. Atlântica", BlockType.Property),
-        new("/images/blocks/caminho_praia.svg", "Caminho praia", null),
-        new("/images/blocks/caminho_reto_campo.svg", "Caminho reto campo", null),
-        new("/images/blocks/caminho_estrada_diagonal.svg", "Caminho estrada diagonal", null),
-        new("/images/blocks/go_to_jail.svg", "Vá para a prisão", BlockType.GoToJail),
-        new("/images/blocks/visitar_prisao.svg", "Visitar prisão", BlockType.Jail),
-        new("/images/blocks/volte-casas.svg", "Volte casas", null)
-    };
-
-    private record VisualOption(string Url, string Label, BlockType? InferredType);
+    // property level modal state
+    private (bool Visible, int Index) PropertyModal = (false, -1);
 
     protected override async Task OnInitializedAsync()
     {
@@ -273,17 +284,20 @@
         RebuildPerimeterMap();
 
         var total = CellToIndex.Count;
-        Blocks = Enumerable.Range(0, total).Select(i => new BlockTemplateEntity
-        {
-            Id = Guid.NewGuid(),
-            Position = i,
-            Name = $"Bloco {i}",
-            Type = BlockType.Property,
-            Color = GetTypeColor(BlockType.Property),
-            ImageUrl = "/images/blocks/property_basic.svg",
-            Price = 0,
-            Rent = 0,
-            BoardDefinitionId = CurrentBoardId
+        Blocks = Enumerable.Range(0, total).Select(i => {
+            var t = new BlockTemplateEntity
+            {
+                Id = Guid.NewGuid(),
+                Position = i,
+                Name = $"Bloco {i}",
+                Type = BlockType.Property,
+                Color = GetTypeColor(BlockType.Property),
+                ImageUrl = GetDefaultImageForType(BlockType.Property),
+                Price = 0,
+                Rent = 0,
+                BoardDefinitionId = CurrentBoardId
+            };
+            return t;
         }).ToList();
     }
 
@@ -352,44 +366,93 @@
         var idx = Popup.Index;
         if (idx >= 0 && idx < Blocks.Count)
         {
+            // if user selected Property, open level modal first
+            if (type == BlockType.Property)
+            {
+                PropertyModal = (true, idx);
+                Popup.Visible = false;
+                StateHasChanged();
+                return;
+            }
+
             Blocks[idx].Type = type;
             Blocks[idx].Color = GetTypeColor(type);
-            if (string.IsNullOrWhiteSpace(Blocks[idx].ImageUrl))
-            {
-                Blocks[idx].ImageUrl = GetDefaultImageForType(type);
-            }
-            Blocks[idx].Name = type.ToString();
+            // auto assign image
+            Blocks[idx].ImageUrl = GetDefaultImageForType(type);
+            Blocks[idx].Name = TranslateBlockType(type);
         }
         Popup.Visible = false;
         StateHasChanged();
     }
 
-    private void SelectVisual(VisualOption v)
+    private void ClosePropertyModal()
     {
-        var idx = Popup.Index;
-        if (idx >= 0 && idx < Blocks.Count)
-        {
-            Blocks[idx].ImageUrl = v.Url;
-            if (v.InferredType.HasValue)
-            {
-                Blocks[idx].Type = v.InferredType.Value;
-                Blocks[idx].Color = GetTypeColor(v.InferredType.Value);
-            }
-        }
-        Popup.Visible = false;
+        PropertyModal = (false, -1);
         StateHasChanged();
     }
 
-    private void ClearVisual()
+    private void ApplyPropertyLevel(PropertyLevel level)
     {
-        var idx = Popup.Index;
+        var idx = PropertyModal.Index;
         if (idx >= 0 && idx < Blocks.Count)
         {
-            Blocks[idx].ImageUrl = string.Empty;
+            Blocks[idx].Type = BlockType.Property;
+            Blocks[idx].Level = level;
+            Blocks[idx].Color = GetTypeColor(BlockType.Property);
+            Blocks[idx].ImageUrl = GetDefaultImageForType(BlockType.Property);
+
+            var defaults = GetDefaultsForPropertyLevel(level);
+            Blocks[idx].Price = defaults.price;
+            Blocks[idx].HousePrice = defaults.housePrice;
+            Blocks[idx].HotelPrice = defaults.hotelPrice;
+            Blocks[idx].RentsCsv = string.Join(',', defaults.rents);
+
+            // update name to indicate level (user can change later if needed)
+            Blocks[idx].Name = $"Propriedade ({TranslatePropertyLevel(level)})";
         }
-        Popup.Visible = false;
+        PropertyModal = (false, -1);
         StateHasChanged();
     }
+
+    private (int price, int housePrice, int hotelPrice, int[] rents) GetDefaultsForPropertyLevel(PropertyLevel level) => level switch
+    {
+        PropertyLevel.Barata => (60, 50, 100, new int[] { 2, 10, 30, 90, 160, 250, 400 }),
+        PropertyLevel.Mediana => (120, 75, 150, new int[] { 6, 30, 90, 270, 400, 550, 700 }),
+        PropertyLevel.Rica => (240, 100, 200, new int[] { 14, 70, 200, 550, 750, 950, 1100 }),
+        PropertyLevel.MuitoRica => (350, 175, 350, new int[] { 26, 130, 390, 900, 1100, 1300, 1500 }),
+        _ => (100, 50, 100, new int[] { 5, 25, 75, 225, 375, 500, 650 })
+    };
+
+    private string TranslatePropertyLevel(PropertyLevel lvl) => lvl switch
+    {
+        PropertyLevel.Barata => "Barata",
+        PropertyLevel.Mediana => "Mediana",
+        PropertyLevel.Rica => "Rica",
+        PropertyLevel.MuitoRica => "Muito rica",
+        _ => lvl.ToString()
+    };
+
+    private string GetLevelOverlayColor(PropertyLevel lvl) => lvl switch
+    {
+        PropertyLevel.Barata => "rgba(139,69,19,0.5)", // brown
+        PropertyLevel.Mediana => "rgba(52,152,219,0.5)", // blue
+        PropertyLevel.Rica => "rgba(155,89,182,0.5)", // purple
+        PropertyLevel.MuitoRica => "rgba(46,204,113,0.5)", // green
+        _ => "rgba(0,0,0,0.5)"
+    };
+
+    private string TranslateBlockType(BlockType t) => t switch
+    {
+        BlockType.Go => "Início",
+        BlockType.Property => "Propriedade",
+        BlockType.Tax => "Taxa",
+        BlockType.Jail => "Visitar Prisão",
+        BlockType.GoToJail => "Vá para Prisão",
+        BlockType.Chance => "Sorte",
+        BlockType.Reves => "Revés",
+        BlockType.FreeParking => "Parada Livre",
+        _ => t.ToString()
+    };
 
     private string GetCellBackground(BlockTemplateEntity b)
         => string.IsNullOrWhiteSpace(b.Color) ? GetTypeColor(b.Type) : b.Color;
@@ -401,6 +464,9 @@
         BlockType.Tax => "#e74c3c",
         BlockType.Jail => "#f1c40f",
         BlockType.GoToJail => "#d35400",
+        BlockType.Chance => "#8e44ad",
+        BlockType.Reves => "#f39c12",
+        BlockType.FreeParking => "#16a085",
         _ => "#95a5a6"
     };
 
@@ -409,8 +475,11 @@
         BlockType.Property => "/images/blocks/property_basic.svg",
         BlockType.GoToJail => "/images/blocks/go_to_jail.svg",
         BlockType.Jail => "/images/blocks/visitar_prisao.svg",
-        BlockType.Tax => "/images/blocks/volte-casas.svg",
-        BlockType.Go => "/images/blocks/property_basic.svg",
+        BlockType.Tax => "/images/blocks/caminho_estrada_diagonal.svg",
+        BlockType.Go => "/images/blocks/volte-casas.svg",
+        BlockType.Chance => "/images/blocks/caminho_praia.svg",
+        BlockType.Reves => "/images/blocks/caminho_reto_campo.svg",
+        BlockType.FreeParking => "/images/blocks/property_praia.svg",
         _ => "/images/blocks/property_basic.svg"
     };
 
@@ -490,6 +559,10 @@
                 Price = b.Price,
                 Rent = b.Rent,
                 Type = b.Type,
+                Level = b.Level,
+                HousePrice = b.HousePrice,
+                HotelPrice = b.HotelPrice,
+                RentsCsv = b.RentsCsv,
                 BoardDefinitionId = CurrentBoardId
             });
         }
@@ -500,7 +573,7 @@
 
         if (isNew)
         {
-            Nav.NavigateTo($"/board-builder/{CurrentBoardId}?saved=1");
+            Nav.NavigateTo($"/board-builder/{CurrentBoardId}?saved=true");
         }
         else
         {

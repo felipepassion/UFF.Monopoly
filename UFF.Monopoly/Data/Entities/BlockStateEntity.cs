@@ -19,6 +19,13 @@ public class BlockStateEntity
     public bool IsMortgaged { get; set; }
     public BlockType Type { get; set; }
 
+    // Persist dynamic property state
+    public int Houses { get; set; }
+    public int Hotels { get; set; }
+
+    // Optional group id to identify property sets (monopolies)
+    public Guid? GroupId { get; set; }
+
     public Guid GameStateId { get; set; }
     public GameStateEntity Game { get; set; } = null!;
 }
