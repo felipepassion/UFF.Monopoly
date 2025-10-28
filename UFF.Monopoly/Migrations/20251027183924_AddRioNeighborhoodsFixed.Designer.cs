@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using UFF.Monopoly.Data;
@@ -11,9 +12,11 @@ using UFF.Monopoly.Data;
 namespace UFF.Monopoly.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251027183924_AddRioNeighborhoodsFixed")]
+    partial class AddRioNeighborhoodsFixed
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -238,13 +241,7 @@ namespace UFF.Monopoly.Migrations
                     b.Property<Guid?>("GroupId")
                         .HasColumnType("uuid");
 
-                    b.Property<int>("HotelPrice")
-                        .HasColumnType("integer");
-
                     b.Property<int>("Hotels")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("HousePrice")
                         .HasColumnType("integer");
 
                     b.Property<int>("Houses")
@@ -256,9 +253,6 @@ namespace UFF.Monopoly.Migrations
 
                     b.Property<bool>("IsMortgaged")
                         .HasColumnType("boolean");
-
-                    b.Property<int?>("Level")
-                        .HasColumnType("integer");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -276,9 +270,6 @@ namespace UFF.Monopoly.Migrations
                     b.Property<int>("Rent")
                         .HasColumnType("integer");
 
-                    b.Property<string>("RentsCsv")
-                        .HasColumnType("text");
-
                     b.Property<int>("Type")
                         .HasColumnType("integer");
 
@@ -286,7 +277,7 @@ namespace UFF.Monopoly.Migrations
 
                     b.HasIndex("GameStateId");
 
-                    b.ToTable("Blocks", (string)null);
+                    b.ToTable("Blocks");
                 });
 
             modelBuilder.Entity("UFF.Monopoly.Data.Entities.BlockTemplateEntity", b =>
@@ -343,7 +334,7 @@ namespace UFF.Monopoly.Migrations
                     b.HasIndex("BoardDefinitionId", "Position")
                         .IsUnique();
 
-                    b.ToTable("BlockTemplates", (string)null);
+                    b.ToTable("BlockTemplates");
 
                     b.HasData(
                         new
@@ -712,7 +703,7 @@ namespace UFF.Monopoly.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Boards", (string)null);
+                    b.ToTable("Boards");
 
                     b.HasData(
                         new
@@ -740,7 +731,7 @@ namespace UFF.Monopoly.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Games", (string)null);
+                    b.ToTable("Games");
                 });
 
             modelBuilder.Entity("UFF.Monopoly.Data.Entities.PlayerStateEntity", b =>
@@ -781,7 +772,7 @@ namespace UFF.Monopoly.Migrations
 
                     b.HasIndex("GameStateId");
 
-                    b.ToTable("Players", (string)null);
+                    b.ToTable("Players");
                 });
 
             modelBuilder.Entity("UFF.Monopoly.Data.Entities.UserProfileEntity", b =>
@@ -815,7 +806,7 @@ namespace UFF.Monopoly.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("UserProfiles", (string)null);
+                    b.ToTable("UserProfiles");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>

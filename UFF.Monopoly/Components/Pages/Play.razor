@@ -70,36 +70,42 @@
                 @* Post-move action modal *@
                 @if (_showBlockModal && _modalBlock is not null && _modalPlayer is not null)
                 {
-                    <div class="modal-backdrop show"></div>
-                    <div class="modal d-block" tabindex="-1">
+                    // ensure modal appears above pawns (pawns z is ~1100-1200)
+                    <div class="modal-backdrop show" style="z-index:20000;"></div>
+                    <div class="modal d-block" tabindex="-1" style="z-index:20001;">
                         <div class="modal-dialog modal-md">
                             <div class="modal-content p-2" style="background:var(--surface);border:1px solid rgba(255,255,255,0.04);">
                                 <div class="modal-header">
-                                    <h5 class="modal-title">@_modalBlock.Name — @TranslateBlockType(_modalBlock.Type)</h5>
+                                    @{
+                                        var displayName = _modalTemplateEntity?.Name ?? _modalDisplayProperty?.Name ?? _modalBlock.Name;
+                                    }
+                                    <h5 class="modal-title">@displayName — @TranslateBlockType(_modalBlock.Type)</h5>
                                     <button type="button" class="btn-close btn-close-white" aria-label="Close" @onclick="CloseBlockModal"></button>
                                 </div>
                                 <div class="modal-body">
                                     @if (_modalBlock.Type == BlockType.Property)
                                     {
-                                        var pb = (PropertyBlock)_modalBlock!;
-                                        <div><strong>Propriedade:</strong> @pb.Name</div>
-                                        <div><strong>Preço:</strong> R$ @pb.Price</div>
-                                        <div><strong>Aluguel atual:</strong> R$ @pb.CalculateRent()</div>
-                                        <div><strong>Casas:</strong> @pb.Houses &nbsp; <strong>Hotéis:</strong> @pb.Hotels</div>
+                                        var statePb = _modalBlock as PropertyBlock;
+                                        var displayPb = _modalDisplayProperty ?? statePb ?? new PropertyBlock();
+                                        var displayNameBody = displayPb.Name ?? _modalTemplateEntity?.Name ?? _modalBlock.Name;
+                                        <div><strong>Propriedade:</strong> @displayNameBody</div>
+                                        <div><strong>Preço:</strong> R$ @displayPb.Price</div>
+                                        <div><strong>Aluguel atual:</strong> R$ @displayPb.CalculateRent()</div>
+                                        <div><strong>Casas:</strong> @(statePb?.Houses ?? displayPb.Houses) &nbsp; <strong>Hotéis:</strong> @(statePb?.Hotels ?? displayPb.Hotels)</div>
                                         <div class="mt-3">
-                                            @if (pb.Owner is null)
+                                            @if ((statePb?.Owner) is null)
                                             {
-                                                <button class="btn btn-success me-2" @onclick="OnBuyPropertyAsync" disabled="@(_modalPlayer.Money < pb.Price)">Comprar (R$ @pb.Price)</button>
+                                                <button class="btn btn-success me-2" @onclick="OnBuyPropertyAsync" disabled="@(_modalPlayer.Money < displayPb.Price)">Comprar (R$ @displayPb.Price)</button>
                                             }
-                                            else if (pb.Owner == _modalPlayer)
+                                            else if (statePb?.Owner == _modalPlayer)
                                             {
-                                                <button class="btn btn-primary me-2" @onclick="OnBuildHouseAsync" disabled="@(!pb.CanBuildHouse() || _modalPlayer.Money < pb.HousePrice)">Construir casa (R$ @pb.HousePrice)</button>
-                                                <button class="btn btn-primary me-2" @onclick="OnBuildHotelAsync" disabled="@(!pb.CanBuildHotel() || _modalPlayer.Money < pb.HotelPrice)">Construir hotel (R$ @pb.HotelPrice)</button>
+                                                <button class="btn btn-primary me-2" @onclick="OnBuildHouseAsync" disabled="@(!(statePb?.CanBuildHouse() ?? false) || _modalPlayer.Money < (statePb?.HousePrice ?? displayPb.HousePrice))">Construir casa (R$ @(statePb?.HousePrice ?? displayPb.HousePrice))</button>
+                                                <button class="btn btn-primary me-2" @onclick="OnBuildHotelAsync" disabled="@(!(statePb?.CanBuildHotel() ?? false) || _modalPlayer.Money < (statePb?.HotelPrice ?? displayPb.HotelPrice))">Construir hotel (R$ @(statePb?.HotelPrice ?? displayPb.HotelPrice))</button>
                                                 <button class="btn btn-outline-danger" @onclick="OnSellPropertyAsync">Vender propriedade (50%)</button>
                                             }
                                             else
                                             {
-                                                <div class="text-muted">Propriedade de: @pb.Owner?.Name</div>
+                                                <div class="text-muted">Propriedade de: @statePb?.Owner?.Name</div>
                                             }
                                         </div>
                                     }
@@ -149,7 +155,7 @@
                         @for (int i = 0; i < _game.Players.Count; i++)
                         {
                             var p = _game.Players[i];
-                            <li class="small">@p.Name</li>
+                            <li class="small">@p.Name = @p.Money</li>
                         }
                     </ul>
                 </div>
@@ -176,6 +182,9 @@
     public string? pawns { get; set; }
 
     private List<BoardSpaceDto> BoardSpaces { get; set; } = new();
+
+    // template lookup by position for the currently loaded board
+    private Dictionary<int, BlockTemplateEntity> _templatesByPosition = new();
 
     private Game? _game;
     private bool _loading = true;
@@ -210,6 +219,11 @@
     private Block? _modalBlock;
     private Player? _modalPlayer;
     private int _preMovePlayerMoney;
+    private bool _modalFromMove;
+
+    // optional template entity for the modal and a merged property used for display
+    private BlockTemplateEntity? _modalTemplateEntity;
+    private PropertyBlock? _modalDisplayProperty;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -284,6 +298,9 @@
             .Where(t => t.BoardDefinitionId == bId)
             .OrderBy(t => t.Position)
             .ToListAsync();
+
+        // store templates by position so modal can show full static data
+        _templatesByPosition = templates.ToDictionary(t => t.Position, t => t);
 
         BoardSpaces = new List<BoardSpaceDto>(Perimeter.Count);
         for (int i = 0; i < Perimeter.Count; i++)
@@ -370,8 +387,14 @@
         _modalPlayer = player;
         _modalBlock = _game.Board.FirstOrDefault(b => b.Position == player.CurrentPosition);
 
+        // get matching template (if any) for richer static data
+        _modalTemplateEntity = _templatesByPosition.TryGetValue(player.CurrentPosition, out var tpl) ? tpl : null;
+        // build display property merging template(static) + game state(dynamic)
+        _modalDisplayProperty = BuildDisplayProperty(_modalBlock, _modalTemplateEntity);
+
         _pawnAnimPosition = -1;
         _isAnimating = false;
+        _modalFromMove = true;
         _showBlockModal = true;
         StateHasChanged();
 
@@ -381,12 +404,18 @@
     private async Task CloseBlockModal()
     {
         _showBlockModal = false;
-        // advance turn and persist
-        if (_game is not null)
+        _modalTemplateEntity = null;
+        _modalDisplayProperty = null;
+        // if modal was opened as result of a move, advance turn when closing; otherwise keep current turn
+        if (_modalFromMove)
         {
-            _game.NextTurn();
-            await GameRepo.SaveGameAsync(GameId, _game);
+            if (_game is not null)
+            {
+                _game.NextTurn();
+                await GameRepo.SaveGameAsync(GameId, _game);
+            }
         }
+        _modalFromMove = false;
         StateHasChanged();
         await TryAutoRollForBotAsync();
     }
@@ -470,7 +499,6 @@
             _diceFace1 = Math.Clamp(finalDie1, 1, 6);
             _diceFace2 = Math.Clamp(finalDie2, 1, 6);
             StateHasChanged();
-            try { await Task.Delay(1000); } catch { }
         }
         catch (Exception ex)
         {
@@ -571,10 +599,108 @@
         return Task.CompletedTask;
     }
 
-    private Task HandleClick(BoardSpaceDto space)
+    private async Task HandleClick(BoardSpaceDto space)
     {
-        // left as placeholder
-        return Task.CompletedTask;
+        if (_game is null || space is null) return;
+        // parse position from id 'space-{index}'
+        var id = space.Id ?? string.Empty;
+        var parts = id.Split('-', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (parts.Length < 2) return;
+        if (!int.TryParse(parts[1], out var pos)) return;
+
+        var block = _game.Board.FirstOrDefault(b => b.Position == pos);
+        if (block is null) return;
+
+        // modal opened manually by user click: do not advance turn on close
+        _modalFromMove = false;
+        _modalBlock = block;
+        // use current player as actor
+        _modalPlayer = _game.Players.ElementAtOrDefault(_game.CurrentPlayerIndex);
+        _preMovePlayerMoney = _modalPlayer?.Money ?? 0;
+
+        // also set matching template and build merged display property
+        _modalTemplateEntity = _templatesByPosition.TryGetValue(pos, out var tmpl) ? tmpl : null;
+        _modalDisplayProperty = BuildDisplayProperty(_modalBlock, _modalTemplateEntity);
+
+        _showBlockModal = true;
+        StateHasChanged();
+    }
+
+    private PropertyBlock? BuildDisplayProperty(Block? stateBlock, BlockTemplateEntity? template)
+    {
+        PropertyBlock pb = null;
+        if (template is not null)
+        {
+            pb = new PropertyBlock
+            {
+                Position = template.Position,
+                Name = template.Name,
+                Description = template.Description,
+                ImageUrl = template.ImageUrl,
+                Color = template.Color,
+                Price = template.Price,
+                HousePrice = template.HousePrice,
+                HotelPrice = template.HotelPrice,
+                Level = template.Level ?? PropertyLevel.Barata
+            };
+            // if template has generic name like "Propriedade (Rica)", substitute a realistic neighborhood
+            if (IsGenericTemplateName(pb.Name))
+            {
+                pb.Name = GetNeighborhoodName(pb.Level, template.Position);
+            }
+            if (!string.IsNullOrWhiteSpace(template.RentsCsv))
+            {
+                var parts = template.RentsCsv.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                for (int i = 0; i < Math.Min(parts.Length, pb.Rents.Length); i++)
+                {
+                    if (int.TryParse(parts[i], out var v)) pb.Rents[i] = v;
+                }
+            }
+        }
+
+        if (stateBlock is PropertyBlock statePb)
+        {
+            if (pb is null)
+            {
+                // no template, use state block as fallback
+                statePb.Rents = statePb.Rents ?? new int[7];
+                return statePb;
+            }
+            // merge dynamic state: owner, houses, hotels, mortgage
+            pb.Houses = statePb.Houses;
+            pb.Hotels = statePb.Hotels;
+            pb.IsMortgaged = statePb.IsMortgaged;
+            pb.Owner = statePb.Owner;
+            // if template had no rents but state has base Rent, ensure base rent is set
+            if (pb.Rents[0] == 0 && statePb.Rent > 0) pb.Rents[0] = statePb.Rent;
+            return pb;
+        }
+
+        return pb;
+    }
+
+    private static bool IsGenericTemplateName(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return true;
+        // board builder uses names like "Propriedade (Rica)" or default "Bloco X"; treat those as generic
+        if (name.StartsWith("Propriedade", StringComparison.OrdinalIgnoreCase)) return true;
+        if (name.StartsWith("Bloco", StringComparison.OrdinalIgnoreCase)) return true;
+        return false;
+    }
+
+    private static string GetNeighborhoodName(PropertyLevel level, int position)
+    {
+        var list = level switch
+        {
+            PropertyLevel.MuitoRica => new[] { "Leblon", "Ipanema", "Jardim Botânico", "São Conrado", "Lagoa" },
+            PropertyLevel.Rica => new[] { "Copacabana", "Flamengo", "Botafogo", "Gávea", "Laranjeiras" },
+            PropertyLevel.Mediana => new[] { "Humaitá", "Leme", "Maracanã", "Tijuca", "Andaraí" },
+            PropertyLevel.Barata => new[] { "Madureira", "Bonsucesso", "Campo Grande", "Realengo", "Paciência" },
+            _ => new[] { "Propriedade 1", "Propriedade 2", "Propriedade 3", "Propriedade 4", "Propriedade 5" }
+        };
+        if (list.Length == 0) return "Propriedade";
+        var idx = Math.Abs(position) % list.Length;
+        return list[idx];
     }
 
     private async Task TryAutoRollForBotAsync()
