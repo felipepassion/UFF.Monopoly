@@ -383,6 +383,52 @@
         // persist intermediate state so rent/tax results are saved even if user reloads
         await GameRepo.SaveGameAsync(GameId, _game);
 
+        // CUSTOM HANDLING FOR TAX, CHANCE AND REVES BLOCKS
+        var landed = _game.Board.FirstOrDefault(b => b.Position == player.CurrentPosition);
+        if (landed is not null)
+        {
+            if (landed.Type == BlockType.Tax)
+            {
+                // pick a random percent from allowed list
+                var percents = new[] { 5, 10, 15, 20, 25, 30 };
+                var pct = percents[_rand.Next(percents.Length)];
+                var taxAmount = (int)Math.Round(player.Money * pct / 100.0);
+                player.Money = Math.Max(0, player.Money - taxAmount);
+                // store tax amount in block.Rent for modal display
+                landed.Rent = taxAmount;
+
+                await GameRepo.SaveGameAsync(GameId, _game);
+            }
+            else if (landed.Type == BlockType.Chance)
+            {
+                var choices = new[] { 50, 100, 150, 200, 300, 350, 400, 500, 600, 700 };
+                var amount = choices[_rand.Next(choices.Length)];
+                player.Money += amount;
+                await GameRepo.SaveGameAsync(GameId, _game);
+            }
+            else if (landed.Type == BlockType.Reves)
+            {
+                // Reves: either take money (100 or 200) or move back 2..6 spaces
+                var takeMoneyOptions = new[] { 100, 200 };
+                var takeMoney = (_rand.NextDouble() < 0.5);
+                if (takeMoney)
+                {
+                    var amount = takeMoneyOptions[_rand.Next(takeMoneyOptions.Length)];
+                    player.Money = Math.Max(0, player.Money - amount);
+                    await GameRepo.SaveGameAsync(GameId, _game);
+                }
+                else
+                {
+                    var backSteps = _rand.Next(2, 7); // 2..6
+                    // animate backward movement
+                    await AnimateBackwardAsync(playerIndex, backSteps);
+                    // after backward animation, save and update landed to new block
+                    await GameRepo.SaveGameAsync(GameId, _game);
+                    landed = _game.Board.FirstOrDefault(b => b.Position == player.CurrentPosition);
+                }
+            }
+        }
+
         // open modal with info/actions for the landed block and delay turn advancement until player closes it
         _modalPlayer = player;
         _modalBlock = _game.Board.FirstOrDefault(b => b.Position == player.CurrentPosition);
@@ -399,6 +445,26 @@
         StateHasChanged();
 
         // do NOT call NextTurn here; NextTurn will be called when player closes modal
+    }
+
+    private async Task AnimateBackwardAsync(int playerIndex, int steps)
+    {
+        // allow backward animation even if _isAnimating was previously set; manage flag locally
+        if (_game is null) return;
+        var previousAnimating = _isAnimating;
+        _isAnimating = true;
+        var player = _game.Players[playerIndex];
+        var pos = player.CurrentPosition;
+        for (int i = 0; i < steps; i++)
+        {
+            pos = (pos - 1 + Perimeter.Count) % Perimeter.Count;
+            _pawnAnimPosition = pos;
+            StateHasChanged();
+            try { await Task.Delay(_animStepMs); } catch { }
+        }
+        player.CurrentPosition = pos;
+        _pawnAnimPosition = -1;
+        _isAnimating = previousAnimating; // restore previous state
     }
 
     private async Task CloseBlockModal()
