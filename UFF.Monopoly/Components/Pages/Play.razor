@@ -28,6 +28,25 @@
         else
         {
             <div id="game-board-container" class="game-board" style="position:relative; width:@_boardWidthCss; height:@_boardHeightCss; display:flex; align-items:center; justify-content:center;">
+
+                @* Top-left: Rodada *@
+                <div style="position:absolute; top:8px; left:8px; z-index:2500; background:rgba(0,0,0,0.35); padding:6px 8px; border-radius:6px; color:white; font-weight:600; transform:rotate(-12deg);">
+                    Rodada: @_game.RoundCount
+                </div>
+
+                @* Top-right: Vez *@
+                <div style="position:absolute; top:8px; right:8px; z-index:2500; background:rgba(0,0,0,0.35); padding:6px 8px; border-radius:6px; color:white; font-weight:600; transform:rotate(12deg);">
+                    Vez: @_game.Players.ElementAtOrDefault(_game.CurrentPlayerIndex)?.Name
+                </div>
+
+                @* Bot action toast *@
+                @if (_showBotActionToast)
+                {
+                    <div style="position:absolute; top:56px; right:8px; z-index:2600;">
+                        <div class="alert alert-info shadow-sm mb-0 py-1 px-2">@_botActionMessage</div>
+                    </div>
+                }
+
                 @foreach (var space in BoardSpaces)
                 {
                     <BoardSpace Space="space" OnClick="HandleClick" />
@@ -37,6 +56,7 @@
                 @for (int i = 0; i < _game.Players.Count; i++)
                 {
                     var p = _game.Players[i];
+                    if (p.IsBankrupt) continue; // hide pawns of eliminated players
                     var renderIndex = (i == _game.CurrentPlayerIndex && _pawnAnimPosition >= 0) ? _pawnAnimPosition : p.CurrentPosition;
                     var (top, left, z) = GetTokenOffsetPositionByBoardIndex(renderIndex, i);
                     var pawnSize = (int)(CellSize * _boardScale * 0.5) + "px";
@@ -83,47 +103,65 @@
                                     <button type="button" class="btn-close btn-close-white" aria-label="Close" @onclick="CloseBlockModal"></button>
                                 </div>
                                 <div class="modal-body">
-                                    @if (_modalBlock.Type == BlockType.Property)
+                                    @if (_modalBlock.Type == BlockType.Property || _modalBlock.Type == BlockType.Company)
                                     {
                                         var statePb = _modalBlock as PropertyBlock;
                                         var displayPb = _modalDisplayProperty ?? statePb ?? new PropertyBlock();
                                         var displayNameBody = displayPb.Name ?? _modalTemplateEntity?.Name ?? _modalBlock.Name;
-                                        <div><strong>Propriedade:</strong> @displayNameBody</div>
+                                        <div><strong>@( _modalBlock.Type == BlockType.Company ? "Companhia:" : "Propriedade:")</strong> @displayNameBody</div>
                                         <div><strong>Preço:</strong> R$ @displayPb.Price</div>
-                                        <div><strong>Aluguel atual:</strong> R$ @displayPb.CalculateRent()</div>
-                                        <div><strong>Casas:</strong> @(statePb?.Houses ?? displayPb.Houses) &nbsp; <strong>Hotéis:</strong> @(statePb?.Hotels ?? displayPb.Hotels)</div>
+                                        @if (_modalBlock.Type == BlockType.Property)
+                                        {
+                                            <div><strong>Aluguel atual:</strong> R$ @displayPb.CalculateRent()</div>
+                                            <div><strong>Casas:</strong> @(statePb?.Houses ?? displayPb.Houses) &nbsp; <strong>Hotéis:</strong> @(statePb?.Hotels ?? displayPb.Hotels)</div>
+                                        }
+                                        else
+                                        {
+                                            <div><strong>Aluguel fixo:</strong> R$ @_modalBlock.Rent</div>
+                                        }
                                         <div class="mt-3">
-                                            @if ((statePb?.Owner) is null)
+                                            @if ((_modalBlock.Owner) is null)
                                             {
                                                 <button class="btn btn-success me-2" @onclick="OnBuyPropertyAsync" disabled="@(_modalPlayer.Money < displayPb.Price)">Comprar (R$ @displayPb.Price)</button>
                                             }
                                             else if (statePb?.Owner == _modalPlayer)
                                             {
-                                                <button class="btn btn-primary me-2" @onclick="OnBuildHouseAsync" disabled="@(!(statePb?.CanBuildHouse() ?? false) || _modalPlayer.Money < (statePb?.HousePrice ?? displayPb.HousePrice))">Construir casa (R$ @(statePb?.HousePrice ?? displayPb.HousePrice))</button>
-                                                <button class="btn btn-primary me-2" @onclick="OnBuildHotelAsync" disabled="@(!(statePb?.CanBuildHotel() ?? false) || _modalPlayer.Money < (statePb?.HotelPrice ?? displayPb.HotelPrice))">Construir hotel (R$ @(statePb?.HotelPrice ?? displayPb.HotelPrice))</button>
+                                                <button class="btn btn-primary me-2" @onclick="OnBuildHouseAsync" disabled="@(!(statePb is not null && CanBuildHouseAllowed(statePb)))">Construir casa (R$ @(statePb?.HousePrice ?? displayPb.HousePrice))</button>
+                                                <button class="btn btn-primary me-2" @onclick="OnBuildHotelAsync" disabled="@(!(statePb is not null && CanBuildHotelAllowed(statePb)))">Construir hotel (R$ @(statePb?.HotelPrice ?? displayPb.HotelPrice))</button>
                                                 <button class="btn btn-outline-danger" @onclick="OnSellPropertyAsync">Vender propriedade (50%)</button>
                                             }
                                             else
                                             {
-                                                <div class="text-muted">Propriedade de: @statePb?.Owner?.Name</div>
+                                                <div class="text-muted">Propriedade de: @_modalBlock.Owner?.Name</div>
                                             }
                                         </div>
                                     }
                                     else if (_modalBlock.Type == BlockType.Chance || _modalBlock.Type == BlockType.Reves)
                                     {
-                                        var delta = _modalPlayer.Money - _preMovePlayerMoney;
-                                        if (delta >= 0)
+                                        // show the pending outcome description
+                                        if (_pendingActionKind == PendingActionKind.Chance)
                                         {
-                                            <div>Você recebeu <strong>R$ @delta</strong> da banca.</div>
+                                            <div>Você recebeu <strong>R$ @_pendingAmount</strong> da banca.</div>
                                         }
-                                        else
+                                        else if (_pendingActionKind == PendingActionKind.Tax)
                                         {
-                                            <div>Você pagou <strong>R$ @(-delta)</strong> à banca.</div>
+                                            <div>Pagamento de taxa: <strong>R$ @_pendingAmount</strong></div>
+                                        }
+                                        else if (_pendingActionKind == PendingActionKind.Reves)
+                                        {
+                                            if (_pendingBackSteps > 0)
+                                            {
+                                                <div>Revés: você deverá voltar <strong>@_pendingBackSteps</strong> casas ao fechar.</div>
+                                            }
+                                            else
+                                            {
+                                                <div>Revés: você pagará <strong>R$ @_pendingAmount</strong> à banca.</div>
+                                            }
                                         }
                                     }
                                     else if (_modalBlock.Type == BlockType.Tax)
                                     {
-                                        <div>Pagamento de taxa: <strong>R$ @_modalBlock.Rent</strong></div>
+                                        <div>Pagamento de taxa: <strong>R$ @_pendingAmount</strong></div>
                                     }
                                     else if (_modalBlock.Type == BlockType.Go)
                                     {
@@ -140,6 +178,48 @@
                                 </div>
                                 <div class="modal-footer">
                                     <button class="btn btn-secondary" @onclick="CloseBlockModal">Fechar</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+
+                @* Loser modal *@
+                @if (_showLoserModal)
+                {
+                    <div class="modal-backdrop show" style="z-index:22000;"></div>
+                    <div class="modal d-block" tabindex="-1" style="z-index:22001;">
+                        <div class="modal-dialog modal-sm">
+                            <div class="modal-content p-2" style="background:var(--surface);border:1px solid rgba(255,255,255,0.04);">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Derrota</h5>
+                                </div>
+                                <div class="modal-body">
+                                    <div>O jogador <strong>@_loserName</strong> foi eliminado.</div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button class="btn btn-secondary" @onclick="CloseLoserModal">Fechar</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+
+                @* Winner modal *@
+                @if (_showWinnerModal)
+                {
+                    <div class="modal-backdrop show" style="z-index:23000;"></div>
+                    <div class="modal d-block" tabindex="-1" style="z-index:23001;">
+                        <div class="modal-dialog modal-sm">
+                            <div class="modal-content p-2" style="background:var(--surface);border:1px solid rgba(255,255,255,0.04);">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Vencedor</h5>
+                                </div>
+                                <div class="modal-body">
+                                    <div>Parabéns! <strong>@_winnerName</strong> venceu o jogo.</div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button class="btn btn-primary" @onclick="CloseWinnerModal">Fechar</button>
                                 </div>
                             </div>
                         </div>
@@ -224,6 +304,22 @@
     // optional template entity for the modal and a merged property used for display
     private BlockTemplateEntity? _modalTemplateEntity;
     private PropertyBlock? _modalDisplayProperty;
+
+    // pending action for deferred blocks (Tax/Chance/Reves)
+    private enum PendingActionKind { None, Tax, Chance, Reves }
+    private PendingActionKind _pendingActionKind = PendingActionKind.None;
+    private int _pendingAmount = 0; // money to add/subtract
+    private int _pendingBackSteps = 0; // for Reves backward movement
+
+    // winner/loser modals
+    private bool _showWinnerModal;
+    private string _winnerName = string.Empty;
+    private bool _showLoserModal;
+    private string _loserName = string.Empty;
+
+    // Bot action toast helpers
+    private bool _showBotActionToast;
+    private string _botActionMessage = string.Empty;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -354,6 +450,14 @@
     {
         if (_game is null || _isAnimating) return;
 
+        // If current player starts turn with negative money, they are eliminated
+        var currentPlayer = _game.Players[_game.CurrentPlayerIndex];
+        if (currentPlayer.Money < 0)
+        {
+            await RegisterLoserAsync(currentPlayer);
+            return;
+        }
+
         _isAnimating = true;
 
         var (die1, die2, total) = _game.RollDice();
@@ -376,55 +480,55 @@
             try { await Task.Delay(_animStepMs); } catch { }
         }
 
-        // apply move to model (this will trigger block actions etc.)
+        // apply move to model (do not execute Tax/Chance/Reves actions here — defer)
         _preMovePlayerMoney = player.Money;
         await _game.MoveCurrentPlayerAsync(total);
 
         // persist intermediate state so rent/tax results are saved even if user reloads
         await GameRepo.SaveGameAsync(GameId, _game);
 
-        // CUSTOM HANDLING FOR TAX, CHANCE AND REVES BLOCKS
+        // prepare pending action for Tax/Chance/Reves (defer application until modal close)
         var landed = _game.Board.FirstOrDefault(b => b.Position == player.CurrentPosition);
+        _pendingActionKind = PendingActionKind.None;
+        _pendingAmount = 0;
+        _pendingBackSteps = 0;
+
         if (landed is not null)
         {
             if (landed.Type == BlockType.Tax)
             {
-                // pick a random percent from allowed list
                 var percents = new[] { 5, 10, 15, 20, 25, 30 };
                 var pct = percents[_rand.Next(percents.Length)];
                 var taxAmount = (int)Math.Round(player.Money * pct / 100.0);
-                player.Money = Math.Max(0, player.Money - taxAmount);
-                // store tax amount in block.Rent for modal display
+                _pendingActionKind = PendingActionKind.Tax;
+                _pendingAmount = taxAmount;
+                // store on block for display later
                 landed.Rent = taxAmount;
-
-                await GameRepo.SaveGameAsync(GameId, _game);
             }
             else if (landed.Type == BlockType.Chance)
             {
                 var choices = new[] { 50, 100, 150, 200, 300, 350, 400, 500, 600, 700 };
                 var amount = choices[_rand.Next(choices.Length)];
-                player.Money += amount;
-                await GameRepo.SaveGameAsync(GameId, _game);
+                _pendingActionKind = PendingActionKind.Chance;
+                _pendingAmount = amount;
             }
             else if (landed.Type == BlockType.Reves)
             {
-                // Reves: either take money (100 or 200) or move back 2..6 spaces
                 var takeMoneyOptions = new[] { 100, 200 };
-                var takeMoney = (_rand.NextDouble() < 0.5);
-                if (takeMoney)
+                var willTakeMoney = (_rand.NextDouble() < 0.5);
+                if (willTakeMoney)
                 {
                     var amount = takeMoneyOptions[_rand.Next(takeMoneyOptions.Length)];
-                    player.Money = Math.Max(0, player.Money - amount);
-                    await GameRepo.SaveGameAsync(GameId, _game);
+                    _pendingActionKind = PendingActionKind.Reves;
+                    _pendingAmount = amount;
+                    _pendingBackSteps = 0;
                 }
                 else
                 {
-                    var backSteps = _rand.Next(2, 7); // 2..6
-                    // animate backward movement
-                    await AnimateBackwardAsync(playerIndex, backSteps);
-                    // after backward animation, save and update landed to new block
-                    await GameRepo.SaveGameAsync(GameId, _game);
-                    landed = _game.Board.FirstOrDefault(b => b.Position == player.CurrentPosition);
+                    var backSteps = _rand.Next(2, 7);
+                    _pendingActionKind = PendingActionKind.Reves;
+                    _pendingBackSteps = backSteps;
+                    _pendingAmount = 0;
                 }
             }
         }
@@ -447,43 +551,181 @@
         // do NOT call NextTurn here; NextTurn will be called when player closes modal
     }
 
-    private async Task AnimateBackwardAsync(int playerIndex, int steps)
+    private async Task ApplyPendingActionAsync()
     {
-        // allow backward animation even if _isAnimating was previously set; manage flag locally
-        if (_game is null) return;
-        var previousAnimating = _isAnimating;
-        _isAnimating = true;
-        var player = _game.Players[playerIndex];
-        var pos = player.CurrentPosition;
-        for (int i = 0; i < steps; i++)
+        if (_game is null || _modalPlayer is null || _pendingActionKind == PendingActionKind.None) return;
+        var playerIndex = GetPlayerIndex(_modalPlayer.Id);
+        var player = _modalPlayer;
+        var landed = _game.Board.FirstOrDefault(b => b.Position == player.CurrentPosition);
+
+        if (_pendingActionKind == PendingActionKind.Tax)
         {
-            pos = (pos - 1 + Perimeter.Count) % Perimeter.Count;
-            _pawnAnimPosition = pos;
-            StateHasChanged();
-            try { await Task.Delay(_animStepMs); } catch { }
+            player.Money = Math.Max(0, player.Money - _pendingAmount);
+            if (landed is not null) landed.Rent = _pendingAmount;
         }
-        player.CurrentPosition = pos;
-        _pawnAnimPosition = -1;
-        _isAnimating = previousAnimating; // restore previous state
+        else if (_pendingActionKind == PendingActionKind.Chance)
+        {
+            player.Money += _pendingAmount;
+        }
+        else if (_pendingActionKind == PendingActionKind.Reves)
+        {
+            if (_pendingBackSteps > 0)
+            {
+                // animate backward and update position
+                await AnimateBackwardAsync(playerIndex, _pendingBackSteps);
+            }
+            else if (_pendingAmount > 0)
+            {
+                player.Money = Math.Max(0, player.Money - _pendingAmount);
+            }
+        }
+
+        // persist result
+        await GameRepo.SaveGameAsync(GameId, _game);
+
+        // clear pending
+        _pendingActionKind = PendingActionKind.None;
+        _pendingAmount = 0;
+        _pendingBackSteps = 0;
     }
 
     private async Task CloseBlockModal()
     {
         _showBlockModal = false;
-        _modalTemplateEntity = null;
-        _modalDisplayProperty = null;
-        // if modal was opened as result of a move, advance turn when closing; otherwise keep current turn
+
+        // if modal was opened as result of a move, apply pending action then possibly allow bot buys/builds, then advance
         if (_modalFromMove)
         {
-            if (_game is not null)
+            if (_game is not null && _modalPlayer is not null)
             {
+                // apply pending tax/chance/reves
+                await ApplyPendingActionAsync();
+
+                // check bankruptcy after applying pending
+                if (_modalPlayer.Money < 0)
+                {
+                    await RegisterLoserAsync(_modalPlayer);
+                    // if game ended due to single winner, don't proceed to next turn
+                    _modalFromMove = false;
+                    _modalTemplateEntity = null;
+                    _modalDisplayProperty = null;
+                    StateHasChanged();
+                    return;
+                }
+
+                // If actor was bot, perform auto-purchase and auto-build
+                var humanCount = GetHumanPlayersCount();
+                var actorIndex = GetPlayerIndex(_modalPlayer.Id);
+                if (actorIndex >= humanCount)
+                {
+                    // auto-buy if landed on unowned property/company
+                    if (_modalBlock is not null && _modalBlock.Owner is null && (_modalBlock.Type == BlockType.Property || _modalBlock.Type == BlockType.Company))
+                    {
+                        if (_modalPlayer.Money >= _modalBlock.Price)
+                        {
+                            _game.TryBuyProperty(_modalPlayer, _modalBlock);
+                            await GameRepo.SaveGameAsync(GameId, _game);
+                            await ShowBotActionToast($"{_modalPlayer.Name} comprou {_modalBlock.Name}");
+                        }
+                    }
+
+                    // auto-build if possible (only for property and on the property where pawn is)
+                    if (_modalBlock is PropertyBlock pb && pb.Owner == _modalPlayer)
+                    {
+                        if (CanBuildHouseAllowed(pb))
+                        {
+                            var ok = pb.BuildHouse(_modalPlayer);
+                            if (ok)
+                            {
+                                _modalPlayer.LastBuildTurn = _game.RoundCount;
+                                await GameRepo.SaveGameAsync(GameId, _game);
+                                await ShowBotActionToast($"{_modalPlayer.Name} construiu casa em {pb.Name}");
+                            }
+                        }
+                        else if (CanBuildHotelAllowed(pb))
+                        {
+                            var ok = pb.BuildHotel(_modalPlayer);
+                            if (ok)
+                            {
+                                _modalPlayer.LastBuildTurn = _game.RoundCount;
+                                await GameRepo.SaveGameAsync(GameId, _game);
+                                await ShowBotActionToast($"{_modalPlayer.Name} construiu hotel em {pb.Name}");
+                            }
+                        }
+                        await GameRepo.SaveGameAsync(GameId, _game);
+                    }
+
+                    // small delay to make bot actions feel natural
+                    try { await Task.Delay(400); } catch { }
+                }
+
+                // advance turn
                 _game.NextTurn();
                 await GameRepo.SaveGameAsync(GameId, _game);
             }
         }
+
         _modalFromMove = false;
+        _modalTemplateEntity = null;
+        _modalDisplayProperty = null;
         StateHasChanged();
+
+        // after closing modal, if next player is bot and ready, trigger auto roll
         await TryAutoRollForBotAsync();
+    }
+
+    private async Task RegisterLoserAsync(Player player)
+    {
+        if (_game is null) return;
+        player.IsBankrupt = true;
+        // release ownership
+        foreach (var prop in player.OwnedProperties)
+        {
+            prop.Owner = null;
+            prop.IsMortgaged = false;
+        }
+        player.OwnedProperties.Clear();
+
+        _loserName = player.Name;
+
+        // count active players
+        var active = _game.Players.Count(p => !p.IsBankrupt);
+        if (active == 1)
+        {
+            // find winner
+            var winner = _game.Players.FirstOrDefault(p => !p.IsBankrupt);
+            if (winner is not null)
+            {
+                _winnerName = winner.Name;
+                _showWinnerModal = true;
+                _showLoserModal = false;
+                _game.Finish();
+                await GameRepo.SaveGameAsync(GameId, _game);
+            }
+        }
+        else
+        {
+            _showLoserModal = true;
+            _showWinnerModal = false;
+            await GameRepo.SaveGameAsync(GameId, _game);
+            // advance turn since this player's turn is skipped
+            _game.NextTurn();
+        }
+
+        StateHasChanged();
+    }
+
+    private void CloseLoserModal()
+    {
+        _showLoserModal = false;
+        StateHasChanged();
+        _ = TryAutoRollForBotAsync();
+    }
+
+    private void CloseWinnerModal()
+    {
+        _showWinnerModal = false;
+        StateHasChanged();
     }
 
     private async Task OnBuyPropertyAsync()
@@ -496,16 +738,27 @@
                 if (_game is not null) await GameRepo.SaveGameAsync(GameId, _game);
             }
         }
+        else if (_modalBlock is not null && _modalBlock.Type == BlockType.Company && _modalPlayer is not null)
+        {
+            var success = _game.TryBuyProperty(_modalPlayer, _modalBlock);
+            if (success)
+            {
+                if (_game is not null) await GameRepo.SaveGameAsync(GameId, _game);
+            }
+        }
         StateHasChanged();
     }
 
     private async Task OnBuildHouseAsync()
     {
-        if (_modalBlock is PropertyBlock pb && _modalPlayer is not null)
+        if (_modalBlock is PropertyBlock pb && _modalPlayer is not null && _game is not null)
         {
+            if (!CanBuildHouseAllowed(pb)) return;
             var ok = pb.BuildHouse(_modalPlayer);
             if (ok)
             {
+                // record build turn to enforce 1 build per round
+                _modalPlayer.LastBuildTurn = _game.RoundCount;
                 if (_game is not null) await GameRepo.SaveGameAsync(GameId, _game);
             }
         }
@@ -514,11 +767,14 @@
 
     private async Task OnBuildHotelAsync()
     {
-        if (_modalBlock is PropertyBlock pb && _modalPlayer is not null)
+        if (_modalBlock is PropertyBlock pb && _modalPlayer is not null && _game is not null)
         {
+            if (!CanBuildHotelAllowed(pb)) return;
             var ok = pb.BuildHotel(_modalPlayer);
             if (ok)
             {
+                // record build turn to enforce 1 build per round
+                _modalPlayer.LastBuildTurn = _game.RoundCount;
                 if (_game is not null) await GameRepo.SaveGameAsync(GameId, _game);
             }
         }
@@ -538,6 +794,50 @@
             if (_game is not null) await GameRepo.SaveGameAsync(GameId, _game);
         }
         StateHasChanged();
+    }
+
+    private bool CanBuildHouseAllowed(PropertyBlock pb)
+    {
+        if (_game is null || _modalPlayer is null) return false;
+        // must be owner
+        if (pb.Owner != _modalPlayer) return false;
+        // pawn must be on this property
+        if (_modalPlayer.CurrentPosition != pb.Position) return false;
+        // must be at least next round after last purchase
+        if (_modalPlayer.LastPurchaseTurn >= 0 && _game.RoundCount <= _modalPlayer.LastPurchaseTurn) return false;
+        // only one build per round
+        if (_modalPlayer.LastBuildTurn == _game.RoundCount) return false;
+        // must own all properties of same level
+        if (!PlayerOwnsAllOfLevel(_modalPlayer, pb.Level)) return false;
+        // house-specific checks
+        if (!pb.CanBuildHouse()) return false;
+        if (_modalPlayer.Money < pb.HousePrice) return false;
+        return true;
+    }
+
+    private bool CanBuildHotelAllowed(PropertyBlock pb)
+    {
+        if (_game is null || _modalPlayer is null) return false;
+        if (pb.Owner != _modalPlayer) return false;
+        if (_modalPlayer.CurrentPosition != pb.Position) return false;
+        if (_modalPlayer.LastPurchaseTurn >= 0 && _game.RoundCount <= _modalPlayer.LastPurchaseTurn) return false;
+        if (_modalPlayer.LastBuildTurn == _game.RoundCount) return false;
+        if (!PlayerOwnsAllOfLevel(_modalPlayer, pb.Level)) return false;
+        if (!pb.CanBuildHotel()) return false;
+        if (_modalPlayer.Money < pb.HotelPrice) return false;
+        return true;
+    }
+
+    private bool PlayerOwnsAllOfLevel(Player player, PropertyLevel level)
+    {
+        if (_game is null) return false;
+        var boardProps = _game.Board.OfType<PropertyBlock>().Where(b => b.Level == level).ToList();
+        if (!boardProps.Any()) return false;
+        foreach (var bp in boardProps)
+        {
+            if (bp.Owner != player) return false;
+        }
+        return true;
     }
 
     private async Task ShowDiceAnimationAsync(int finalDie1, int finalDie2)
@@ -648,10 +948,10 @@
         {
             var uri = Nav.ToAbsoluteUri(Nav.Uri);
             var q = QueryHelpers.ParseQuery(uri.Query);
-            if (q.TryGetValue("humanCount", out var v) || q.TryGetValue("humancount", out v))
-            {
-                if (int.TryParse(v.ToString(), out var parsed)) return Math.Max(0, parsed);
-            }
+            string? v = null;
+            if (q.TryGetValue("humanCount", out var hv)) v = hv.ToString();
+            else if (q.TryGetValue("humancount", out var hv2)) v = hv2.ToString();
+            if (!string.IsNullOrWhiteSpace(v) && int.TryParse(v, out var parsed)) return Math.Max(0, parsed);
         }
         catch { }
         return 1;
@@ -804,6 +1104,7 @@
     {
         BlockType.Go => "/images/blocks/property_basic.svg",
         BlockType.Property => "/images/blocks/property_basic.svg",
+        BlockType.Company => "/images/blocks/property_predio.svg",
         BlockType.Jail => "/images/blocks/visitar_prisao.svg",
         BlockType.GoToJail => "/images/blocks/go_to_jail.svg",
         BlockType.Tax => "/images/blocks/volte-casas.svg",
@@ -831,4 +1132,43 @@
         BlockType.FreeParking => "Parada Livre",
         _ => t.ToString()
     };
+
+    // Animate backward movement (used by Reves pending action)
+    private async Task AnimateBackwardAsync(int playerIndex, int steps)
+    {
+        if (_game is null || playerIndex < 0 || playerIndex >= _game.Players.Count) return;
+        var previousAnimating = _isAnimating;
+        _isAnimating = true;
+        var player = _game.Players[playerIndex];
+        var pos = player.CurrentPosition;
+        for (int i = 0; i < steps; i++)
+        {
+            pos = (pos - 1 + Perimeter.Count) % Perimeter.Count;
+            _pawnAnimPosition = pos;
+            StateHasChanged();
+            try { await Task.Delay(_animStepMs); } catch { }
+        }
+        player.CurrentPosition = pos;
+        _pawnAnimPosition = -1;
+        _isAnimating = previousAnimating;
+    }
+
+    private int GetPlayerIndex(Guid playerId)
+    {
+        if (_game is null) return -1;
+        for (int i = 0; i < _game.Players.Count; i++)
+            if (_game.Players[i].Id == playerId) return i;
+        return -1;
+    }
+
+    // Bot action toast helpers
+    private async Task ShowBotActionToast(string message)
+    {
+        _botActionMessage = message;
+        _showBotActionToast = true;
+        StateHasChanged();
+        try { await Task.Delay(1200); } catch { }
+        _showBotActionToast = false;
+        StateHasChanged();
+    }
 }

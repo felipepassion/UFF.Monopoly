@@ -9,6 +9,9 @@ public class Game
     public int CurrentPlayerIndex { get; private set; } = 0;
     public bool IsFinished { get; private set; } = false;
 
+    // number of completed rounds (incremented when we wrap back to player 0)
+    public int RoundCount { get; private set; } = 0;
+
     public IReadOnlyList<Block> Board => _board;
     public IReadOnlyList<Player> Players => _players;
 
@@ -31,10 +34,31 @@ public class Game
     public void NextTurn()
     {
         if (IsFinished) return;
+        int attempts = 0;
         do
         {
+            var previous = CurrentPlayerIndex;
             CurrentPlayerIndex = (CurrentPlayerIndex + 1) % _players.Count;
-        } while (_players[CurrentPlayerIndex].IsBankrupt);
+
+            // if we wrapped to player 0, increment round count
+            if (CurrentPlayerIndex == 0 && previous != 0)
+            {
+                RoundCount++;
+            }
+
+            // skip players that are bankrupt
+            if (_players[CurrentPlayerIndex].IsBankrupt) { attempts++; continue; }
+
+            // skip players that have pending SkipTurns
+            if (_players[CurrentPlayerIndex].SkipTurns > 0)
+            {
+                _players[CurrentPlayerIndex].SkipTurns--;
+                attempts++;
+                continue;
+            }
+
+            break;
+        } while (attempts < _players.Count);
     }
 
     public async Task MoveCurrentPlayerAsync(int steps)
@@ -68,12 +92,17 @@ public class Game
 
     public bool TryBuyProperty(Player player, Block block)
     {
-        if (block.Type != BlockType.Property || block.Owner != null || block.IsMortgaged)
+        // allow buying Property or Company
+        if ((block.Type != BlockType.Property && block.Type != BlockType.Company) || block.Owner != null || block.IsMortgaged)
             return false;
         if (player.Money < block.Price) return false;
         player.Money -= block.Price;
         block.Owner = player;
         player.OwnedProperties.Add(block);
+
+        // record when the player purchased a property (current round)
+        player.LastPurchaseTurn = RoundCount;
+
         return true;
     }
 
@@ -94,6 +123,7 @@ public class Game
     {
         player.InJail = true;
         player.JailTurns = 0;
+        player.SkipTurns = 1; // skip next turn
         // On reduced board, jail is first found block of type Jail
         var jailPos = _board.First(b => b.Type == BlockType.Jail).Position;
         player.CurrentPosition = jailPos;
@@ -126,6 +156,13 @@ public class Game
             player.InJail = false;
         }
     }
+
+    // Mark game as finished
+    public void Finish()
+    {
+        IsFinished = true;
+    }
+
 }
 
 public interface IRandomDice

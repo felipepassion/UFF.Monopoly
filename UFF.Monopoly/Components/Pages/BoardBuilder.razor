@@ -380,6 +380,17 @@
             // auto assign image
             Blocks[idx].ImageUrl = GetDefaultImageForType(type);
             Blocks[idx].Name = TranslateBlockType(type);
+
+            // special defaults for Company
+            if (type == BlockType.Company)
+            {
+                // pick a random company name from the set
+                var companies = new[] { "Ferroviária", "Aviação", "Navegação", "Táxi" };
+                var name = companies[new Random().Next(companies.Length)];
+                Blocks[idx].Name = name;
+                Blocks[idx].Price = 500;
+                Blocks[idx].Rent = 300;
+            }
         }
         Popup.Visible = false;
         StateHasChanged();
@@ -445,6 +456,7 @@
     {
         BlockType.Go => "Início",
         BlockType.Property => "Propriedade",
+        BlockType.Company => "Companhia",
         BlockType.Tax => "Taxa",
         BlockType.Jail => "Visitar Prisão",
         BlockType.GoToJail => "Vá para Prisão",
@@ -461,6 +473,7 @@
     {
         BlockType.Go => "#27ae60",
         BlockType.Property => "#3498db",
+        BlockType.Company => "#2ecc71",
         BlockType.Tax => "#e74c3c",
         BlockType.Jail => "#f1c40f",
         BlockType.GoToJail => "#d35400",
@@ -473,6 +486,7 @@
     private string GetDefaultImageForType(BlockType t) => t switch
     {
         BlockType.Property => "/images/blocks/property_basic.svg",
+        BlockType.Company => "/images/blocks/property_predio.svg",
         BlockType.GoToJail => "/images/blocks/go_to_jail.svg",
         BlockType.Jail => "/images/blocks/visitar_prisao.svg",
         BlockType.Tax => "/images/blocks/caminho_estrada_diagonal.svg",

@@ -27,6 +27,13 @@ public class Block
                     game.Transfer(player, Owner, Rent);
                 }
                 break;
+            case BlockType.Company:
+                if (Owner != null && Owner != player && !IsMortgaged)
+                {
+                    // Company has fixed rent value in Rent
+                    game.Transfer(player, Owner, Rent);
+                }
+                break;
             case BlockType.Tax:
                 game.PayBank(player, Rent);
                 break;
@@ -68,6 +75,16 @@ public class Block
                 break;
         }
         return Task.CompletedTask;
+    }
+}
+
+public class CompanyBlock : Block
+{
+    public CompanyBlock()
+    {
+        Type = BlockType.Company;
+        Price = 500;
+        Rent = 300;
     }
 }
 
