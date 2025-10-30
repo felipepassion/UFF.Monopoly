@@ -67,14 +67,27 @@ public class Game
         if (player.IsBankrupt) { NextTurn(); return; }
 
         var oldPos = player.CurrentPosition;
-        var looped = oldPos + steps >= BoardSize;
         var newPos = (oldPos + steps) % BoardSize;
-        if (looped)
+
+        // Determine whether the player actually crosses a Go block during this move.
+        // We iterate each traversed position (exclusive of oldPos, inclusive of newPos) and
+        // award GoSalary only if we encounter a block whose Type == BlockType.Go.
+        bool awardedGo = false;
+        for (int i = 1; i <= steps; i++)
         {
-            player.Money += GoSalary;
+            var pos = (oldPos + i) % BoardSize;
+            var traversed = _board.FirstOrDefault(b => b.Position == pos);
+            if (traversed != null && traversed.Type == BlockType.Go)
+            {
+                player.Money += GoSalary;
+                awardedGo = true;
+                break; // award only once per move
+            }
         }
+
         player.CurrentPosition = newPos;
 
+        // Only execute the action for the final block where the player stopped.
         var block = _board.First(b => b.Position == newPos);
         await block.Action(this, player);
 

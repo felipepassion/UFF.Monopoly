@@ -111,6 +111,7 @@ public class PropertyBlock : Block
 
     public override Task Action(Game game, Player player)
     {
+        // Action is invoked only when player stops on this block (landing).
         if (Owner != null && Owner != player && !IsMortgaged)
         {
             var rent = CalculateRent();

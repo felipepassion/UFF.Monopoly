@@ -12,6 +12,7 @@
 @inject IGameRepository GameRepo
 @inject NavigationManager Nav
 @inject UFF.Monopoly.Infrastructure.IUserProfileService Profiles
+@inject IJSRuntime JSRuntime
 
 <h3 class="mb-2">Partida local</h3>
 
@@ -38,14 +39,6 @@
                 <div style="position:absolute; top:8px; right:8px; z-index:2500; background:rgba(0,0,0,0.35); padding:6px 8px; border-radius:6px; color:white; font-weight:600; transform:rotate(12deg);">
                     Vez: @_game.Players.ElementAtOrDefault(_game.CurrentPlayerIndex)?.Name
                 </div>
-
-                @* Bot action toast *@
-                @if (_showBotActionToast)
-                {
-                    <div style="position:absolute; top:56px; right:8px; z-index:2600;">
-                        <div class="alert alert-info shadow-sm mb-0 py-1 px-2">@_botActionMessage</div>
-                    </div>
-                }
 
                 @foreach (var space in BoardSpaces)
                 {
@@ -122,12 +115,12 @@
                                         <div class="mt-3">
                                             @if ((_modalBlock.Owner) is null)
                                             {
-                                                <button class="btn btn-success me-2" @onclick="OnBuyPropertyAsync" disabled="@(_modalPlayer.Money < displayPb.Price)">Comprar (R$ @displayPb.Price)</button>
+                                                <button id="btnBuy" class="btn btn-success me-2" @onclick="OnBuyPropertyAsync" disabled="@(_modalPlayer.Money < displayPb.Price)">Comprar (R$ @displayPb.Price)</button>
                                             }
                                             else if (statePb?.Owner == _modalPlayer)
                                             {
-                                                <button class="btn btn-primary me-2" @onclick="OnBuildHouseAsync" disabled="@(!(statePb is not null && CanBuildHouseAllowed(statePb)))">Construir casa (R$ @(statePb?.HousePrice ?? displayPb.HousePrice))</button>
-                                                <button class="btn btn-primary me-2" @onclick="OnBuildHotelAsync" disabled="@(!(statePb is not null && CanBuildHotelAllowed(statePb)))">Construir hotel (R$ @(statePb?.HotelPrice ?? displayPb.HotelPrice))</button>
+                                                <button id="btnBuildHouse" class="btn btn-primary me-2" @onclick="OnBuildHouseAsync" disabled="@(!(statePb is not null && CanBuildHouseAllowed(statePb)))">Construir casa (R$ @(statePb?.HousePrice ?? displayPb.HousePrice))</button>
+                                                <button id="btnBuildHotel" class="btn btn-primary me-2" @onclick="OnBuildHotelAsync" disabled="@(!(statePb is not null && CanBuildHotelAllowed(statePb)))">Construir hotel (R$ @(statePb?.HotelPrice ?? displayPb.HotelPrice))</button>
                                                 <button class="btn btn-outline-danger" @onclick="OnSellPropertyAsync">Vender propriedade (50%)</button>
                                             }
                                             else
@@ -240,9 +233,15 @@
                     </ul>
                 </div>
                 <div>
-                    <button class="btn btn-secondary me-2" @onclick="EndGame">Encerrar</button>
-                    <button class="btn btn-primary" @onclick="RollForCurrentPlayer" disabled="@(!CanRollForCurrent)">Rolar</button>
+                    <button id="btnEnd" class="btn btn-secondary me-2" @onclick="EndGame">Encerrar</button>
+                    <button id="btnRoll" class="btn btn-primary" @onclick="RollForCurrentPlayer" disabled="@(!CanRollForCurrent)">Rolar</button>
                 </div>
+                @if (_showBotActionToast)
+                {
+                    <div class="mt-2">
+                        <div class="alert alert-info shadow-sm mb-0 py-1 px-2">@_botActionMessage</div>
+                    </div>
+                }
             </div>
         }
     </div>
@@ -320,6 +319,8 @@
     // Bot action toast helpers
     private bool _showBotActionToast;
     private string _botActionMessage = string.Empty;
+    // bot modal action guard
+    private bool _botHasActedThisModal = false;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -548,6 +549,20 @@
         _showBlockModal = true;
         StateHasChanged();
 
+        // if actor is bot, start automated modal actions (do not await here so UI can render)
+        var humanCount = GetHumanPlayersCount();
+        var actorIndex = GetPlayerIndex(player.Id);
+        _botHasActedThisModal = false;
+        if (actorIndex >= humanCount)
+        {
+            _ = InvokeAsync(async () =>
+            {
+                // small delay to ensure modal is rendered
+                try { await Task.Delay(150); } catch { }
+                await BotActOnModalAsync();
+            });
+        }
+
         // do NOT call NextTurn here; NextTurn will be called when player closes modal
     }
 
@@ -613,12 +628,11 @@
                     return;
                 }
 
-                // If actor was bot, perform auto-purchase and auto-build
+                // If actor was bot, perform auto-purchase and auto-build (fallback if modal automation didn't run)
                 var humanCount = GetHumanPlayersCount();
                 var actorIndex = GetPlayerIndex(_modalPlayer.Id);
-                if (actorIndex >= humanCount)
+                if (actorIndex >= humanCount && !_botHasActedThisModal)
                 {
-                    // auto-buy if landed on unowned property/company
                     if (_modalBlock is not null && _modalBlock.Owner is null && (_modalBlock.Type == BlockType.Property || _modalBlock.Type == BlockType.Company))
                     {
                         if (_modalPlayer.Money >= _modalBlock.Price)
@@ -629,7 +643,6 @@
                         }
                     }
 
-                    // auto-build if possible (only for property and on the property where pawn is)
                     if (_modalBlock is PropertyBlock pb && pb.Owner == _modalPlayer)
                     {
                         if (CanBuildHouseAllowed(pb))
@@ -652,10 +665,7 @@
                                 await ShowBotActionToast($"{_modalPlayer.Name} construiu hotel em {pb.Name}");
                             }
                         }
-                        await GameRepo.SaveGameAsync(GameId, _game);
                     }
-
-                    // small delay to make bot actions feel natural
                     try { await Task.Delay(400); } catch { }
                 }
 
@@ -992,6 +1002,7 @@
         StateHasChanged();
     }
 
+    // Helpers
     private PropertyBlock? BuildDisplayProperty(Block? stateBlock, BlockTemplateEntity? template)
     {
         PropertyBlock pb = null;
@@ -1009,35 +1020,21 @@
                 HotelPrice = template.HotelPrice,
                 Level = template.Level ?? PropertyLevel.Barata
             };
-            // if template has generic name like "Propriedade (Rica)", substitute a realistic neighborhood
-            if (IsGenericTemplateName(pb.Name))
-            {
-                pb.Name = GetNeighborhoodName(pb.Level, template.Position);
-            }
+            if (IsGenericTemplateName(pb.Name)) pb.Name = GetNeighborhoodName(pb.Level, template.Position);
             if (!string.IsNullOrWhiteSpace(template.RentsCsv))
             {
                 var parts = template.RentsCsv.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-                for (int i = 0; i < Math.Min(parts.Length, pb.Rents.Length); i++)
-                {
-                    if (int.TryParse(parts[i], out var v)) pb.Rents[i] = v;
-                }
+                for (int i = 0; i < Math.Min(parts.Length, pb.Rents.Length); i++) if (int.TryParse(parts[i], out var v)) pb.Rents[i] = v;
             }
         }
 
         if (stateBlock is PropertyBlock statePb)
         {
-            if (pb is null)
-            {
-                // no template, use state block as fallback
-                statePb.Rents = statePb.Rents ?? new int[7];
-                return statePb;
-            }
-            // merge dynamic state: owner, houses, hotels, mortgage
+            if (pb is null) { statePb.Rents = statePb.Rents ?? new int[7]; return statePb; }
             pb.Houses = statePb.Houses;
             pb.Hotels = statePb.Hotels;
             pb.IsMortgaged = statePb.IsMortgaged;
             pb.Owner = statePb.Owner;
-            // if template had no rents but state has base Rent, ensure base rent is set
             if (pb.Rents[0] == 0 && statePb.Rent > 0) pb.Rents[0] = statePb.Rent;
             return pb;
         }
@@ -1048,7 +1045,6 @@
     private static bool IsGenericTemplateName(string? name)
     {
         if (string.IsNullOrWhiteSpace(name)) return true;
-        // board builder uses names like "Propriedade (Rica)" or default "Bloco X"; treat those as generic
         if (name.StartsWith("Propriedade", StringComparison.OrdinalIgnoreCase)) return true;
         if (name.StartsWith("Bloco", StringComparison.OrdinalIgnoreCase)) return true;
         return false;
@@ -1076,7 +1072,6 @@
         var currentIndex = _game.CurrentPlayerIndex;
         if (currentIndex >= humanPlayers && currentIndex < _game.Players.Count)
         {
-            // bot's turn
             try { await Task.Delay(700); } catch { }
             if (!_isAnimating) await RollAndMove();
         }
@@ -1086,17 +1081,11 @@
     {
         var list = new List<(int r, int c)>(Math.Max(0, 2 * rows + 2 * cols - 4));
         if (rows < 2 || cols < 2) return list;
-
-        int bottom = rows - 1;
-        int top = 0;
-        int left = 0;
-        int right = cols - 1;
-
+        int bottom = rows - 1; int top = 0; int left = 0; int right = cols - 1;
         for (int c = right; c >= left; c--) list.Add((bottom, c));
         for (int r = bottom - 1; r >= top; r--) list.Add((r, left));
         for (int c = left + 1; c <= right; c++) list.Add((top, c));
         for (int r = top + 1; r <= bottom - 1; r++) list.Add((r, right));
-
         return list;
     }
 
@@ -1113,10 +1102,10 @@
 
     private string GetLevelOverlayColor(PropertyLevel lvl) => lvl switch
     {
-        PropertyLevel.Barata => "rgba(139,69,19,0.5)", // brown
-        PropertyLevel.Mediana => "rgba(52,152,219,0.5)", // blue
-        PropertyLevel.Rica => "rgba(155,89,182,0.5)", // purple
-        PropertyLevel.MuitoRica => "rgba(46,204,113,0.5)", // green
+        PropertyLevel.Barata => "rgba(139,69,19,0.5)",
+        PropertyLevel.Mediana => "rgba(52,152,219,0.5)",
+        PropertyLevel.Rica => "rgba(155,89,182,0.5)",
+        PropertyLevel.MuitoRica => "rgba(46,204,113,0.5)",
         _ => "rgba(0,0,0,0.5)"
     };
 
@@ -1124,6 +1113,7 @@
     {
         BlockType.Go => "Início",
         BlockType.Property => "Propriedade",
+        BlockType.Company => "Companhia",
         BlockType.Tax => "Taxa",
         BlockType.Jail => "Visitar Prisão",
         BlockType.GoToJail => "Vá para Prisão",
@@ -1156,8 +1146,7 @@
     private int GetPlayerIndex(Guid playerId)
     {
         if (_game is null) return -1;
-        for (int i = 0; i < _game.Players.Count; i++)
-            if (_game.Players[i].Id == playerId) return i;
+        for (int i = 0; i < _game.Players.Count; i++) if (_game.Players[i].Id == playerId) return i;
         return -1;
     }
 
@@ -1170,5 +1159,96 @@
         try { await Task.Delay(1200); } catch { }
         _showBotActionToast = false;
         StateHasChanged();
+    }
+
+    // Bot modal automation: simulate buy/build then close modal after 2s
+    private async Task BotActOnModalAsync()
+    {
+        if (_game is null || _modalPlayer is null || !_modalFromMove) return;
+        var humanCount = GetHumanPlayersCount();
+        var actorIndex = GetPlayerIndex(_modalPlayer.Id);
+        if (actorIndex < humanCount) return;
+
+        bool clicked = false;
+        try
+        {
+            clicked = await JSRuntime.InvokeAsync<bool>("playInterop.clickModalButton", "buy");
+        }
+        catch { }
+
+        if (!clicked)
+        {
+            try
+            {
+                clicked = await JSRuntime.InvokeAsync<bool>("playInterop.clickModalButton", "build-house");
+                if (!clicked) clicked = await JSRuntime.InvokeAsync<bool>("playInterop.clickModalButton", "build-hotel");
+            }
+            catch { }
+        }
+
+        if (clicked) _botHasActedThisModal = true;
+
+        // if JS couldn't simulate a click, fallback to C# actions
+        if (!clicked)
+        {
+            if (_modalBlock is not null && _modalBlock.Owner is null && (_modalBlock.Type == BlockType.Property || _modalBlock.Type == BlockType.Company))
+            {
+                if (_modalPlayer.Money >= _modalBlock.Price)
+                {
+                    _botHasActedThisModal = true;
+                    _game.TryBuyProperty(_modalPlayer, _modalBlock);
+                    await GameRepo.SaveGameAsync(GameId, _game);
+                    await ShowBotActionToast($"{_modalPlayer.Name} comprou {_modalBlock.Name}");
+                }
+            }
+
+            if (_modalBlock is PropertyBlock pb && pb.Owner == _modalPlayer)
+            {
+                if (CanBuildHouseAllowed(pb))
+                {
+                    var ok = pb.BuildHouse(_modalPlayer);
+                    if (ok)
+                    {
+                        _modalPlayer.LastBuildTurn = _game.RoundCount;
+                        await GameRepo.SaveGameAsync(GameId, _game);
+                        await ShowBotActionToast($"{_modalPlayer.Name} construiu casa em {pb.Name}");
+                        _botHasActedThisModal = true;
+                    }
+                }
+                else if (CanBuildHotelAllowed(pb))
+                {
+                    var ok = pb.BuildHotel(_modalPlayer);
+                    if (ok)
+                    {
+                        _modalPlayer.LastBuildTurn = _game.RoundCount;
+                        await GameRepo.SaveGameAsync(GameId, _game);
+                        await ShowBotActionToast($"{_modalPlayer.Name} construiu hotel em {pb.Name}");
+                        _botHasActedThisModal = true;
+                    }
+                }
+            }
+        }
+
+        // wait 2s and close modal
+        try { await Task.Delay(2000); } catch { }
+        await InvokeAsync(async () => await CloseBlockModal());
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await base.OnAfterRenderAsync(firstRender);
+        if (!firstRender) return;
+        // ensure game loaded and if first player is bot, trigger roll
+        if (_game is not null)
+        {
+            var humanCount = GetHumanPlayersCount();
+            if (_game.CurrentPlayerIndex >= humanCount)
+            {
+                try { await Task.Delay(300); } catch { }
+                try {
+                    if (!_isAnimating) await RollAndMove();
+                } catch { }
+            }
+        }
     }
 }
