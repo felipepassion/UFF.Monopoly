@@ -8,14 +8,14 @@ using UFF.Monopoly.Entities;
 using UFF.Monopoly.Models;
 using UFF.Monopoly.Repositories;
 
-namespace UFF.Monopoly.Components.Pages;
+namespace UFF.Monopoly.Components.Pages.GamePlay;
 
 public partial class Play : ComponentBase
 {
     [Inject] public IDbContextFactory<ApplicationDbContext> DbFactory { get; set; } = default!;
     [Inject] public IGameRepository GameRepo { get; set; } = default!;
     [Inject] public NavigationManager Navigation { get; set; } = default!;
-    [Inject] public UFF.Monopoly.Infrastructure.IUserProfileService Profiles { get; set; } = default!;
+    [Inject] public Infrastructure.IUserProfileService Profiles { get; set; } = default!;
     [Inject] public IJSRuntime JSRuntime { get; set; } = default!;
 
     [Parameter] public Guid GameId { get; set; }

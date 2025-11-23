@@ -6,7 +6,7 @@ using UFF.Monopoly.Data.Entities;
 using UFF.Monopoly.Entities;
 using UFF.Monopoly.Models;
 
-namespace UFF.Monopoly.Components.Pages;
+namespace UFF.Monopoly.Components.Pages.BoardBuilders;
 
 public partial class BoardBuilder : ComponentBase
 {
