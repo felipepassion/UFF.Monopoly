@@ -1,0 +1,41 @@
+@using System.ComponentModel.DataAnnotations
+@using UFF.Monopoly.Models
+@inherits ComponentBase
+<EditForm Model="Form" OnValidSubmit="HandleSave">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+    <div class="mb-2">
+        <label class="form-label mb-1">Nome do tabuleiro</label>
+        <InputText class="form-control form-control-sm" @bind-Value="Form.Name" />
+        <ValidationMessage For="@(()=>Form.Name)" />
+    </div>
+    <div class="row gx-2">
+        <div class="col-4 mb-2">
+            <label class="form-label mb-1">Linhas</label>
+            <InputNumber class="form-control form-control-sm" @bind-Value="Form.Rows" />
+            <ValidationMessage For="@(()=>Form.Rows)" />
+        </div>
+        <div class="col-4 mb-2">
+            <label class="form-label mb-1">Colunas</label>
+            <InputNumber class="form-control form-control-sm" @bind-Value="Form.Cols" />
+            <ValidationMessage For="@(()=>Form.Cols)" />
+        </div>
+        <div class="col-4 mb-2">
+            <label class="form-label mb-1">Célula (px)</label>
+            <InputNumber class="form-control form-control-sm" @bind-Value="Form.CellSize" />
+            <ValidationMessage For="@(()=>Form.CellSize)" />
+        </div>
+    </div>
+    <div class="d-grid gap-1">
+        <button type="button" class="btn btn-primary btn-sm" @onclick="(()=>OnGenerateGrid?.Invoke())">Gerar tabuleiro</button>
+        <button type="submit" class="btn btn-success btn-sm" disabled="@(BlocksCount<=0)">Salvar</button>
+    </div>
+</EditForm>
+
+@code {
+    [Parameter] public BoardFormModel Form { get; set; } = new();
+    [Parameter] public int BlocksCount { get; set; }
+    [Parameter] public Action? OnGenerateGrid { get; set; }
+    [Parameter] public Func<Task>? OnSave { get; set; }
+    private Task HandleSave() => OnSave is null ? Task.CompletedTask : OnSave();
+}

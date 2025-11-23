@@ -1,0 +1,71 @@
+@using UFF.Monopoly.Entities
+@using UFF.Monopoly.Data.Entities
+@inherits ComponentBase
+@if (CurrentBlock is not null && Visible)
+{
+    <div class="type-popup shadow rounded bg-white border"
+         style="position:fixed; top:@(Y + "px"); left:@(X + "px"); z-index:1050; max-height:80vh; overflow:auto;"
+         @onclick:stopPropagation="true">
+        <div class="d-flex justify-content-between align-items-center px-2 pt-2">
+            <div class="fw-bold small">Tipo</div>
+            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="Close">X</button>
+        </div>
+        <div class="type-list mb-2 px-2">
+            @foreach (var t in Enum.GetValues<BlockType>())
+            {
+                if (t == BlockType.Company) { continue; }
+                var bg = GetTypeColor(t);
+                var fg = GetTextColor(bg);
+                <button class="type-option btn w-100 mb-1" style="background:@bg;color:@fg" @onclick="(() => SelectTypeInternal(t))">
+                    <div class="d-flex flex-column align-items-start w-100">
+                        <div class="fw-semibold">@TranslateBlockType(t)
+                            @if ((t == BlockType.Property) && CurrentBlock.BuildingType != BuildingType.None)
+                            {<span class="ms-1" style="font-weight:500;">– @GetCategoryName(CurrentBlock.BuildingType)</span>}
+                        </div>
+                        @if (t == BlockType.Property)
+                        {
+                            <div class="d-flex flex-column gap-1 mt-1 w-100">
+                                @foreach (var cat in new[]{BuildingType.House,BuildingType.Hotel,BuildingType.Company})
+                                {
+                                    <div class="d-flex align-items-center gap-1 w-100">
+                                        <span class="badge bg-light text-dark">@GetCategoryName(cat)</span>
+                                        @for (int lvl=1; lvl<=4; lvl++)
+                                        {
+                                            <img src="@GetBuildingImage(cat,lvl)" alt="img" @onclick="(() => SelectCategoryShortcutInternal(cat))" style="cursor:pointer;width:22px;height:22px;object-fit:contain;background:rgba(0,0,0,0.03);border-radius:4px;" />
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                </button>
+            }
+        </div>
+    </div>
+}
+@code{
+    [Parameter] public bool Visible { get; set; } = true;
+    [Parameter] public int X { get; set; }
+    [Parameter] public int Y { get; set; }
+    [Parameter] public int Index { get; set; }
+    [Parameter] public BlockTemplateEntity? CurrentBlock { get; set; }
+    [Parameter] public Action<BlockType>? OnSelectType { get; set; }
+    [Parameter] public Action<BuildingType>? OnSelectCategoryShortcut { get; set; }
+    [Parameter] public Action? OnClose { get; set; }
+    [Parameter] public Func<BlockType,string> TranslateBlockType { get; set; } = default!;
+    [Parameter] public Func<BuildingType,string> GetCategoryName { get; set; } = default!;
+    [Parameter] public Func<BuildingType,int,string> GetBuildingImage { get; set; } = default!;
+    [Parameter] public Func<BlockType,string> GetTypeColor { get; set; } = default!;
+
+    private void SelectTypeInternal(BlockType t)
+    {
+        OnSelectType?.Invoke(t);
+    }
+    private void SelectCategoryShortcutInternal(BuildingType cat)
+    {
+        OnSelectCategoryShortcut?.Invoke(cat);
+    }
+    private void Close() => OnClose?.Invoke();
+
+    private string GetTextColor(string? bg){if(string.IsNullOrWhiteSpace(bg))return "#111827";try{if(bg.StartsWith("#")&&bg.Length==7){var r=Convert.ToInt32(bg.Substring(1,2),16);var g=Convert.ToInt32(bg.Substring(3,2),16);var b=Convert.ToInt32(bg.Substring(5,2),16);var yiq=((r*299)+(g*587)+(b*114))/1000;return yiq>=128?"#111827":"#ffffff";}}catch{}return "#111827";}
+}

@@ -1,0 +1,4 @@
+.play-container{ min-height: calc(100vh - 140px); }
+.board-shell{ background:var(--surface); border:1px solid rgba(255,255,255,0.03); border-radius:10px; padding:10px; }
+.round-badge{ position:absolute; top:8px; left:8px; z-index:2500; background:rgba(0,0,0,0.35); padding:6px 8px; border-radius:6px; color:white; font-weight:600; transform:rotate(-12deg); }
+.turn-badge{ position:absolute; top:8px; right:8px; z-index:2500; background:rgba(0,0,0,0.35); padding:6px 8px; border-radius:6px; color:white; font-weight:600; transform:rotate(12deg); }

@@ -1,0 +1,49 @@
+@using UFF.Monopoly.Entities
+@using UFF.Monopoly.Data.Entities
+@inherits ComponentBase
+
+@if (Show && Block is not null && Player is not null)
+{
+    <div class="modal-backdrop show" style="z-index:@(BaseZ)!"></div>
+    <div class="modal d-block" tabindex="-1" style="z-index:@(BaseZ + 1)!"><!-- z-index bumped above pawns -->
+        <div class="modal-dialog modal-md">
+            <div class="modal-content p-2 modal-surface">
+                <div class="modal-header">
+                    @{ var displayName = TemplateEntity?.Name ?? Block.Name; }
+                    <h5 class="modal-title">@displayName – @TranslateBlockType(Block.Type)</h5>
+                    <button type="button" class="btn-close btn-close-white" aria-label="Close" @onclick="OnClose"></button>
+                </div>
+                <div class="modal-body">
+                    @ChildContent
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="OnClose">Fechar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool Show { get; set; }
+    [Parameter] public Block? Block { get; set; }
+    [Parameter] public Player? Player { get; set; }
+    [Parameter] public BlockTemplateEntity? TemplateEntity { get; set; }
+    [Parameter] public int BaseZ { get; set; } = 20000;
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private string TranslateBlockType(BlockType t) => t switch
+    {
+        BlockType.Go => "Início",
+        BlockType.Property => "Propriedade",
+        BlockType.Company => "Companhia",
+        BlockType.Tax => "Taxa",
+        BlockType.Jail => "Visitar Prisão",
+        BlockType.GoToJail => "Vá para Prisão",
+        BlockType.Chance => "Sorte",
+        BlockType.Reves => "Revés",
+        BlockType.FreeParking => "Parada Livre",
+        _ => t.ToString()
+    };
+}

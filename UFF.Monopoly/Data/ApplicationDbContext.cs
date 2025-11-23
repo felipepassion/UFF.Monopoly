@@ -43,12 +43,14 @@ namespace UFF.Monopoly.Data
                 e.Property(x => x.Type).HasConversion<int>();
                 // store nullable enum as integer in DB
                 e.Property(x => x.Level).HasConversion<int?>();
+                e.Property(x => x.BuildingType).HasConversion<int>();
             });
 
             builder.Entity<BlockTemplateEntity>(e =>
             {
                 e.HasKey(x => x.Id);
                 e.Property(x => x.Type).HasConversion<int>();
+                e.Property(x => x.BuildingType).HasConversion<int>();
                 e.HasOne<BoardDefinitionEntity>()
                  .WithMany(b => b.Blocks)
                  .HasForeignKey(x => x.BoardDefinitionId)

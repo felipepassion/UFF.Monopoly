@@ -1,0 +1,13 @@
+@using UFF.Monopoly.Models
+@inherits ComponentBase
+
+<div id="game-board-container" class="game-board" style="position:relative; width:@BoardWidthCss; height:@BoardHeightCss; display:flex; align-items:center; justify-content:center;">
+    @ChildContent
+</div>
+
+@code {
+    [Parameter] public List<BoardSpaceDto> Spaces { get; set; } = new();
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public string BoardWidthCss { get; set; } = "0px";
+    [Parameter] public string BoardHeightCss { get; set; } = "0px";
+}

@@ -1,0 +1,32 @@
+@using UFF.Monopoly.Entities
+@inherits ComponentBase
+@if (Index>=0)
+{
+<div class="modal-backdrop show"></div>
+<div class="modal d-block" tabindex="-1">
+  <div class="modal-dialog modal-md">
+    <div class="modal-content p-2" style="background:var(--surface);border:1px solid rgba(255,255,255,0.04);color:var(--text);">
+      <div class="modal-header"><h6 class="modal-title">Escolha a categoria</h6><button type="button" class="btn-close btn-close-white" aria-label="Close" @onclick="OnClose"></button></div>
+      <div class="modal-body p-2">
+        <div class="d-grid gap-2">
+          @foreach(var cat in new[]{BuildingType.House,BuildingType.Hotel,BuildingType.Company,BuildingType.Special})
+          {
+            var prices=GetDefaultPricesForCategory(cat);
+            var catColor=GetCategoryColor(cat);
+            <button class="btn btn-outline-light text-start" @onclick="(()=>OnApply?.Invoke(cat))">
+              <div class="fw-semibold" style="color:@catColor">@GetCategoryName(cat)</div>
+              <div class="small" style="color:@catColor">Preços níveis: @string.Join(" / ", prices)</div>
+              <div class="d-flex gap-1 mt-1">
+                @for(int lvl=1;lvl<=4;lvl++){<img src="@GetBuildingImage(cat,lvl)" alt="@GetCategoryName(cat)-@lvl" style="width:48px;height:48px;object-fit:contain;" />}
+              </div>
+            </button>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+}
+@code{
+[Parameter]public int Index{get;set;}[Parameter]public Action? OnClose{get;set;}[Parameter]public Action<BuildingType>? OnApply{get;set;}
+[Parameter]public Func<BuildingType,string> GetCategoryName{get;set;}=default!;[Parameter]public Func<BuildingType,string> GetCategoryColor{get;set;}=default!;[Parameter]public Func<BuildingType,int,string> GetBuildingImage{get;set;}=default!;[Parameter]public Func<BuildingType,int[]> GetDefaultPricesForCategory{get;set;}=default!;}

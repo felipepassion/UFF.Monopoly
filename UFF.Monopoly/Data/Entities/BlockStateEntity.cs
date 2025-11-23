@@ -19,9 +19,15 @@ public class BlockStateEntity
     public bool IsMortgaged { get; set; }
     public BlockType Type { get; set; }
 
-    // Persist dynamic property state
+    // Persist dynamic property state (legacy)
     public int Houses { get; set; }
     public int Hotels { get; set; }
+
+    // New unified building evolution system
+    // BuildingType indicates the category selected for this property (House/Hotel/Company/Special)
+    // BuildingLevel ranges from 0..4 (0 = none built yet)
+    public BuildingType BuildingType { get; set; } = BuildingType.None;
+    public int BuildingLevel { get; set; } = 0;
 
     // Persisted template info to reconstruct property details
     public int HousePrice { get; set; }

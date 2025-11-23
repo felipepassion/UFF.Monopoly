@@ -49,18 +49,28 @@ public class EfGameRepository : IGameRepository
                     Price = t.Price,
                     Rent = t.Rent,
                     Type = t.Type,
-                    HousePrice = t.HousePrice,
-                    HotelPrice = t.HotelPrice,
-                    Level = t.Level ?? PropertyLevel.Barata
+                    Level = t.Level ?? PropertyLevel.Barata,
+                    BuildingType = t.BuildingType,
+                    BuildingLevel = 0
                 };
-                // parse rents csv
-                if (!string.IsNullOrWhiteSpace(t.RentsCsv))
+                // parse building prices csv (incremental costs level1..4)
+                if (!string.IsNullOrWhiteSpace(t.BuildingPricesCsv))
                 {
-                    var parts = t.RentsCsv.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-                    for (int i = 0; i < Math.Min(parts.Length, pb.Rents.Length); i++)
+                    var parts = t.BuildingPricesCsv.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                    for (int i = 0; i < Math.Min(parts.Length, pb.BuildingPrices.Length); i++)
+                        if (int.TryParse(parts[i], out var v)) pb.BuildingPrices[i] = v;
+                }
+                else
+                {
+                    // default incremental costs based on building type
+                    pb.BuildingPrices = pb.BuildingType switch
                     {
-                        if (int.TryParse(parts[i], out var v)) pb.Rents[i] = v;
-                    }
+                        BuildingType.House => new[] { 100, 200, 350, 500 },
+                        BuildingType.Hotel => new[] { 300, 600, 1000, 1500 },
+                        BuildingType.Company => new[] { 400, 800, 1300, 1900 },
+                        BuildingType.Special => new[] { 500, 1000, 1600, 2300 },
+                        _ => new[] { 0, 0, 0, 0 }
+                    };
                 }
                 return (Block)pb;
             }
@@ -117,17 +127,15 @@ public class EfGameRepository : IGameRepository
                     Rent = b.Rent,
                     OwnerId = b.Owner?.Id,
                     IsMortgaged = b.IsMortgaged,
-                    Type = b.Type,
-                    Houses = (b is PropertyBlock pbx) ? pbx.Houses : 0,
-                    Hotels = (b is PropertyBlock pbx2) ? pbx2.Hotels : 0,
+                    Type = b.Type
                 };
-                if (b is PropertyBlock pbx3)
+                if (b is PropertyBlock pbx)
                 {
-                    bs.HousePrice = pbx3.HousePrice;
-                    bs.HotelPrice = pbx3.HotelPrice;
-                    bs.Level = pbx3.Level;
-                    // persist rents as CSV so we can reconstruct full rent table later
-                    bs.RentsCsv = string.Join(',', pbx3.Rents);
+                    bs.Level = pbx.Level;
+                    bs.BuildingType = pbx.BuildingType;
+                    bs.BuildingLevel = pbx.BuildingLevel;
+                    // store building prices as CSV in RentsCsv for backward compatibility if needed
+                    bs.RentsCsv = string.Join(',', pbx.BuildingPrices);
                 }
                 return bs;
             }).ToList()
@@ -148,7 +156,6 @@ public class EfGameRepository : IGameRepository
             .FirstOrDefaultAsync(g => g.Id == gameId, ct);
         if (gameEntity == null) return null;
 
-        // preserve stored player order instead of ordering by name
         var players = gameEntity.Players
             .Select(p => new Player
             {
@@ -181,27 +188,33 @@ public class EfGameRepository : IGameRepository
                         Rent = b.Rent,
                         IsMortgaged = b.IsMortgaged,
                         Type = b.Type,
-                        Houses = b.Houses,
-                        Hotels = b.Hotels,
-                        HousePrice = b.HousePrice,
-                        HotelPrice = b.HotelPrice,
-                        Level = b.Level ?? PropertyLevel.Barata
+                        Level = b.Level ?? PropertyLevel.Barata,
+                        BuildingType = b.BuildingType,
+                        BuildingLevel = b.BuildingLevel
                     };
-                    // parse rents CSV into array
+                    // reconstruct building prices from RentsCsv if stored
                     if (!string.IsNullOrWhiteSpace(b.RentsCsv))
                     {
                         var parts = b.RentsCsv.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-                        for (int i = 0; i < Math.Min(parts.Length, pb.Rents.Length); i++)
-                        {
-                            if (int.TryParse(parts[i], out var v)) pb.Rents[i] = v;
-                        }
+                        for (int i = 0; i < Math.Min(parts.Length, pb.BuildingPrices.Length); i++)
+                            if (int.TryParse(parts[i], out var v)) pb.BuildingPrices[i] = v;
                     }
                     else
                     {
-                        // fallback: if rents csv missing, use Rent as base rent
-                        pb.Rents[0] = b.Rent;
+                        pb.BuildingPrices = pb.BuildingType switch
+                        {
+                            BuildingType.House => new[] { 100, 200, 350, 500 },
+                            BuildingType.Hotel => new[] { 300, 600, 1000, 1500 },
+                            BuildingType.Company => new[] { 400, 800, 1300, 1900 },
+                            BuildingType.Special => new[] { 500, 1000, 1600, 2300 },
+                            _ => new[] { 0, 0, 0, 0 }
+                        };
                     }
-
+                    if (b.OwnerId.HasValue && idMap.TryGetValue(b.OwnerId.Value, out var ownerP))
+                    {
+                        pb.Owner = ownerP;
+                        ownerP.OwnedProperties.Add(pb);
+                    }
                     return (Block)pb;
                 }
                 else
@@ -275,12 +288,10 @@ public class EfGameRepository : IGameRepository
             b.Type = model.Type;
             if (model is PropertyBlock pb)
             {
-                b.Houses = pb.Houses;
-                b.Hotels = pb.Hotels;
-                b.HousePrice = pb.HousePrice;
-                b.HotelPrice = pb.HotelPrice;
                 b.Level = pb.Level;
-                b.RentsCsv = string.Join(',', pb.Rents);
+                b.BuildingType = pb.BuildingType;
+                b.BuildingLevel = pb.BuildingLevel;
+                b.RentsCsv = string.Join(',', pb.BuildingPrices); // store building prices
             }
         }
 

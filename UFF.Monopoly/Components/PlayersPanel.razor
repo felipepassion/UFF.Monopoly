@@ -1,0 +1,20 @@
+@using UFF.Monopoly.Entities
+@inherits ComponentBase
+
+<div class="players-panel">
+    <div class="fw-bold">Jogadores</div>
+    <ul class="list-unstyled mb-0">
+        @if (Players is not null)
+        {
+            @for (int i = 0; i < Players.Count; i++)
+            {
+                var p = Players[i];
+                <li class="small">@p.Name = @p.Money</li>
+            }
+        }
+    </ul>
+</div>
+
+@code {
+    [Parameter] public IReadOnlyList<Player>? Players { get; set; }
+}

@@ -1,0 +1,55 @@
+@using UFF.Monopoly.Entities
+@using UFF.Monopoly.Data.Entities
+@inherits ComponentBase
+
+@if (Block is not null && Player is not null)
+{
+    @if (Block.Type == BlockType.Property || Block.Type == BlockType.Company)
+    {
+        var statePb = Block as PropertyBlock;
+        var displayName = TemplateEntity?.Name ?? Block.Name;
+        <div><strong>@(Block.Type == BlockType.Company ? "Companhia:" : "Propriedade:")</strong> @displayName</div>
+        <div><strong>Preço:</strong> R$ @Block.Price</div>
+        @if (Block.Type == BlockType.Property && statePb is not null)
+        {
+            <div><strong>Nível de construção:</strong> @statePb.BuildingLevel / 4</div>
+            <div><strong>Tipo construção:</strong> @statePb.BuildingType</div>
+            <div><strong>Aluguel atual:</strong> R$ @statePb.CalculateRent()</div>
+        }
+        else
+        {
+            <div><strong>Aluguel fixo:</strong> R$ @Block.Rent</div>
+        }
+        <div class="mt-3">
+            @if ((Block.Owner) is null)
+            {
+                <button id="btnBuy" class="btn btn-success me-2" @onclick="OnBuy" disabled="@(Player.Money < Block.Price)">Comprar (R$ @Block.Price)</button>
+            }
+            else if (statePb?.Owner == Player)
+            {
+                <button id="btnUpgrade" class="btn btn-primary me-2" @onclick="OnUpgrade" disabled="@(!(statePb is not null && CanUpgradeAllowed))">UpLevel (R$ @NextUpgradeCost)</button>
+                <button class="btn btn-outline-danger" @onclick="OnSell">Vender propriedade (50%)</button>
+            }
+            else
+            {
+                <div class="text-muted">Propriedade de: @Block.Owner?.Name</div>
+            }
+        </div>
+    }
+    else
+    {
+        @ChildContent
+    }
+}
+
+@code {
+    [Parameter] public Block? Block { get; set; }
+    [Parameter] public Player? Player { get; set; }
+    [Parameter] public BlockTemplateEntity? TemplateEntity { get; set; }
+    [Parameter] public bool CanUpgradeAllowed { get; set; }
+    [Parameter] public int NextUpgradeCost { get; set; }
+    [Parameter] public EventCallback OnBuy { get; set; }
+    [Parameter] public EventCallback OnUpgrade { get; set; }
+    [Parameter] public EventCallback OnSell { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

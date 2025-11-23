@@ -1,0 +1,30 @@
+@inherits ComponentBase
+
+@if (Show)
+{
+    var diceImgSize = DiceImgSize;
+    var gifSize = GifSize;
+    var gifOffset = GifOffset;
+    var diceOffset = DiceOffset;
+    <div class="dice-overlay">
+        <div class="dice-faces" style="transform:translateY(@diceOffset);">
+            <img src="@Die1Url" alt="die1" style="width:@diceImgSize; height:@diceImgSize;" />
+            <img src="@Die2Url" alt="die2" style="width:@diceImgSize; height:@diceImgSize;" />
+        </div>
+        @if (!string.IsNullOrWhiteSpace(RollingGifUrl))
+        {
+            <img src="@RollingGifUrl" alt="rolling" class="dice-rolling" style="width:@gifSize; height:@gifSize; transform:translateY(@gifOffset);" />
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public bool Show { get; set; }
+    [Parameter] public string Die1Url { get; set; } = string.Empty;
+    [Parameter] public string Die2Url { get; set; } = string.Empty;
+    [Parameter] public string RollingGifUrl { get; set; } = string.Empty;
+    [Parameter] public string DiceImgSize { get; set; } = "32px";
+    [Parameter] public string GifSize { get; set; } = "96px";
+    [Parameter] public string GifOffset { get; set; } = "-16px";
+    [Parameter] public string DiceOffset { get; set; } = "16px";
+}

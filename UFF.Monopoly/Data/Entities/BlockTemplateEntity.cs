@@ -16,12 +16,18 @@ public class BlockTemplateEntity
     public int Rent { get; set; }
     public BlockType Type { get; set; }
 
-    // Property-specific configuration
+    // Property-specific configuration (legacy granular fields retained for backward compatibility)
     public PropertyLevel? Level { get; set; }
     public int HousePrice { get; set; }
     public int HotelPrice { get; set; }
     // rents stored as CSV for template: values for 0..4 houses and 1..2 hotels (total 7 values)
     public string? RentsCsv { get; set; }
+
+    // New unified building evolution system:
+    // BuildingType indicates category of construction allowed on this property.
+    // BuildingPricesCsv holds 5 comma-separated integers representing the cumulative cost to reach level 1..4 (index 0..3) plus base (index 4 optional) or just incremental costs; here we store incremental costs for each level 1..4.
+    public BuildingType BuildingType { get; set; } = BuildingType.None;
+    public string? BuildingPricesCsv { get; set; }
 
     // FK explícita para o board, necessária para compor índice único por board
     public Guid BoardDefinitionId { get; set; }
