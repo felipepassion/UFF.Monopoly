@@ -25,4 +25,9 @@ public class BlockTemplateEntity
 
     // FK explícita para o board, necessária para compor índice único por board
     public Guid BoardDefinitionId { get; set; }
+
+    // Company handling fields
+    public int CompanyId { get; set; }
+    public string LogoUrl { get; set; } = string.Empty;
+    public string Slogan { get; set; } = string.Empty;
 }

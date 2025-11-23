@@ -27,6 +27,13 @@ public class Block
                     game.Transfer(player, Owner, Rent);
                 }
                 break;
+            case BlockType.Company:
+                if (Owner != null && Owner != player && !IsMortgaged)
+                {
+                    // Company has fixed rent value in Rent
+                    game.Transfer(player, Owner, Rent);
+                }
+                break;
             case BlockType.Tax:
                 game.PayBank(player, Rent);
                 break;
@@ -71,6 +78,16 @@ public class Block
     }
 }
 
+public class CompanyBlock : Block
+{
+    public CompanyBlock()
+    {
+        Type = BlockType.Company;
+        Price = 500;
+        Rent = 300;
+    }
+}
+
 public class PropertyBlock : Block
 {
     public PropertyLevel Level { get; set; } = PropertyLevel.Barata;
@@ -94,6 +111,7 @@ public class PropertyBlock : Block
 
     public override Task Action(Game game, Player player)
     {
+        // Action is invoked only when player stops on this block (landing).
         if (Owner != null && Owner != player && !IsMortgaged)
         {
             var rent = CalculateRent();

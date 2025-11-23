@@ -25,6 +25,7 @@
 
   <ItemGroup>
     <Folder Include="Repositories\Mapping\" />
+    <Folder Include="wwwroot\js\" />
   </ItemGroup>
 
 </Project>

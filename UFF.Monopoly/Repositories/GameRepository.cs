@@ -104,21 +104,32 @@ public class EfGameRepository : IGameRepository
                 IsBankrupt = p.IsBankrupt,
                 PawnIndex = p.PawnIndex
             }).ToList(),
-            Board = board.Select(b => new BlockStateEntity
-            {
-                Id = Guid.NewGuid(),
-                Position = b.Position,
-                Name = b.Name,
-                Description = b.Description,
-                ImageUrl = b.ImageUrl,
-                Color = b.Color,
-                Price = b.Price,
-                Rent = b.Rent,
-                OwnerId = b.Owner?.Id,
-                IsMortgaged = b.IsMortgaged,
-                Type = b.Type,
-                Houses = (b is PropertyBlock pb) ? pb.Houses : 0,
-                Hotels = (b is PropertyBlock pb2) ? pb2.Hotels : 0,
+            Board = board.Select(b => {
+                var bs = new BlockStateEntity
+                {
+                    Id = Guid.NewGuid(),
+                    Position = b.Position,
+                    Name = b.Name,
+                    Description = b.Description,
+                    ImageUrl = b.ImageUrl,
+                    Color = b.Color,
+                    Price = b.Price,
+                    Rent = b.Rent,
+                    OwnerId = b.Owner?.Id,
+                    IsMortgaged = b.IsMortgaged,
+                    Type = b.Type,
+                    Houses = (b is PropertyBlock pbx) ? pbx.Houses : 0,
+                    Hotels = (b is PropertyBlock pbx2) ? pbx2.Hotels : 0,
+                };
+                if (b is PropertyBlock pbx3)
+                {
+                    bs.HousePrice = pbx3.HousePrice;
+                    bs.HotelPrice = pbx3.HotelPrice;
+                    bs.Level = pbx3.Level;
+                    // persist rents as CSV so we can reconstruct full rent table later
+                    bs.RentsCsv = string.Join(',', pbx3.Rents);
+                }
+                return bs;
             }).ToList()
         };
 
@@ -171,8 +182,26 @@ public class EfGameRepository : IGameRepository
                         IsMortgaged = b.IsMortgaged,
                         Type = b.Type,
                         Houses = b.Houses,
-                        Hotels = b.Hotels
+                        Hotels = b.Hotels,
+                        HousePrice = b.HousePrice,
+                        HotelPrice = b.HotelPrice,
+                        Level = b.Level ?? PropertyLevel.Barata
                     };
+                    // parse rents CSV into array
+                    if (!string.IsNullOrWhiteSpace(b.RentsCsv))
+                    {
+                        var parts = b.RentsCsv.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                        for (int i = 0; i < Math.Min(parts.Length, pb.Rents.Length); i++)
+                        {
+                            if (int.TryParse(parts[i], out var v)) pb.Rents[i] = v;
+                        }
+                    }
+                    else
+                    {
+                        // fallback: if rents csv missing, use Rent as base rent
+                        pb.Rents[0] = b.Rent;
+                    }
+
                     return (Block)pb;
                 }
                 else
@@ -248,6 +277,10 @@ public class EfGameRepository : IGameRepository
             {
                 b.Houses = pb.Houses;
                 b.Hotels = pb.Hotels;
+                b.HousePrice = pb.HousePrice;
+                b.HotelPrice = pb.HotelPrice;
+                b.Level = pb.Level;
+                b.RentsCsv = string.Join(',', pb.Rents);
             }
         }
 

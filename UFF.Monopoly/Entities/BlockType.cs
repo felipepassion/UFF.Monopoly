@@ -4,6 +4,7 @@ public enum BlockType
 {
     Go,
     Property,
+    Company, // Companhia
     Tax,
     Jail,
     GoToJail,

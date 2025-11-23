@@ -9,6 +9,9 @@ public class Game
     public int CurrentPlayerIndex { get; private set; } = 0;
     public bool IsFinished { get; private set; } = false;
 
+    // number of completed rounds (incremented when we wrap back to player 0)
+    public int RoundCount { get; private set; } = 0;
+
     public IReadOnlyList<Block> Board => _board;
     public IReadOnlyList<Player> Players => _players;
 
@@ -31,10 +34,31 @@ public class Game
     public void NextTurn()
     {
         if (IsFinished) return;
+        int attempts = 0;
         do
         {
+            var previous = CurrentPlayerIndex;
             CurrentPlayerIndex = (CurrentPlayerIndex + 1) % _players.Count;
-        } while (_players[CurrentPlayerIndex].IsBankrupt);
+
+            // if we wrapped to player 0, increment round count
+            if (CurrentPlayerIndex == 0 && previous != 0)
+            {
+                RoundCount++;
+            }
+
+            // skip players that are bankrupt
+            if (_players[CurrentPlayerIndex].IsBankrupt) { attempts++; continue; }
+
+            // skip players that have pending SkipTurns
+            if (_players[CurrentPlayerIndex].SkipTurns > 0)
+            {
+                _players[CurrentPlayerIndex].SkipTurns--;
+                attempts++;
+                continue;
+            }
+
+            break;
+        } while (attempts < _players.Count);
     }
 
     public async Task MoveCurrentPlayerAsync(int steps)
@@ -43,14 +67,27 @@ public class Game
         if (player.IsBankrupt) { NextTurn(); return; }
 
         var oldPos = player.CurrentPosition;
-        var looped = oldPos + steps >= BoardSize;
         var newPos = (oldPos + steps) % BoardSize;
-        if (looped)
+
+        // Determine whether the player actually crosses a Go block during this move.
+        // We iterate each traversed position (exclusive of oldPos, inclusive of newPos) and
+        // award GoSalary only if we encounter a block whose Type == BlockType.Go.
+        bool awardedGo = false;
+        for (int i = 1; i <= steps; i++)
         {
-            player.Money += GoSalary;
+            var pos = (oldPos + i) % BoardSize;
+            var traversed = _board.FirstOrDefault(b => b.Position == pos);
+            if (traversed != null && traversed.Type == BlockType.Go)
+            {
+                player.Money += GoSalary;
+                awardedGo = true;
+                break; // award only once per move
+            }
         }
+
         player.CurrentPosition = newPos;
 
+        // Only execute the action for the final block where the player stopped.
         var block = _board.First(b => b.Position == newPos);
         await block.Action(this, player);
 
@@ -68,12 +105,17 @@ public class Game
 
     public bool TryBuyProperty(Player player, Block block)
     {
-        if (block.Type != BlockType.Property || block.Owner != null || block.IsMortgaged)
+        // allow buying Property or Company
+        if ((block.Type != BlockType.Property && block.Type != BlockType.Company) || block.Owner != null || block.IsMortgaged)
             return false;
         if (player.Money < block.Price) return false;
         player.Money -= block.Price;
         block.Owner = player;
         player.OwnedProperties.Add(block);
+
+        // record when the player purchased a property (current round)
+        player.LastPurchaseTurn = RoundCount;
+
         return true;
     }
 
@@ -94,6 +136,7 @@ public class Game
     {
         player.InJail = true;
         player.JailTurns = 0;
+        player.SkipTurns = 1; // skip next turn
         // On reduced board, jail is first found block of type Jail
         var jailPos = _board.First(b => b.Type == BlockType.Jail).Position;
         player.CurrentPosition = jailPos;
@@ -126,6 +169,13 @@ public class Game
             player.InJail = false;
         }
     }
+
+    // Mark game as finished
+    public void Finish()
+    {
+        IsFinished = true;
+    }
+
 }
 
 public interface IRandomDice

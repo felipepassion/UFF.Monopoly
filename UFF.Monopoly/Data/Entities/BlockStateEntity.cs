@@ -23,6 +23,12 @@ public class BlockStateEntity
     public int Houses { get; set; }
     public int Hotels { get; set; }
 
+    // Persisted template info to reconstruct property details
+    public int HousePrice { get; set; }
+    public int HotelPrice { get; set; }
+    public PropertyLevel? Level { get; set; }
+    public string? RentsCsv { get; set; }
+
     // Optional group id to identify property sets (monopolies)
     public Guid? GroupId { get; set; }
 

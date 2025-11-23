@@ -15,4 +15,14 @@ public class Player
     public int PawnIndex { get; set; } = 1;
 
     public List<Block> OwnedProperties { get; set; } = new();
+
+    // New bookkeeping fields
+    // Number of turns to skip (e.g., when sent to jail)
+    public int SkipTurns { get; set; } = 0;
+
+    // Turn number when player last bought a property (used to prevent immediate building)
+    public int LastPurchaseTurn { get; set; } = -1;
+
+    // Turn number when player last built something (to restrict to 1 build per turn)
+    public int LastBuildTurn { get; set; } = -1;
 }

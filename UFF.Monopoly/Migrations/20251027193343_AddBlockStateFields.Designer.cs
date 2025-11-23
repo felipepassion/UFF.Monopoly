@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using UFF.Monopoly.Data;
@@ -11,9 +12,11 @@ using UFF.Monopoly.Data;
 namespace UFF.Monopoly.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251027193343_AddBlockStateFields")]
+    partial class AddBlockStateFields
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -302,9 +305,6 @@ namespace UFF.Monopoly.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<int>("CompanyId")
-                        .HasColumnType("integer");
-
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasColumnType("text");
@@ -322,10 +322,6 @@ namespace UFF.Monopoly.Migrations
                     b.Property<int?>("Level")
                         .HasColumnType("integer");
 
-                    b.Property<string>("LogoUrl")
-                        .IsRequired()
-                        .HasColumnType("text");
-
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("text");
@@ -340,10 +336,6 @@ namespace UFF.Monopoly.Migrations
                         .HasColumnType("integer");
 
                     b.Property<string>("RentsCsv")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Slogan")
-                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<int>("Type")
@@ -362,19 +354,16 @@ namespace UFF.Monopoly.Migrations
                             Id = new Guid("00000000-0000-0000-0000-000000000101"),
                             BoardDefinitionId = new Guid("11111111-1111-1111-1111-111111111111"),
                             Color = "#d4af37",
-                            CompanyId = 0,
                             Description = "Leblon (Muito Rica)",
                             HotelPrice = 2000,
                             HousePrice = 1000,
                             ImageUrl = "/images/blocks/property_basic.svg",
                             Level = 3,
-                            LogoUrl = "",
                             Name = "Leblon",
                             Position = 0,
                             Price = 10000,
                             Rent = 100,
                             RentsCsv = "100,500,1000,1800,2200,2400,2500",
-                            Slogan = "",
                             Type = 1
                         },
                         new
@@ -382,19 +371,16 @@ namespace UFF.Monopoly.Migrations
                             Id = new Guid("00000000-0000-0000-0000-000000000102"),
                             BoardDefinitionId = new Guid("11111111-1111-1111-1111-111111111111"),
                             Color = "#d4af37",
-                            CompanyId = 0,
                             Description = "Ipanema (Muito Rica)",
                             HotelPrice = 1840,
                             HousePrice = 920,
                             ImageUrl = "/images/blocks/property_basic.svg",
                             Level = 3,
-                            LogoUrl = "",
                             Name = "Ipanema",
                             Position = 1,
                             Price = 9200,
                             Rent = 92,
                             RentsCsv = "92,460,920,1656,2024,2208,2300",
-                            Slogan = "",
                             Type = 1
                         },
                         new
@@ -402,19 +388,16 @@ namespace UFF.Monopoly.Migrations
                             Id = new Guid("00000000-0000-0000-0000-000000000103"),
                             BoardDefinitionId = new Guid("11111111-1111-1111-1111-111111111111"),
                             Color = "#d4af37",
-                            CompanyId = 0,
                             Description = "Jardim Botânico (Muito Rica)",
                             HotelPrice = 1760,
                             HousePrice = 880,
                             ImageUrl = "/images/blocks/property_basic.svg",
                             Level = 3,
-                            LogoUrl = "",
                             Name = "Jardim Botânico",
                             Position = 2,
                             Price = 8800,
                             Rent = 88,
                             RentsCsv = "88,440,880,1584,1936,2112,2200",
-                            Slogan = "",
                             Type = 1
                         },
                         new
@@ -422,19 +405,16 @@ namespace UFF.Monopoly.Migrations
                             Id = new Guid("00000000-0000-0000-0000-000000000104"),
                             BoardDefinitionId = new Guid("11111111-1111-1111-1111-111111111111"),
                             Color = "#d4af37",
-                            CompanyId = 0,
                             Description = "São Conrado (Muito Rica)",
                             HotelPrice = 1680,
                             HousePrice = 840,
                             ImageUrl = "/images/blocks/property_basic.svg",
                             Level = 3,
-                            LogoUrl = "",
                             Name = "São Conrado",
                             Position = 3,
                             Price = 8400,
                             Rent = 84,
                             RentsCsv = "84,420,840,1512,1848,2016,2100",
-                            Slogan = "",
                             Type = 1
                         },
                         new
@@ -442,19 +422,16 @@ namespace UFF.Monopoly.Migrations
                             Id = new Guid("00000000-0000-0000-0000-000000000105"),
                             BoardDefinitionId = new Guid("11111111-1111-1111-1111-111111111111"),
                             Color = "#d4af37",
-                            CompanyId = 0,
                             Description = "Lagoa (Muito Rica)",
                             HotelPrice = 1600,
                             HousePrice = 800,
                             ImageUrl = "/images/blocks/property_basic.svg",
                             Level = 3,
-                            LogoUrl = "",
                             Name = "Lagoa",
                             Position = 4,
                             Price = 8000,
                             Rent = 80,
                             RentsCsv = "80,400,800,1440,1760,1920,2000",
-                            Slogan = "",
                             Type = 1
                         },
                         new
@@ -462,19 +439,16 @@ namespace UFF.Monopoly.Migrations
                             Id = new Guid("00000000-0000-0000-0000-000000000106"),
                             BoardDefinitionId = new Guid("11111111-1111-1111-1111-111111111111"),
                             Color = "#3498db",
-                            CompanyId = 0,
                             Description = "Copacabana (Rica)",
                             HotelPrice = 1400,
                             HousePrice = 700,
                             ImageUrl = "/images/blocks/property_basic.svg",
                             Level = 2,
-                            LogoUrl = "",
                             Name = "Copacabana",
                             Position = 5,
                             Price = 7000,
                             Rent = 70,
                             RentsCsv = "70,350,700,1260,1540,1680,1750",
-                            Slogan = "",
                             Type = 1
                         },
                         new
@@ -482,19 +456,16 @@ namespace UFF.Monopoly.Migrations
                             Id = new Guid("00000000-0000-0000-0000-000000000107"),
                             BoardDefinitionId = new Guid("11111111-1111-1111-1111-111111111111"),
                             Color = "#3498db",
-                            CompanyId = 0,
                             Description = "Flamengo (Rica)",
                             HotelPrice = 1300,
                             HousePrice = 650,
                             ImageUrl = "/images/blocks/property_basic.svg",
                             Level = 2,
-                            LogoUrl = "",
                             Name = "Flamengo",
                             Position = 6,
                             Price = 6500,
                             Rent = 65,
                             RentsCsv = "65,325,650,1170,1430,1560,1625",
-                            Slogan = "",
                             Type = 1
                         },
                         new
@@ -502,19 +473,16 @@ namespace UFF.Monopoly.Migrations
                             Id = new Guid("00000000-0000-0000-0000-000000000108"),
                             BoardDefinitionId = new Guid("11111111-1111-1111-1111-111111111111"),
                             Color = "#3498db",
-                            CompanyId = 0,
                             Description = "Botafogo (Rica)",
                             HotelPrice = 1200,
                             HousePrice = 600,
                             ImageUrl = "/images/blocks/property_basic.svg",
                             Level = 2,
-                            LogoUrl = "",
                             Name = "Botafogo",
                             Position = 7,
                             Price = 6000,
                             Rent = 60,
                             RentsCsv = "60,300,600,1080,1320,1440,1500",
-                            Slogan = "",
                             Type = 1
                         },
                         new
@@ -522,19 +490,16 @@ namespace UFF.Monopoly.Migrations
                             Id = new Guid("00000000-0000-0000-0000-000000000109"),
                             BoardDefinitionId = new Guid("11111111-1111-1111-1111-111111111111"),
                             Color = "#3498db",
-                            CompanyId = 0,
                             Description = "Gávea (Rica)",
                             HotelPrice = 1100,
                             HousePrice = 550,
                             ImageUrl = "/images/blocks/property_basic.svg",
                             Level = 2,
-                            LogoUrl = "",
                             Name = "Gávea",
                             Position = 8,
                             Price = 5500,
                             Rent = 55,
                             RentsCsv = "55,275,550,990,1210,1320,1375",
-                            Slogan = "",
                             Type = 1
                         },
                         new
@@ -542,19 +507,16 @@ namespace UFF.Monopoly.Migrations
                             Id = new Guid("00000000-0000-0000-0000-000000000110"),
                             BoardDefinitionId = new Guid("11111111-1111-1111-1111-111111111111"),
                             Color = "#3498db",
-                            CompanyId = 0,
                             Description = "Laranjeiras (Rica)",
                             HotelPrice = 1000,
                             HousePrice = 500,
                             ImageUrl = "/images/blocks/property_basic.svg",
                             Level = 2,
-                            LogoUrl = "",
                             Name = "Laranjeiras",
                             Position = 9,
                             Price = 5000,
                             Rent = 50,
                             RentsCsv = "50,250,500,900,1100,1200,1250",
-                            Slogan = "",
                             Type = 1
                         },
                         new
@@ -562,19 +524,16 @@ namespace UFF.Monopoly.Migrations
                             Id = new Guid("00000000-0000-0000-0000-000000000111"),
                             BoardDefinitionId = new Guid("11111111-1111-1111-1111-111111111111"),
                             Color = "#27ae60",
-                            CompanyId = 0,
                             Description = "Humaitá (Mediana)",
                             HotelPrice = 700,
                             HousePrice = 350,
                             ImageUrl = "/images/blocks/property_basic.svg",
                             Level = 1,
-                            LogoUrl = "",
                             Name = "Humaitá",
                             Position = 10,
                             Price = 3500,
                             Rent = 35,
                             RentsCsv = "35,175,350,630,770,840,875",
-                            Slogan = "",
                             Type = 1
                         },
                         new
@@ -582,19 +541,16 @@ namespace UFF.Monopoly.Migrations
                             Id = new Guid("00000000-0000-0000-0000-000000000112"),
                             BoardDefinitionId = new Guid("11111111-1111-1111-1111-111111111111"),
                             Color = "#27ae60",
-                            CompanyId = 0,
                             Description = "Leme (Mediana)",
                             HotelPrice = 640,
                             HousePrice = 320,
                             ImageUrl = "/images/blocks/property_basic.svg",
                             Level = 1,
-                            LogoUrl = "",
                             Name = "Leme",
                             Position = 11,
                             Price = 3200,
                             Rent = 32,
                             RentsCsv = "32,160,320,576,704,768,800",
-                            Slogan = "",
                             Type = 1
                         },
                         new
@@ -602,19 +558,16 @@ namespace UFF.Monopoly.Migrations
                             Id = new Guid("00000000-0000-0000-0000-000000000113"),
                             BoardDefinitionId = new Guid("11111111-1111-1111-1111-111111111111"),
                             Color = "#27ae60",
-                            CompanyId = 0,
                             Description = "Maracanã (Mediana)",
                             HotelPrice = 600,
                             HousePrice = 300,
                             ImageUrl = "/images/blocks/property_basic.svg",
                             Level = 1,
-                            LogoUrl = "",
                             Name = "Maracanã",
                             Position = 12,
                             Price = 3000,
                             Rent = 30,
                             RentsCsv = "30,150,300,540,660,720,750",
-                            Slogan = "",
                             Type = 1
                         },
                         new
@@ -622,19 +575,16 @@ namespace UFF.Monopoly.Migrations
                             Id = new Guid("00000000-0000-0000-0000-000000000114"),
                             BoardDefinitionId = new Guid("11111111-1111-1111-1111-111111111111"),
                             Color = "#27ae60",
-                            CompanyId = 0,
                             Description = "Tijuca (Mediana)",
                             HotelPrice = 560,
                             HousePrice = 280,
                             ImageUrl = "/images/blocks/property_basic.svg",
                             Level = 1,
-                            LogoUrl = "",
                             Name = "Tijuca",
                             Position = 13,
                             Price = 2800,
                             Rent = 28,
                             RentsCsv = "28,140,280,504,616,672,700",
-                            Slogan = "",
                             Type = 1
                         },
                         new
@@ -642,19 +592,16 @@ namespace UFF.Monopoly.Migrations
                             Id = new Guid("00000000-0000-0000-0000-000000000115"),
                             BoardDefinitionId = new Guid("11111111-1111-1111-1111-111111111111"),
                             Color = "#27ae60",
-                            CompanyId = 0,
                             Description = "Andaraí (Mediana)",
                             HotelPrice = 500,
                             HousePrice = 250,
                             ImageUrl = "/images/blocks/property_basic.svg",
                             Level = 1,
-                            LogoUrl = "",
                             Name = "Andaraí",
                             Position = 14,
                             Price = 2500,
                             Rent = 25,
                             RentsCsv = "25,125,250,450,550,600,625",
-                            Slogan = "",
                             Type = 1
                         },
                         new
@@ -662,19 +609,16 @@ namespace UFF.Monopoly.Migrations
                             Id = new Guid("00000000-0000-0000-0000-000000000116"),
                             BoardDefinitionId = new Guid("11111111-1111-1111-1111-111111111111"),
                             Color = "#8b4513",
-                            CompanyId = 0,
                             Description = "Madureira (Barata)",
                             HotelPrice = 240,
                             HousePrice = 120,
                             ImageUrl = "/images/blocks/property_basic.svg",
                             Level = 0,
-                            LogoUrl = "",
                             Name = "Madureira",
                             Position = 15,
                             Price = 1200,
                             Rent = 12,
                             RentsCsv = "12,60,120,216,264,288,300",
-                            Slogan = "",
                             Type = 1
                         },
                         new
@@ -682,19 +626,16 @@ namespace UFF.Monopoly.Migrations
                             Id = new Guid("00000000-0000-0000-0000-000000000117"),
                             BoardDefinitionId = new Guid("11111111-1111-1111-1111-111111111111"),
                             Color = "#8b4513",
-                            CompanyId = 0,
                             Description = "Bonsucesso (Barata)",
                             HotelPrice = 200,
                             HousePrice = 100,
                             ImageUrl = "/images/blocks/property_basic.svg",
                             Level = 0,
-                            LogoUrl = "",
                             Name = "Bonsucesso",
                             Position = 16,
                             Price = 1000,
                             Rent = 10,
                             RentsCsv = "10,50,100,180,220,240,250",
-                            Slogan = "",
                             Type = 1
                         },
                         new
@@ -702,19 +643,16 @@ namespace UFF.Monopoly.Migrations
                             Id = new Guid("00000000-0000-0000-0000-000000000118"),
                             BoardDefinitionId = new Guid("11111111-1111-1111-1111-111111111111"),
                             Color = "#8b4513",
-                            CompanyId = 0,
                             Description = "Campo Grande (Barata)",
                             HotelPrice = 180,
                             HousePrice = 90,
                             ImageUrl = "/images/blocks/property_basic.svg",
                             Level = 0,
-                            LogoUrl = "",
                             Name = "Campo Grande",
                             Position = 17,
                             Price = 900,
                             Rent = 9,
                             RentsCsv = "9,45,90,162,198,216,225",
-                            Slogan = "",
                             Type = 1
                         },
                         new
@@ -722,19 +660,16 @@ namespace UFF.Monopoly.Migrations
                             Id = new Guid("00000000-0000-0000-0000-000000000119"),
                             BoardDefinitionId = new Guid("11111111-1111-1111-1111-111111111111"),
                             Color = "#8b4513",
-                            CompanyId = 0,
                             Description = "Realengo (Barata)",
                             HotelPrice = 160,
                             HousePrice = 80,
                             ImageUrl = "/images/blocks/property_basic.svg",
                             Level = 0,
-                            LogoUrl = "",
                             Name = "Realengo",
                             Position = 18,
                             Price = 800,
                             Rent = 8,
                             RentsCsv = "8,40,80,144,176,192,200",
-                            Slogan = "",
                             Type = 1
                         },
                         new
@@ -742,19 +677,16 @@ namespace UFF.Monopoly.Migrations
                             Id = new Guid("00000000-0000-0000-0000-000000000120"),
                             BoardDefinitionId = new Guid("11111111-1111-1111-1111-111111111111"),
                             Color = "#8b4513",
-                            CompanyId = 0,
                             Description = "Paciência (Barata)",
                             HotelPrice = 120,
                             HousePrice = 60,
                             ImageUrl = "/images/blocks/property_basic.svg",
                             Level = 0,
-                            LogoUrl = "",
                             Name = "Paciência",
                             Position = 19,
                             Price = 600,
                             Rent = 6,
                             RentsCsv = "6,30,60,108,132,144,150",
-                            Slogan = "",
                             Type = 1
                         });
                 });
