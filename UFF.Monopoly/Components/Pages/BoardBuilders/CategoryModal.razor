@@ -1,32 +1,131 @@
 @using UFF.Monopoly.Entities
+@using UFF.Monopoly.Components.Pages.BoardBuilders
+@using Microsoft.AspNetCore.Components.Web
 @inherits ComponentBase
-@if (Index>=0)
+@if (Index >= 0)
 {
-<div class="modal-backdrop show"></div>
-<div class="modal d-block" tabindex="-1">
-  <div class="modal-dialog modal-md">
-    <div class="modal-content p-2" style="background:var(--surface);border:1px solid rgba(255,255,255,0.04);color:var(--text);">
-      <div class="modal-header"><h6 class="modal-title">Escolha a categoria</h6><button type="button" class="btn-close btn-close-white" aria-label="Close" @onclick="OnClose"></button></div>
-      <div class="modal-body p-2">
-        <div class="d-grid gap-2">
-          @foreach(var cat in new[]{BuildingType.House,BuildingType.Hotel,BuildingType.Company,BuildingType.Special})
-          {
-            var prices=GetDefaultPricesForCategory(cat);
-            var catColor=GetCategoryColor(cat);
-            <button class="btn btn-outline-light text-start" @onclick="(()=>OnApply?.Invoke(cat))">
-              <div class="fw-semibold" style="color:@catColor">@GetCategoryName(cat)</div>
-              <div class="small" style="color:@catColor">Preços níveis: @string.Join(" / ", prices)</div>
-              <div class="d-flex gap-1 mt-1">
-                @for(int lvl=1;lvl<=4;lvl++){<img src="@GetBuildingImage(cat,lvl)" alt="@GetCategoryName(cat)-@lvl" style="width:48px;height:48px;object-fit:contain;" />}
-              </div>
-            </button>
-          }
+    <div class="modal-backdrop show" @onclick="OnClose"></div>
+    <div class="modal d-block" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content p-2 category-modal-surface">
+                <div class="modal-header">
+                    <h6 class="modal-title">Escolha a categoria <span class="shortcut-hint">(Use números 1–4 para nível, Alt+Nº)</span></h6>
+                    <button type="button" class="btn-close btn-close-white" aria-label="Close" @onclick="OnClose"></button>
+                </div>
+                <div class="modal-body p-2 category-modal" @onkeydown="HandleKey" tabindex="0" @ref="_focusRef">
+                    @foreach (var cat in new[] { BuildingType.House, BuildingType.Hotel, BuildingType.Company, BuildingType.Special })
+                    {
+                        var prices = GetDefaultPricesForCategory(cat);
+                        var catColor = GetCategoryColor(cat);
+                        <div class="category-section mb-3 p-3 rounded-3" style="border:1px solid rgba(255,255,255,.15);">
+                            <div class="cat-header fw-semibold mb-2" style="color:@catColor">@GetCategoryName(cat) <span class="text-muted small">(Alt+1..4)</span></div>
+                            <div class="d-flex flex-wrap gap-2 align-items-stretch">
+                                @for (int lvl = 1; lvl <= 4; lvl++)
+                                {
+                                    var level = lvl; // variável estável para evitar captura incorreta
+                                    var evo = BuildingEvolutionDescriptions.Get(cat, level);
+                                    if (!_customPrices.ContainsKey((cat, level))) _customPrices[(cat, level)] = prices[level - 1];
+                                    if (!_editing.ContainsKey((cat, level))) _editing[(cat, level)] = false;
+                                    var img = GetBuildingImage(cat, level);
+                                    var catName = GetCategoryName(cat);
+                                    var priceVal = _customPrices[(cat, level)];
+                                    <div class="level-card p-2 rounded-3 d-flex flex-column gap-1" style="width:150px;border:1px solid rgba(255,255,255,.18);background:var(--surface-secondary);">
+                                        <div class="text-center">
+                                            <img src="@img" alt="@GetCategoryName(cat) nível @level" class="img-fluid" style="max-height:56px;cursor:pointer;" title="@evo.Name ($ @priceVal)"
+                                                 @onclick="(() => ApplyLevel(cat, level))"
+                                                 @onmouseover="(e => ShowTip(e, BuildingEvolutionDescriptions.Get(cat, level).Name, BuildingEvolutionDescriptions.Get(cat, level).Description, img, catName, level, priceVal))" @onmousemove="MoveTip" @onmouseout="HideTip" />
+                                        </div>
+                                        <div class="small text-center fw-semibold">@evo.Name</div>
+                                        <div class="small text-center">Nível @level</div>
+                                        @if (!_editing[(cat, level)])
+                                        {
+                                            <div class="d-flex justify-content-center align-items-center gap-1 small">
+                                                <span>Preço: $ @priceVal</span>
+                                                <button type="button" class="btn btn-link btn-sm p-0" @onclick="(() => ToggleEdit(cat, level, true))">Editar</button>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <div class="d-flex flex-column align-items-center gap-1">
+                                                <input type="number" class="form-control form-control-sm" style="max-width:80px" value="@priceVal" @onchange="(e => UpdateCustomPrice(e, cat, level))" />
+                                                <div class="d-flex gap-1">
+                                                    <button type="button" class="btn btn-primary btn-sm" @onclick="(() => ApplyLevel(cat, level))">Escolher</button>
+                                                    <button type="button" class="btn btn-secondary btn-sm" @onclick="(() => ToggleEdit(cat, level, false))">Cancelar</button>
+                                                </div>
+                                            </div>
+                                        }
+                                        @if (!_editing[(cat, level)])
+                                        {
+                                            <button type="button" class="btn btn-outline-primary btn-sm mt-1" @onclick="(() => ApplyLevel(cat, level))">Escolher</button>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
+                    @if (_showTip)
+                    {
+                        <div class="evo-tooltip" style="left:@(_tipX)px; top:@(_tipY)px;">
+                            <div class="evo-tooltip-header d-flex align-items-center gap-2">
+                                <img src="@_tipImage" alt="img" class="evo-tooltip-img" />
+                                <div class="evo-tooltip-title fw-semibold">@_tipTitle</div>
+                            </div>
+                            <div class="evo-tooltip-price">Preço: $ @_tipPrice</div>
+                            <div class="evo-tooltip-desc">@_tipDesc</div>
+                        </div>
+                    }
+                </div>
+            </div>
         </div>
-      </div>
     </div>
-  </div>
-</div>
 }
-@code{
-[Parameter]public int Index{get;set;}[Parameter]public Action? OnClose{get;set;}[Parameter]public Action<BuildingType>? OnApply{get;set;}
-[Parameter]public Func<BuildingType,string> GetCategoryName{get;set;}=default!;[Parameter]public Func<BuildingType,string> GetCategoryColor{get;set;}=default!;[Parameter]public Func<BuildingType,int,string> GetBuildingImage{get;set;}=default!;[Parameter]public Func<BuildingType,int[]> GetDefaultPricesForCategory{get;set;}=default!;}
+@code {
+    [Parameter] public int Index { get; set; }
+    [Parameter] public Action? OnClose { get; set; }
+    [Parameter] public Action<BuildingType, int>? OnApply { get; set; }
+    [Parameter] public Action<BuildingType, int, int>? OnApplyWithPrice { get; set; }
+    [Parameter] public Func<BuildingType, string> GetCategoryName { get; set; } = default!;
+    [Parameter] public Func<BuildingType, string> GetCategoryColor { get; set; } = default!;
+    [Parameter] public Func<BuildingType, int, string> GetBuildingImage { get; set; } = default!;
+    [Parameter] public Func<BuildingType, int[]> GetDefaultPricesForCategory { get; set; } = default!;
+
+    private ElementReference _focusRef;
+    private bool _showTip;
+    private string _tipTitle = string.Empty;
+    private string _tipDesc = string.Empty;
+    private string _tipImage = string.Empty;
+    private int _tipPrice;
+    private double _tipX;
+    private double _tipY;
+    private Dictionary<(BuildingType cat, int level), int> _customPrices = new();
+    private Dictionary<(BuildingType cat, int level), bool> _editing = new();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    { if (Index >= 0) { try { await _focusRef.FocusAsync(); } catch { } } }
+
+    private void HandleKey(KeyboardEventArgs e)
+    { if (e.Key == "Escape") { OnClose?.Invoke(); return; } if (int.TryParse(e.Key, out var level) && level is >= 1 and <= 4) { ApplyLevel(BuildingType.House, level); } }
+
+    private void ShowTip(MouseEventArgs e, string name, string description, string image, string categoryName, int level, int price)
+    {
+        _tipTitle = $"{name} – Nível {level} ({categoryName})";
+        _tipDesc = description;
+        _tipPrice = price;
+        _tipImage = image;
+        _showTip = true;
+        _tipX = e.ClientX + 16;
+        _tipY = e.ClientY + 16;
+        StateHasChanged();
+    }
+    private void MoveTip(MouseEventArgs e) { if (!_showTip) return; _tipX = e.ClientX + 16; _tipY = e.ClientY + 16; StateHasChanged(); }
+    private void HideTip() { _showTip = false; StateHasChanged(); }
+
+    private void UpdateCustomPrice(ChangeEventArgs e, BuildingType cat, int level)
+    { if (int.TryParse(e?.Value?.ToString(), out var v)) { _customPrices[(cat, level)] = Math.Max(0, v); } }
+
+    private void ToggleEdit(BuildingType cat, int level, bool? value = null)
+    { _editing[(cat, level)] = value ?? !_editing[(cat, level)]; }
+
+    private void ApplyLevel(BuildingType cat, int level)
+    { var price = _customPrices.TryGetValue((cat, level), out var p) ? p : GetDefaultPricesForCategory(cat)[level - 1]; if (OnApplyWithPrice is not null) { OnApplyWithPrice.Invoke(cat, level, price); } else { OnApply?.Invoke(cat, level); } }
+}

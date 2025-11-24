@@ -1,5 +1,6 @@
 @using UFF.Monopoly.Data.Entities
 @using UFF.Monopoly.Entities
+@using UFF.Monopoly.Components.Shared
 @inherits ComponentBase
 <div class="board-grid" style="grid-template-columns: repeat(@Cols, @(CellSize + "px")); grid-auto-rows: @(CellSize + "px");">
     @for (var r = 0; r < Rows; r++)
@@ -8,29 +9,28 @@
         {
             if (CellToIndex.TryGetValue((r, c), out var index))
             {
-                var b = index >= 0 && index < Blocks.Count ? Blocks[index] : null; if (b is null)
+                var b = index >= 0 && index < Blocks.Count ? Blocks[index] : null; 
+                if (b is null)
                 {
                     <div class="grid-cell empty"></div>
                 }
                 else
                 {
-
-                    <div class="grid-cell perimeter position-relative" style="background:@GetCellBackground(b); color:@GetTextColor(GetCellBackground(b));" title="@($"{TranslateBlockType(b.Type)} - {b.Name}")" @onclick="(e => OnCellClick?.Invoke(index, e))" @onclick:stopPropagation="true">
-                        @if (!string.IsNullOrWhiteSpace(b.ImageUrl))
-                        {
-                            <img src="@b.ImageUrl" alt="@b.Name" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;" />
-                        }
-                        else
-                        {
-
-                            <div><div class="cell-type">@TranslateBlockType(b.Type)</div><div class="cell-index">@index</div></div>
-                        }
+                    <div class="grid-cell perimeter position-relative" style="background:@GetCellBackground(b); color:@GetTextColor(GetCellBackground(b));" title="@($"{TranslateBlockType(b.Type)} - {b.Name}")">
+                        <BlockIcon ImageUrl="@b.ImageUrl"
+                                   Name="@b.Name"
+                                   Description="@b.Description"
+                                   Price="@b.Price"
+                                   Rent="@b.Rent"
+                                   Type="@b.Type"
+                                   BuildingType="@b.BuildingType"
+                                   BuildingLevel="@((int)(b.Level ?? 0))"
+                                   OnClick="@(e => OnCellClick?.Invoke(index, e))" />
                     </div>
                 }
             }
             else
             {
-
                 <div class="grid-cell empty"></div>
             }
         }
@@ -40,6 +40,10 @@
     [Parameter] public int Rows { get; set; }
     [Parameter] public int Cols { get; set; }
     [Parameter] public int CellSize { get; set; }
-    [Parameter] public List<BlockTemplateEntity> Blocks { get; set; } = new(); [Parameter] public Dictionary<(int r, int c), int> CellToIndex { get; set; } = new(); [Parameter] public Func<BlockTemplateEntity, string> GetCellBackground { get; set; } = default!; [Parameter] public Func<BlockType, string> TranslateBlockType { get; set; } = default!; [Parameter] public Action<int, Microsoft.AspNetCore.Components.Web.MouseEventArgs>? OnCellClick { get; set; }
+    [Parameter] public List<BlockTemplateEntity> Blocks { get; set; } = new(); 
+    [Parameter] public Dictionary<(int r, int c), int> CellToIndex { get; set; } = new(); 
+    [Parameter] public Func<BlockTemplateEntity, string> GetCellBackground { get; set; } = default!; 
+    [Parameter] public Func<BlockType, string> TranslateBlockType { get; set; } = default!; 
+    [Parameter] public Action<int, Microsoft.AspNetCore.Components.Web.MouseEventArgs>? OnCellClick { get; set; }
     private string GetTextColor(string? bg) { if (string.IsNullOrWhiteSpace(bg)) return "#111827"; try { if (bg.StartsWith("#") && bg.Length == 7) { var r = Convert.ToInt32(bg.Substring(1, 2), 16); var g = Convert.ToInt32(bg.Substring(3, 2), 16); var b = Convert.ToInt32(bg.Substring(5, 2), 16); var yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000; return yiq >= 128 ? "#111827" : "#ffffff"; } } catch { } return "#111827"; }
 }

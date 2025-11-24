@@ -1,0 +1,106 @@
+@using UFF.Monopoly.Entities
+@using UFF.Monopoly.Data.Entities
+@if (Show && Block is not null && SpecialType is not null)
+{
+    <div class="modal-backdrop show animated-backdrop" @onclick="Close"></div>
+    <div class="modal d-block animated-modal" tabindex="-1">
+        <div class="modal-dialog modal-sm">
+            <div class="modal-content p-2" style="background:var(--surface);border:1px solid rgba(255,255,255,.08);color:var(--text);">
+                <div class="modal-header py-2">
+                    <h6 class="modal-title">Configurar @Translate(SpecialType.Value)</h6>
+                    <button type="button" class="btn-close btn-close-white" aria-label="Fechar" @onclick="Close"></button>
+                </div>
+                <div class="modal-body p-2">
+                    @RenderInput()
+                </div>
+                <div class="modal-footer py-2">
+                    <button class="btn btn-sm btn-secondary" @onclick="Close">Cancelar</button>
+                    <button class="btn btn-sm btn-primary" @onclick="Apply">Aplicar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+@code {
+    [Parameter] public bool Show { get; set; }
+    [Parameter] public BlockTemplateEntity? Block { get; set; }
+    [Parameter] public BlockType? SpecialType { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public EventCallback<BlockTemplateEntity> OnApply { get; set; }
+
+    private int _value; // taxa / valor sorte
+    private int _steps; // revés casas
+    private int _turns; // prisão turnos
+
+    protected override void OnParametersSet()
+    {
+        if (Block is not null && SpecialType.HasValue)
+        {
+            int def = SpecialType.Value switch
+            {
+                BlockType.Tax => 150,
+                BlockType.Chance => 2,
+                BlockType.Reves => 2,
+                BlockType.GoToJail => 3,
+                _ => 0
+            };
+            if (Block.Rent <= 0) Block.Rent = def; // aplica default se não tiver valor
+            _value = Block.Rent;
+            _steps = Block.Rent;
+            _turns = Block.Rent;
+        }
+    }
+
+    private void Apply()
+    {
+        if (Block is null || !SpecialType.HasValue) return;
+        switch (SpecialType.Value)
+        {
+            case BlockType.Tax:
+                Block.Rent = _value;
+                break;
+            case BlockType.Chance:
+                Block.Rent = _value; // pode ser negativo
+                break;
+            case BlockType.Reves:
+                Block.Rent = _steps;
+                break;
+            case BlockType.GoToJail:
+                Block.Rent = _turns;
+                break;
+        }
+        OnApply.InvokeAsync(Block);
+    }
+
+    private void Close() => OnClose.InvokeAsync();
+
+    private RenderFragment RenderInput() => builder =>
+    {
+        var idx = 0;
+        switch (SpecialType)
+        {
+            case BlockType.Tax:
+                builder.OpenElement(idx++, "label"); builder.AddAttribute(idx++, "class", "form-label small mb-1"); builder.AddContent(idx++, "Taxa (valor fixo)"); builder.CloseElement();
+                builder.OpenElement(idx++, "input"); builder.AddAttribute(idx++, "type", "number"); builder.AddAttribute(idx++, "class", "form-control form-control-sm"); builder.AddAttribute(idx++, "value", BindConverter.FormatValue(_value)); builder.AddAttribute(idx++, "onchange", EventCallback.Factory.CreateBinder<int>(this, v => _value = v, _value)); builder.CloseElement();
+                break;
+            case BlockType.Chance:
+                builder.OpenElement(idx++, "label"); builder.AddAttribute(idx++, "class", "form-label small mb-1"); builder.AddContent(idx++, "Valor Sorte (+/-)"); builder.CloseElement();
+                builder.OpenElement(idx++, "input"); builder.AddAttribute(idx++, "type", "number"); builder.AddAttribute(idx++, "class", "form-control form-control-sm"); builder.AddAttribute(idx++, "value", BindConverter.FormatValue(_value)); builder.AddAttribute(idx++, "onchange", EventCallback.Factory.CreateBinder<int>(this, v => _value = v, _value)); builder.CloseElement();
+                break;
+            case BlockType.Reves:
+                builder.OpenElement(idx++, "label"); builder.AddAttribute(idx++, "class", "form-label small mb-1"); builder.AddContent(idx++, "Casas para voltar"); builder.CloseElement();
+                builder.OpenElement(idx++, "input"); builder.AddAttribute(idx++, "type", "number"); builder.AddAttribute(idx++, "class", "form-control form-control-sm"); builder.AddAttribute(idx++, "value", BindConverter.FormatValue(_steps)); builder.AddAttribute(idx++, "onchange", EventCallback.Factory.CreateBinder<int>(this, v => _steps = v, _steps)); builder.CloseElement();
+                break;
+            case BlockType.GoToJail:
+                builder.OpenElement(idx++, "label"); builder.AddAttribute(idx++, "class", "form-label small mb-1"); builder.AddContent(idx++, "Turnos na prisão"); builder.CloseElement();
+                builder.OpenElement(idx++, "input"); builder.AddAttribute(idx++, "type", "number"); builder.AddAttribute(idx++, "class", "form-control form-control-sm"); builder.AddAttribute(idx++, "value", BindConverter.FormatValue(_turns)); builder.AddAttribute(idx++, "onchange", EventCallback.Factory.CreateBinder<int>(this, v => _turns = v, _turns)); builder.CloseElement();
+                break;
+            default:
+                builder.AddContent(idx++, "Tipo não suportado.");
+                break;
+        }
+    };
+
+    private string Translate(BlockType t) => t switch
+    { BlockType.Tax => "Taxa", BlockType.Chance => "Sorte", BlockType.Reves => "Revés", BlockType.GoToJail => "Vá para Prisão", _ => t.ToString() };
+}

@@ -1,15 +1,10 @@
 @using UFF.Monopoly.Models
+@using UFF.Monopoly.Components.Shared
+@using UFF.Monopoly.Entities
 @inherits ComponentBase
 
 <div id="@Space.Id" class="board-space" style="@BuildStyle()" @onclick="() => OnClick.InvokeAsync(Space)">
-    @if (!string.IsNullOrWhiteSpace(Space.ImageUrl))
-    {
-        <img src="@Space.ImageUrl" alt="@Space.Name" style="width:100%; height:100%; object-fit:cover;" />
-        @if (!string.IsNullOrWhiteSpace(Space.OverlayColor))
-        {
-            <div style="position:absolute; inset:0; background:@Space.OverlayColor; pointer-events:none;"></div>
-        }
-    }
+    <BlockIcon ImageUrl="@Space.ImageUrl" Name="@Space.Name" Description="" Price="@Space.Price" Rent="@Space.Rent" Type="@Space.Type" BuildingType="@Space.BuildingType" BuildingLevel="@Space.BuildingLevel" ShowRentTag="true" />
 </div>
 
 @code {

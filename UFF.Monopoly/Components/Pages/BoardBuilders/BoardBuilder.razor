@@ -2,6 +2,7 @@
 @page "/board-builder/{BoardId:guid}"
 @using UFF.Monopoly.Data.Entities
 @using UFF.Monopoly.Entities
+@using UFF.Monopoly.Components.Pages.BoardBuilders
 
 <h3 class="mb-2">Board Builder</h3>
 
@@ -10,7 +11,7 @@
 <div class="row gx-2 gy-2 align-items-start">
     <div class="col-12 col-xl-3 d-flex flex-column">
         <BoardList Boards="@ExistingBoards" OnEditBoard="EditBoard" OnNewBoard="NewBoard" />
-        <BoardConfigForm Form="@Form" BlocksCount="@Blocks.Count" OnGenerateGrid="GenerateGrid" OnSave="SaveAsync" />
+        <BoardConfigForm Form="@Form" BlocksCount="@Blocks.Count" OnGenerateGrid="GenerateGrid" OnGenerateRandom="GenerateRandomBoard" OnSave="SaveAsync" />
     </div>
     <div class="col-12 col-xl-9">
         @if (Form.Rows > 0 && Form.Cols > 0)
@@ -33,23 +34,25 @@
                                Index="@Popup.Index"
                                CurrentBlock="@GetBlockAt(Popup.Index)"
                                OnSelectType="SelectType"
-                               OnSelectCategoryShortcut="SelectCategoryShortcut"
                                OnClose="ClosePopup"
+                               OnQuickPropertySelect="QuickPropertySelect"
                                TranslateBlockType="@TranslateBlockType"
                                GetCategoryName="@GetCategoryName"
                                GetBuildingImage="@GetBuildingImage"
-                               GetTypeColor="@GetTypeColor" />
+                               GetBuildingName="@GetBuildingName"
+                               GetTypeColor="@GetTypeColor"
+                               GetDefaultPricesForCategory="@GetDefaultPricesForCategory"
+                               GetCachedPrice="@( (BuildingType cat, int level) => GetCachedPrice(GetBlockAt(Popup.Index), cat, level) )"
+                               SetCachedPrice="@( (BuildingType cat, int level, int price) => SetCachedPrice(GetBlockAt(Popup.Index), cat, level, price) )" />
                 }
 
-                @if (CategoryModal.Visible)
+                @if (_specialModal.Show)
                 {
-                    <CategoryModal Index="@CategoryModal.Index"
-                                   OnClose="CloseCategoryModal"
-                                   OnApply="ApplyCategory"
-                                   GetCategoryName="@GetCategoryName"
-                                   GetCategoryColor="@GetCategoryColor"
-                                   GetDefaultPricesForCategory="@GetDefaultPricesForCategory"
-                                   GetBuildingImage="@GetBuildingImage" />
+                    <SpecialValueModal Show="@_specialModal.Show"
+                                       Block="@GetBlockAt(_specialModal.Index)"
+                                       SpecialType="@_specialModal.Type"
+                                       OnClose="HideSpecialModal"
+                                       OnApply="OnApplySpecial" />
                 }
             </div>
         }

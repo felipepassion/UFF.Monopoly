@@ -1,0 +1,4 @@
+.animated-backdrop{animation:fadeIn .25s ease}
+.animated-modal{animation:modalIn .3s cubic-bezier(.32,.08,.24,1.15)}
+@keyframes modalIn{0%{opacity:0;transform:translateY(18px) scale(.9)}55%{opacity:1;transform:translateY(-4px) scale(1.03)}100%{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}

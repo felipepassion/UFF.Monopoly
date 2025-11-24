@@ -1,6 +1,10 @@
 .board-grid{display:grid;gap:6px}
 .grid-cell{display:flex;align-items:center;justify-content:center;border:1px solid var(--cell-border,#e5e7eb);border-radius:6px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.05);background:#f9fafb;font-size:12px}
 .grid-cell.empty{background:#f9fafb}
-.grid-cell.perimeter{cursor:pointer;position:relative}
+.grid-cell.perimeter{position:relative}
 .cell-type{font-weight:600;font-size:12px;line-height:1}
 .cell-index{font-size:10px;opacity:.75}
+.grid-cell.perimeter img.clickable{transition:transform .12s ease,filter .12s ease}
+.grid-cell.perimeter img.clickable:hover{transform:translateY(-2px) scale(1.03);filter:drop-shadow(0 2px 4px rgba(0,0,0,.35))}
+.grid-cell.perimeter img.clickable:active{transform:translateY(0) scale(0.98)}
+.grid-cell.perimeter:hover{box-shadow:0 0 0 2px rgba(255,255,255,.12) inset}

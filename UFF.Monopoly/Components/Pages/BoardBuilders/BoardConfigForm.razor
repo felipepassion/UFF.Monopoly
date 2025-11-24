@@ -28,6 +28,7 @@
     </div>
     <div class="d-grid gap-1">
         <button type="button" class="btn btn-primary btn-sm" @onclick="(()=>OnGenerateGrid?.Invoke())">Gerar tabuleiro</button>
+        <button type="button" class="btn btn-secondary btn-sm" @onclick="(()=>OnGenerateRandom?.Invoke())">Gerar aleatório</button>
         <button type="submit" class="btn btn-success btn-sm" disabled="@(BlocksCount<=0)">Salvar</button>
     </div>
 </EditForm>
@@ -36,6 +37,7 @@
     [Parameter] public BoardFormModel Form { get; set; } = new();
     [Parameter] public int BlocksCount { get; set; }
     [Parameter] public Action? OnGenerateGrid { get; set; }
+    [Parameter] public Action? OnGenerateRandom { get; set; }
     [Parameter] public Func<Task>? OnSave { get; set; }
     private Task HandleSave() => OnSave is null ? Task.CompletedTask : OnSave();
 }

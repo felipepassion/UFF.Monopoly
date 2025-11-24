@@ -70,7 +70,27 @@ public partial class Play : ComponentBase
         _templatesByPosition = templates.ToDictionary(t => t.Position, t => t);
         BoardSpaces = new List<BoardSpaceDto>(Perimeter.Count);
         for (int i = 0; i < Perimeter.Count; i++)
-        { var (r,c) = Perimeter[i]; var template = templates.ElementAtOrDefault(i); var img = template != null && !string.IsNullOrWhiteSpace(template.ImageUrl) ? template.ImageUrl : GetImageForType(template?.Type ?? BlockType.Property); string? overlay = null; if (template != null && template.Type == BlockType.Property && template.Level.HasValue) overlay = GetLevelOverlayColor(template.Level.Value); BoardSpaces.Add(new BoardSpaceDto { Id = $"space-{i}", Name = template?.Name ?? $"Space {i}", ImageUrl = img, OverlayColor = overlay, Style = new BoardSpaceStyle { Top = $"{(int)(r*CellSize*_boardScale)}px", Left = $"{(int)(c*CellSize*_boardScale)}px", Width = $"{(int)(CellSize*_boardScale)}px", Height = $"{(int)(CellSize*_boardScale)}px" } }); }
+        {
+            var (r,c) = Perimeter[i];
+            var template = templates.ElementAtOrDefault(i);
+            var img = template != null && !string.IsNullOrWhiteSpace(template.ImageUrl) ? template.ImageUrl : GetImageForType(template?.Type ?? BlockType.Property);
+            BoardSpaces.Add(new BoardSpaceDto {
+                Id = $"space-{i}",
+                Name = template?.Name ?? $"Space {i}",
+                ImageUrl = img,
+                Price = template?.Price ?? 0,
+                Rent = template?.Rent ?? 0,
+                Type = template?.Type ?? BlockType.Property,
+                BuildingType = template?.BuildingType ?? BuildingType.None,
+                BuildingLevel = (template != null && template.Level.HasValue) ? (int)template.Level.Value : 0,
+                Style = new BoardSpaceStyle {
+                    Top = $"{(int)(r*CellSize*_boardScale)}px",
+                    Left = $"{(int)(c*CellSize*_boardScale)}px",
+                    Width = $"{(int)(CellSize*_boardScale)}px",
+                    Height = $"{(int)(CellSize*_boardScale)}px"
+                }
+            });
+        }
         _boardWidthCss = ((int)(Cols*CellSize*_boardScale)) + "px"; _boardHeightCss = ((int)(Rows*CellSize*_boardScale)) + "px";
     }
 
@@ -200,9 +220,6 @@ public partial class Play : ComponentBase
 
     private static string GetImageForType(BlockType? type) => type switch
     { BlockType.Go => "/images/blocks/property_basic.svg", BlockType.Property => "/images/blocks/property_basic.svg", BlockType.Company => "/images/blocks/property_predio.svg", BlockType.Jail => "/images/blocks/visitar_prisao.svg", BlockType.GoToJail => "/images/blocks/go_to_jail.svg", BlockType.Tax => "/images/blocks/volte-casas.svg", _ => "/images/blocks/property_basic.svg" };
-
-    private string GetLevelOverlayColor(PropertyLevel lvl) => lvl switch
-    { PropertyLevel.Barata => "rgba(139,69,19,0.5)", PropertyLevel.Mediana => "rgba(52,152,219,0.5)", PropertyLevel.Rica => "rgba(155,89,182,0.5)", PropertyLevel.MuitoRica => "rgba(46,204,113,0.5)", _ => "rgba(0,0,0,0.5)" };
 
     private async Task HandleClick(BoardSpaceDto space)
     { if (_game is null || space is null) return; var parts = (space.Id ?? string.Empty).Split('-', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries); if (parts.Length < 2) return; if (!int.TryParse(parts[1], out var pos)) return; var block = _game.Board.FirstOrDefault(b => b.Position == pos); if (block is null) return; _modalFromMove = false; _modalBlock = block; _modalPlayer = _game.Players.ElementAtOrDefault(_game.CurrentPlayerIndex); _preMovePlayerMoney = _modalPlayer?.Money ?? 0; _modalTemplateEntity = _templatesByPosition.TryGetValue(pos, out var tmpl) ? tmpl : null; _showBlockModal = true; StateHasChanged(); }
