@@ -1,0 +1,184 @@
+﻿@using UFF.Monopoly.Entities
+@using UFF.Monopoly.Data.Entities
+@inherits ComponentBase
+@if (CurrentBlock is not null && Visible)
+{
+    <div class="type-popup-overlay" @onclick="Close"></div>
+    <div class="type-popup shadow rounded-2" style="top:@(Y)px; left:@(X)px;" tabindex="0" @onkeydown="HandleShortcut" @onclick:stopPropagation="true">
+        <div class="type-popup-header d-flex justify-content-between align-items-center">
+            <div class="title small">Tipo</div>
+            <button type="button" class="btn-close btn-close-white" aria-label="Fechar" @onclick="Close"></button>
+        </div>
+        <div class="type-list">
+            @foreach (var t in Enum.GetValues<BlockType>())
+            {
+                if (t == BlockType.Company) { continue; }
+                var bg = GetTypeColor(t);
+                var specialValue = GetDisplayValueFor(CurrentBlock, t);
+                <div class="type-option-wrapper">
+                    <button class="type-option" style="--block-bg:@bg;--block-fg:@GetTextColor(bg)"
+                            @onclick="(() => OnTypeClick(t))">
+                        <div class="type-option-inner">
+                            <div class="name fw-semibold d-flex justify-content-between align-items-center">
+                                <span>
+                                    @TranslateBlockType(t)
+                                    @if ((t == BlockType.Property) && CurrentBlock.BuildingType != BuildingType.None)
+                                    {
+                                        <span class="current-cat">– @GetCategoryName(CurrentBlock.BuildingType)</span>
+                                    }
+                                </span>
+                                @if (specialValue is not null)
+                                {
+                                    <span class="special-value small">Valor: @specialValue</span>
+                                }
+                            </div>
+                            @if (t == BlockType.Property)
+                            {
+                                <div class="categories">
+                                    @foreach (var cat in new[] { BuildingType.House, BuildingType.Hotel, BuildingType.Company, BuildingType.Special })
+                                    {
+                                        <div class="cat-line" title="@GetCategoryName(cat)">
+                                            <span class="cat-badge" @onmouseover="(() => HoverCat(cat))" @onclick="(() => HoverCat(cat))">@GetCategoryName(cat)</span>
+                                            <div class="levels">
+                                                @for (int lvl = 1; lvl <= 4; lvl++)
+                                                {
+                                                    var level = lvl; // fixa valor para handlers
+                                                    <div class="lvl" title="@GetCategoryName(cat) nível @level"
+                                                         @onclick="(() => QuickSelect(cat, level))"
+                                                         @onmouseover="(e => ShowLevelTip(e, cat, level))">
+                                                        <img src="@GetBuildingImage(cat, level)" alt="@GetCategoryName(cat) @level" />
+                                                    </div>
+                                                }
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </button>
+                    @if (IsSpecialEditable(t))
+                    {
+                        <div class="inline-edit" title="Editar valor">
+                            <input type="number" class="form-control form-control-sm inline-number" value="@GetCurrentSpecialValue(t)" @onchange="(e => OnSpecialValueChanged(t, e))" />
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+        @if (_showLevelTip)
+        {
+            <div class="evo-tooltip" style="@GetTooltipStyle()" @onclick:stopPropagation="true">
+                <button type="button" class="btn btn-sm btn-dark position-absolute" style="top:4px; right:4px;" title="Fechar" @onclick="CloseTip">×</button>
+                <img src="@_tipImage" alt="img" class="evo-tooltip-img" />
+                <div class="evo-tip-title-container">
+                    <div class="evo-tooltip-title fw-semibold">@_tipTitle</div>
+                    <div class="evo-tooltip-price">
+                        @if (!_editingTipPrice)
+                        {
+                            <span class="price-label" title="Clique para editar" @onclick="StartEditTipPrice">Preço: R$@_tipPrice</span>
+                        }
+                        else
+                        {
+                            <div class="price-edit d-flex align-items-center gap-1">
+                                <input type="number" class="form-control form-control-sm" style="width:90px" value="@_tipPriceEditValue" @onchange="PriceEditChanged" @onkeydown="PriceEditKey" @onclick:stopPropagation="true" />
+                                <button type="button" class="btn btn-success btn-sm" title="Salvar" @onclick="SaveTipPrice">OK</button>
+                                <button type="button" class="btn btn-secondary btn-sm" title="Cancelar" @onclick="CancelTipPrice">Cancelar</button>
+                            </div>
+                        }
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(_tipDesc))
+                    {
+                        <div class="evo-tooltip-desc">@_tipDesc</div>
+                    }
+                    <div class="mt-2 d-flex gap-2">
+                        <button type="button" class="btn btn-primary btn-sm" title="Aplicar este nível" @onclick="ChooseFromTip">OK</button>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+@code {
+    [Parameter] public bool Visible { get; set; } = true;
+    [Parameter] public int X { get; set; }
+    [Parameter] public int Y { get; set; }
+    [Parameter] public int Index { get; set; }
+    [Parameter] public BlockTemplateEntity? CurrentBlock { get; set; }
+    [Parameter] public Action<BlockType>? OnSelectType { get; set; }
+    [Parameter] public Action? OnClose { get; set; }
+    [Parameter] public Func<BlockType, string> TranslateBlockType { get; set; } = default!;
+    [Parameter] public Func<BuildingType, string> GetCategoryName { get; set; } = default!;
+    [Parameter] public Func<BuildingType, int, string> GetBuildingImage { get; set; } = default!;
+    [Parameter] public Func<BuildingType, int, string> GetBuildingName { get; set; } = default!;
+    [Parameter] public Func<BlockType, string> GetTypeColor { get; set; } = default!;
+    [Parameter] public Action<BuildingType, int>? OnQuickPropertySelect { get; set; }
+    [Parameter] public Func<BuildingType, int[]>? GetDefaultPricesForCategory { get; set; }
+    [Parameter] public Func<BuildingType, int, int>? GetCachedPrice { get; set; }
+    [Parameter] public Action<BuildingType, int, int>? SetCachedPrice { get; set; }
+
+    private bool _showLevelTip; private string _tipTitle = ""; private string _tipDesc = ""; private string _tipImage = ""; private int _tipPrice; private double _tipX; private double _tipY;
+    private bool _editingTipPrice; private int _tipLevel; private BuildingType _tipCategory; private int _tipPriceEditValue;
+
+    private string GetTooltipStyle() => $"left:{_tipX}px; top:{_tipY}px; position:fixed; z-index:2000;";
+
+    private void OnTypeClick(BlockType t) { if (t == BlockType.Property) return; OnSelectType?.Invoke(t); }
+    private void QuickSelect(BuildingType cat, int lvl) { OnQuickPropertySelect?.Invoke(cat, lvl); CloseTip(); Close(); }
+    private void ChooseFromTip() { OnQuickPropertySelect?.Invoke(_tipCategory, _tipLevel); CloseTip(); Close(); }
+    private void HoverCat(BuildingType cat) { }
+
+    private void Close() => OnClose?.Invoke();
+    private void CloseTip() { _showLevelTip = false; _editingTipPrice = false; StateHasChanged(); }
+    private string GetTextColor(string? bg) { if (string.IsNullOrWhiteSpace(bg)) return "#111827"; try { if (bg.StartsWith("#") && bg.Length == 7) { var r = Convert.ToInt32(bg.Substring(1, 2), 16); var g = Convert.ToInt32(bg.Substring(3, 2), 16); var b = Convert.ToInt32(bg.Substring(5, 2), 16); var yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000; return yiq >= 128 ? "#111827" : "#ffffff"; } } catch { } return "#111827"; }
+
+    private bool IsSpecialEditable(BlockType t) => t is BlockType.Tax or BlockType.Chance or BlockType.Reves or BlockType.GoToJail;
+    private int GetCurrentSpecialValue(BlockType t) { if (CurrentBlock == null) return GetDefaultForSpecial(t); if (CurrentBlock.Type == t && CurrentBlock.Rent > 0) return CurrentBlock.Rent; return GetDefaultForSpecial(t); }
+    private int GetDefaultForSpecial(BlockType t) => t switch { BlockType.Tax => 150, BlockType.Chance => 2, BlockType.Reves => 2, BlockType.GoToJail => 3, _ => 0 };
+    private void OnSpecialValueChanged(BlockType t, ChangeEventArgs e) { if (!int.TryParse(e?.Value?.ToString(), out var v)) return; v = Math.Max(0, v); if (CurrentBlock != null && CurrentBlock.Type == t) { CurrentBlock.Rent = v; StateHasChanged(); } }
+    private string? GetDisplayValueFor(BlockTemplateEntity? block, BlockType t) { if (!IsSpecialEditable(t)) return null; int val = GetCurrentSpecialValue(t); string suffix = t switch { BlockType.Reves => " casas", BlockType.Chance => " +/-", BlockType.GoToJail => " turnos", BlockType.Tax => " $", _ => string.Empty }; return val + suffix; }
+
+    private int ComputeRent(BuildingType cat, int price) => (int)Math.Max(1, Math.Round(price * (cat == BuildingType.Company ? 0.10 : 0.08)));
+
+    private void ShowLevelTip(MouseEventArgs e, BuildingType cat, int lvl)
+    {
+        var evo = BuildingEvolutionDescriptions.Get(cat, lvl);
+        int price = GetCachedPrice?.Invoke(cat, lvl) ?? 0;
+        if (price <= 0 && CurrentBlock is not null && CurrentBlock.BuildingType == cat && !string.IsNullOrWhiteSpace(CurrentBlock.BuildingPricesCsv))
+        {
+            var arr = CurrentBlock.BuildingPricesCsv.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(p => int.TryParse(p, out var v) ? v : 0).ToArray();
+            if (lvl - 1 < arr.Length) price = arr[lvl - 1];
+        }
+        _tipCategory = cat; _tipLevel = lvl; _editingTipPrice = false;
+        _tipTitle = $"{evo.Name} – Nível {lvl} ({GetCategoryName(cat)})";
+        _tipDesc = evo.Description;
+        _tipPrice = price;
+        _tipPriceEditValue = _tipPrice;
+        _tipImage = GetBuildingImage(cat, lvl);
+        _tipX = e.ClientX + 14;
+        _tipY = e.ClientY + 14;
+        _showLevelTip = true;
+        StateHasChanged();
+    }
+
+    private void StartEditTipPrice() { _editingTipPrice = true; StateHasChanged(); }
+    private void PriceEditChanged(ChangeEventArgs e) { if (int.TryParse(e?.Value?.ToString(), out var v)) { _tipPriceEditValue = Math.Max(0, v); } }
+    private void PriceEditKey(KeyboardEventArgs e) { if (e.Key == "Enter") SaveTipPrice(); else if (e.Key == "Escape") CancelTipPrice(); }
+    private void SaveTipPrice()
+    {
+        _tipPrice = _tipPriceEditValue; _editingTipPrice = false;
+        SetCachedPrice?.Invoke(_tipCategory, _tipLevel, _tipPrice);
+        if (CurrentBlock is not null)
+        {
+            CurrentBlock.BuildingType = _tipCategory;
+            CurrentBlock.ImageUrl = GetBuildingImage(_tipCategory, _tipLevel);
+            var evo = BuildingEvolutionDescriptions.Get(_tipCategory, _tipLevel);
+            CurrentBlock.Name = evo.Name;
+            CurrentBlock.Price = _tipPrice;
+            CurrentBlock.Rent = ComputeRent(_tipCategory, CurrentBlock.Price);
+        }
+        StateHasChanged();
+    }
+    private void CancelTipPrice() { _editingTipPrice = false; _tipPriceEditValue = _tipPrice; StateHasChanged(); }
+
+    private void HandleShortcut(KeyboardEventArgs e)
+    { if (e.Key.Length == 1 && int.TryParse(e.Key, out var num) && num is >= 1 and <= 4) { QuickSelect(BuildingType.House, num); } if (e.Key == "Escape") CloseTip(); }
+}

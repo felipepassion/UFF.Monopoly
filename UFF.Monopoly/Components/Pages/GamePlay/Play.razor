@@ -1,0 +1,100 @@
+@page "/play/{GameId:guid}"
+
+@using Microsoft.EntityFrameworkCore
+@using UFF.Monopoly.Data
+@using UFF.Monopoly.Data.Entities
+@using UFF.Monopoly.Models
+@using UFF.Monopoly.Repositories
+@using UFF.Monopoly.Entities
+
+<h3 class="mb-2">Partida local</h3>
+
+<div class="mt-2 d-flex align-items-md-center justify-content-center full-center-wrapper play-container">
+    <div class="board-shell d-inline-block">
+        @if (_loading)
+        {
+            <div class="p-4">Carregando...</div>
+        }
+        else if (_game is null)
+        {
+            <div class="p-4">Jogo não encontrado.</div>
+        }
+        else
+        {
+            <GameBoard BoardWidthCss="@_boardWidthCss" BoardHeightCss="@_boardHeightCss">
+                <div class="round-badge">Rodada: @_game.RoundCount</div>
+                <div class="turn-badge">Vez: @_game.Players.ElementAtOrDefault(_game.CurrentPlayerIndex)?.Name</div>
+
+                @foreach (var space in BoardSpaces)
+                {
+                    <BoardSpace Space="space" OnClick="HandleClick" />
+                }
+
+                <BoardPawnLayer Game="_game"
+                                PawnAnimPosition="@_pawnAnimPosition"
+                                CellSize="@CellSize"
+                                BoardScale="@_boardScale"
+                                Perimeter="@Perimeter"
+                                PawnIndexes="@_pawnsForPlayers"
+                                DefaultPawnUrl="@PawnUrl"
+                                PawnUrlResolver="@GetPawnUrlForPlayer" />
+
+                @if (_showDiceOverlay)
+                {
+                    var diceImgSize = Math.Max(24, (int)(CellSize * 0.6 * _boardScale)) + "px";
+                    var gifSize = Math.Max(64, (int)(CellSize * 1.6 * _boardScale)) + "px";
+                    var gifOffsetPx = -(int)(CellSize * 0.6 * _boardScale);
+                    var diceOffsetPx = (int)(CellSize * 0.8 * _boardScale);
+                    var gifOffset = gifOffsetPx + "px";
+                    var diceOffset = diceOffsetPx + "px";
+                    <DiceOverlay Show="_showDiceOverlay"
+                                 Die1Url="@($"{Navigation.BaseUri}images/dice/diceGreen{_diceFace1}.png")"
+                                 Die2Url="@($"{Navigation.BaseUri}images/dice/diceGreen{_diceFace2}.png")"
+                                 RollingGifUrl="@_rollingGifUrl"
+                                 DiceImgSize="@diceImgSize"
+                                 GifSize="@gifSize"
+                                 GifOffset="@gifOffset"
+                                 DiceOffset="@diceOffset" />
+                }
+
+                <BlockModal Show="@(_showBlockModal && _modalBlock is not null && _modalPlayer is not null)"
+                            Block="@_modalBlock" Player="@_modalPlayer" TemplateEntity="@_modalTemplateEntity" BaseZ="20000" OnClose="CloseBlockModal">
+                    @if (_modalBlock is not null && _modalPlayer is not null)
+                    {
+                        <BlockActionContent Block="@_modalBlock"
+                                             Player="@_modalPlayer"
+                                             TemplateEntity="@_modalTemplateEntity"
+                                             CanUpgradeAllowed="@(_modalBlock is PropertyBlock pb && CanUpgradeAllowed(pb))"
+                                             NextUpgradeCost="@(_modalBlock is PropertyBlock pb2 ? GetNextUpgradeCost(pb2) : 0)"
+                                             OnBuy="OnBuyPropertyAsync"
+                                             OnUpgrade="OnUpgradeAsync"
+                                             OnSell="OnSellPropertyAsync">
+                            <BlockEventContent Block="@_modalBlock"
+                                                PendingActionKind="@_pendingActionKind"
+                                                PendingAmount="@_pendingAmount"
+                                                PendingBackSteps="@_pendingBackSteps"
+                                                GoSalary="@Game.GoSalary" />
+                        </BlockActionContent>
+                    }
+                </BlockModal>
+
+                <SimpleModal Show="@_showLoserModal" Title="Derrota" Message="@($"O jogador {_loserName} foi eliminado.")" BaseZ="22000" OnClose="CloseLoserModal" />
+                <SimpleModal Show="@_showWinnerModal" Title="Vencedor" Message="@($"Parabéns! {_winnerName} venceu o jogo.")" BaseZ="23000" OnClose="CloseWinnerModal" />
+            </GameBoard>
+
+            <div class="d-flex justify-content-between align-items-center mt-3">
+                <PlayersPanel Players="@_game.Players" />
+                <div>
+                    <button id="btnEnd" class="btn btn-secondary me-2" @onclick="() => EndGame()">Encerrar</button>
+                    <button id="btnRoll" class="btn btn-primary" @onclick="async () => await RollForCurrentPlayer()" disabled="@(!CanRollForCurrent)">Rolar</button>
+                </div>
+                @if (_showBotActionToast)
+                {
+                    <div class="mt-2">
+                        <BotToast Show="@_showBotActionToast" Message="@_botActionMessage" />
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>

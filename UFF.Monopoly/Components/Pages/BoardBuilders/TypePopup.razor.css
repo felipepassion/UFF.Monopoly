@@ -1,0 +1,39 @@
+.type-popup-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(2px);z-index:1049;animation:fadeIn .25s ease}
+.type-popup{position:fixed;z-index:1050;background:var(--surface);color:var(--text);border:1px solid rgba(255,255,255,.08);padding:4px;width:400px;max-height:80vh;overflow:auto;box-shadow:0 8px 24px -6px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.05);border-radius:10px;animation:popupIn .28s cubic-bezier(.32,.08,.24,1.15)}
+.type-popup:focus{outline:none}
+.type-popup-header{padding:6px 8px 8px 8px;border-bottom:1px solid rgba(255,255,255,.06)}
+.type-popup-header .title{font-weight:600;color:rgba(255,255,255,.85)}
+.type-list{display:flex;flex-direction:column;gap:8px;padding:8px}
+.type-option-wrapper{position:relative;display:flex;align-items:center;gap:6px}
+.type-option{flex:1;position:relative;text-align:left;border:0;cursor:pointer;border-radius:8px;padding:10px 12px;background:var(--block-bg);color:var(--block-fg);font-size:14px;font-weight:500;transition:filter .15s ease,transform .18s cubic-bezier(.4,.14,.3,1.4),box-shadow .15s ease}
+.type-option:hover{filter:brightness(1.07);transform:translateY(-2px) scale(1.01);box-shadow:0 6px 12px -4px rgba(0,0,0,.55)}
+.type-option:active{transform:translateY(0) scale(.97)}
+.type-option-inner{display:flex;flex-direction:column;gap:6px;width:100%}
+.type-option .name{font-size:15px;line-height:18px}
+.type-option .current-cat{font-weight:500;margin-left:4px;opacity:.9}
+.type-option .categories{display:flex;flex-direction:column;gap:6px;margin-top:4px}
+.type-option .cat-line{display:flex;align-items:center;gap:8px;flex-wrap:nowrap;padding:4px 6px;border-radius:8px;background:rgba(0,0,0,.18);position:relative;transition:background .2s ease}
+.type-option .cat-line:hover{background:rgba(0,0,0,.28)}
+.type-option .cat-badge{display:inline-block;font-size:11px;line-height:16px;background:rgba(255,255,255,.18);color:#fff;border-radius:6px;padding:0 8px;font-weight:600;white-space:nowrap;transition:background .15s ease,transform .18s cubic-bezier(.4,.14,.3,1.4)}
+.type-option .cat-badge:hover{background:rgba(255,255,255,.3);transform:scale(1.05)}
+.type-option .levels{display:flex;gap:6px;align-items:center}
+.type-option .lvl{width:34px;height:34px;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.2);border-radius:8px;overflow:hidden;transition:background .15s ease,transform .18s cubic-bezier(.4,.14,.3,1.4),box-shadow .15s ease;cursor:pointer}
+.type-option .lvl:hover{background:rgba(0,0,0,.35);transform:scale(1.18);box-shadow:0 3px 6px -2px rgba(0,0,0,.6)}
+.type-option .lvl:active{transform:scale(.95)}
+.type-option .lvl img{width:30px;height:30px;object-fit:contain;image-rendering:crisp-edges;filter:drop-shadow(0 1px 2px rgba(0,0,0,.4));transition:transform .18s cubic-bezier(.4,.14,.3,1.4)}
+.inline-edit{display:flex;align-items:center;gap:4px}
+.inline-edit .inline-number{width:70px;padding:2px 4px;font-size:12px;height:28px}
+.special-value{background:rgba(0,0,0,.25);padding:2px 6px;border-radius:6px;font-weight:600;letter-spacing:.5px}
+@media (max-width:520px){.type-popup{width:calc(100vw - 32px);left:16px !important;right:16px}}
+/* Tooltip melhorado */
+.evo-tooltip{position:fixed;display:flex;align-items:center;background:linear-gradient(135deg,rgba(30,30,35,.95),rgba(15,15,20,.9));border:1px solid rgba(255,255,255,.08);backdrop-filter:blur(6px);padding:12px 16px 12px 12px;border-radius:14px;box-shadow:0 10px 28px -8px rgba(0,0,0,.7),0 0 0 1px rgba(255,255,255,.04);min-width:280px;max-width:360px;color:#fff;overflow:hidden;animation:tooltipIn .25s ease}
+.evo-tooltip-img{width:110px;height:110px;object-fit:contain;flex-shrink:0;margin-right:12px;filter:drop-shadow(0 3px 6px rgba(0,0,0,.55))}
+.evo-tip-title-container{display:flex;flex-direction:column;gap:4px;flex:1}
+.evo-tooltip-price{font-size:13px;font-weight:600;background:rgba(255,255,255,.15);padding:4px 10px;border-radius:8px;width:fit-content;cursor:pointer;user-select:none}
+.evo-tooltip-price .price-label:hover{background:rgba(255,255,255,.25);border-radius:6px}
+.price-edit input{background:#222;border:1px solid rgba(255,255,255,.25);color:#fff}
+.price-edit button{min-width:32px}
+.evo-tooltip-desc{font-size:12px;line-height:15px;opacity:.85}
+@keyframes popupIn{0%{opacity:0;transform:translateY(10px) scale(.92)}60%{opacity:1;transform:translateY(-2px) scale(1.02)}100%{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes tooltipIn{0%{opacity:0;transform:translateY(6px) scale(.96)}100%{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}

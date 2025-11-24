@@ -1,0 +1,11 @@
+@inherits ComponentBase
+
+@if (Show)
+{
+    <div class="alert alert-info shadow-sm mb-0 py-1 px-2">@Message</div>
+}
+
+@code {
+    [Parameter] public bool Show { get; set; }
+    [Parameter] public string Message { get; set; } = string.Empty;
+}

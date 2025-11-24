@@ -1,0 +1,1 @@
+.pawn-img{ position:absolute; object-fit:contain; transform:translate(20%,20%); transition: top 140ms linear, left 140ms linear; pointer-events:none; }

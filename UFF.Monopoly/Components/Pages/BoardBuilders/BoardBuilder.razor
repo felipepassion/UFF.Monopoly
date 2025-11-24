@@ -1,0 +1,60 @@
+@page "/board-builder"
+@page "/board-builder/{BoardId:guid}"
+@using UFF.Monopoly.Data.Entities
+@using UFF.Monopoly.Entities
+@using UFF.Monopoly.Components.Pages.BoardBuilders
+
+<h3 class="mb-2">Board Builder</h3>
+
+<SuccessToast Show="@ShowToast" Message="@ToastMessage" />
+
+<div class="row gx-2 gy-2 align-items-start">
+    <div class="col-12 col-xl-3 d-flex flex-column">
+        <BoardList Boards="@ExistingBoards" OnEditBoard="EditBoard" OnNewBoard="NewBoard" />
+        <BoardConfigForm Form="@Form" BlocksCount="@Blocks.Count" OnGenerateGrid="GenerateGrid" OnGenerateRandom="GenerateRandomBoard" OnSave="SaveAsync" />
+    </div>
+    <div class="col-12 col-xl-9">
+        @if (Form.Rows > 0 && Form.Cols > 0)
+        {
+            <div class="board-wrapper position-relative" @onclick="ClosePopup">
+                <BoardGrid Rows="@Form.Rows"
+                           Cols="@Form.Cols"
+                           CellSize="@Form.CellSize"
+                           Blocks="@Blocks"
+                           CellToIndex="@CellToIndex"
+                           GetCellBackground="@GetCellBackground"
+                           TranslateBlockType="@TranslateBlockType"
+                           OnCellClick="@( (i,e) => OnCellClick(i,e) )" />
+
+                @if (Popup.Visible)
+                {
+                    <TypePopup Visible="@Popup.Visible"
+                               X="@Popup.X"
+                               Y="@Popup.Y"
+                               Index="@Popup.Index"
+                               CurrentBlock="@GetBlockAt(Popup.Index)"
+                               OnSelectType="SelectType"
+                               OnClose="ClosePopup"
+                               OnQuickPropertySelect="QuickPropertySelect"
+                               TranslateBlockType="@TranslateBlockType"
+                               GetCategoryName="@GetCategoryName"
+                               GetBuildingImage="@GetBuildingImage"
+                               GetBuildingName="@GetBuildingName"
+                               GetTypeColor="@GetTypeColor"
+                               GetDefaultPricesForCategory="@GetDefaultPricesForCategory"
+                               GetCachedPrice="@( (BuildingType cat, int level) => GetCachedPrice(GetBlockAt(Popup.Index), cat, level) )"
+                               SetCachedPrice="@( (BuildingType cat, int level, int price) => SetCachedPrice(GetBlockAt(Popup.Index), cat, level, price) )" />
+                }
+
+                @if (_specialModal.Show)
+                {
+                    <SpecialValueModal Show="@_specialModal.Show"
+                                       Block="@GetBlockAt(_specialModal.Index)"
+                                       SpecialType="@_specialModal.Type"
+                                       OnClose="HideSpecialModal"
+                                       OnApply="OnApplySpecial" />
+                }
+            </div>
+        }
+    </div>
+</div>

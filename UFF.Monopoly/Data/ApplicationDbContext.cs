@@ -43,18 +43,20 @@ namespace UFF.Monopoly.Data
                 e.Property(x => x.Type).HasConversion<int>();
                 // store nullable enum as integer in DB
                 e.Property(x => x.Level).HasConversion<int?>();
+                e.Property(x => x.BuildingType).HasConversion<int>();
             });
 
             builder.Entity<BlockTemplateEntity>(e =>
             {
                 e.HasKey(x => x.Id);
                 e.Property(x => x.Type).HasConversion<int>();
+                e.Property(x => x.BuildingType).HasConversion<int>();
                 e.HasOne<BoardDefinitionEntity>()
                  .WithMany(b => b.Blocks)
                  .HasForeignKey(x => x.BoardDefinitionId)
                  .OnDelete(DeleteBehavior.Cascade);
                 e.HasIndex(x => new { x.BoardDefinitionId, x.Position }).IsUnique();
-                // Seed data: example board and 20 property templates (neighborhoods of Rio)
+                // Seed data: example board and 20 spaces (Rio neighborhoods + specials)
                 // Board seed
                 var boardId = new Guid("11111111-1111-1111-1111-111111111111");
                 builder.Entity<BoardDefinitionEntity>().HasData(new BoardDefinitionEntity
@@ -70,18 +72,21 @@ namespace UFF.Monopoly.Data
 
                 // Block templates seed (IDs kept small/simple)
                 e.HasData(
+                    // Specials
+                    new BlockTemplateEntity { Id = new Guid("00000000-0000-0000-0000-000000000101"), Position = 0, Name = "GO", Description = "Coleta salário ao passar.", ImageUrl = "/images/blocks/property_basic.svg", Color = string.Empty, Price = 0, Rent = 0, Type = BlockType.Go, Level = null, HousePrice = 0, HotelPrice = 0, RentsCsv = null, BoardDefinitionId = boardId },
+                    new BlockTemplateEntity { Id = new Guid("00000000-0000-0000-0000-000000000104"), Position = 3, Name = "Imposto de Renda", Description = "Pague taxa fixa ao cair aqui.", ImageUrl = "/images/blocks/property_basic.svg", Color = string.Empty, Price = 0, Rent = 200, Type = BlockType.Tax, Level = null, HousePrice = 0, HotelPrice = 0, RentsCsv = null, BoardDefinitionId = boardId },
+                    new BlockTemplateEntity { Id = new Guid("00000000-0000-0000-0000-000000000109"), Position = 8, Name = "Cadeia / Visita", Description = "Apenas visita.", ImageUrl = "/images/blocks/property_basic.svg", Color = string.Empty, Price = 0, Rent = 0, Type = BlockType.Jail, Level = null, HousePrice = 0, HotelPrice = 0, RentsCsv = null, BoardDefinitionId = boardId },
+                    new BlockTemplateEntity { Id = new Guid("00000000-0000-0000-0000-000000000118"), Position = 17, Name = "Vá para a Prisão", Description = "Siga diretamente para a prisão.", ImageUrl = "/images/blocks/property_basic.svg", Color = string.Empty, Price = 0, Rent = 1, Type = BlockType.GoToJail, Level = null, HousePrice = 0, HotelPrice = 0, RentsCsv = null, BoardDefinitionId = boardId },
+
                     // MuitoRica (Level = 3)
-                    new BlockTemplateEntity { Id = new Guid("00000000-0000-0000-0000-000000000101"), Position = 0, Name = "Leblon", Description = "Leblon (Muito Rica)", ImageUrl = "/images/blocks/property_basic.svg", Color = "#d4af37", Price = 10000, Rent = 100, Type = BlockType.Property, Level = PropertyLevel.MuitoRica, HousePrice = 1000, HotelPrice = 2000, RentsCsv = "100,500,1000,1800,2200,2400,2500", BoardDefinitionId = boardId },
                     new BlockTemplateEntity { Id = new Guid("00000000-0000-0000-0000-000000000102"), Position = 1, Name = "Ipanema", Description = "Ipanema (Muito Rica)", ImageUrl = "/images/blocks/property_basic.svg", Color = "#d4af37", Price = 9200, Rent = 92, Type = BlockType.Property, Level = PropertyLevel.MuitoRica, HousePrice = 920, HotelPrice = 1840, RentsCsv = "92,460,920,1656,2024,2208,2300", BoardDefinitionId = boardId },
                     new BlockTemplateEntity { Id = new Guid("00000000-0000-0000-0000-000000000103"), Position = 2, Name = "Jardim Botânico", Description = "Jardim Botânico (Muito Rica)", ImageUrl = "/images/blocks/property_basic.svg", Color = "#d4af37", Price = 8800, Rent = 88, Type = BlockType.Property, Level = PropertyLevel.MuitoRica, HousePrice = 880, HotelPrice = 1760, RentsCsv = "88,440,880,1584,1936,2112,2200", BoardDefinitionId = boardId },
-                    new BlockTemplateEntity { Id = new Guid("00000000-0000-0000-0000-000000000104"), Position = 3, Name = "São Conrado", Description = "São Conrado (Muito Rica)", ImageUrl = "/images/blocks/property_basic.svg", Color = "#d4af37", Price = 8400, Rent = 84, Type = BlockType.Property, Level = PropertyLevel.MuitoRica, HousePrice = 840, HotelPrice = 1680, RentsCsv = "84,420,840,1512,1848,2016,2100", BoardDefinitionId = boardId },
                     new BlockTemplateEntity { Id = new Guid("00000000-0000-0000-0000-000000000105"), Position = 4, Name = "Lagoa", Description = "Lagoa (Muito Rica)", ImageUrl = "/images/blocks/property_basic.svg", Color = "#d4af37", Price = 8000, Rent = 80, Type = BlockType.Property, Level = PropertyLevel.MuitoRica, HousePrice = 800, HotelPrice = 1600, RentsCsv = "80,400,800,1440,1760,1920,2000", BoardDefinitionId = boardId },
 
                     // Rica (Level = 2)
                     new BlockTemplateEntity { Id = new Guid("00000000-0000-0000-0000-000000000106"), Position = 5, Name = "Copacabana", Description = "Copacabana (Rica)", ImageUrl = "/images/blocks/property_basic.svg", Color = "#3498db", Price = 7000, Rent = 70, Type = BlockType.Property, Level = PropertyLevel.Rica, HousePrice = 700, HotelPrice = 1400, RentsCsv = "70,350,700,1260,1540,1680,1750", BoardDefinitionId = boardId },
                     new BlockTemplateEntity { Id = new Guid("00000000-0000-0000-0000-000000000107"), Position = 6, Name = "Flamengo", Description = "Flamengo (Rica)", ImageUrl = "/images/blocks/property_basic.svg", Color = "#3498db", Price = 6500, Rent = 65, Type = BlockType.Property, Level = PropertyLevel.Rica, HousePrice = 650, HotelPrice = 1300, RentsCsv = "65,325,650,1170,1430,1560,1625", BoardDefinitionId = boardId },
                     new BlockTemplateEntity { Id = new Guid("00000000-0000-0000-0000-000000000108"), Position = 7, Name = "Botafogo", Description = "Botafogo (Rica)", ImageUrl = "/images/blocks/property_basic.svg", Color = "#3498db", Price = 6000, Rent = 60, Type = BlockType.Property, Level = PropertyLevel.Rica, HousePrice = 600, HotelPrice = 1200, RentsCsv = "60,300,600,1080,1320,1440,1500", BoardDefinitionId = boardId },
-                    new BlockTemplateEntity { Id = new Guid("00000000-0000-0000-0000-000000000109"), Position = 8, Name = "Gávea", Description = "Gávea (Rica)", ImageUrl = "/images/blocks/property_basic.svg", Color = "#3498db", Price = 5500, Rent = 55, Type = BlockType.Property, Level = PropertyLevel.Rica, HousePrice = 550, HotelPrice = 1100, RentsCsv = "55,275,550,990,1210,1320,1375", BoardDefinitionId = boardId },
                     new BlockTemplateEntity { Id = new Guid("00000000-0000-0000-0000-000000000110"), Position = 9, Name = "Laranjeiras", Description = "Laranjeiras (Rica)", ImageUrl = "/images/blocks/property_basic.svg", Color = "#3498db", Price = 5000, Rent = 50, Type = BlockType.Property, Level = PropertyLevel.Rica, HousePrice = 500, HotelPrice = 1000, RentsCsv = "50,250,500,900,1100,1200,1250", BoardDefinitionId = boardId },
 
                     // Mediana (Level = 1)
@@ -94,7 +99,6 @@ namespace UFF.Monopoly.Data
                     // Barata (Level = 0)
                     new BlockTemplateEntity { Id = new Guid("00000000-0000-0000-0000-000000000116"), Position = 15, Name = "Madureira", Description = "Madureira (Barata)", ImageUrl = "/images/blocks/property_basic.svg", Color = "#8b4513", Price = 1200, Rent = 12, Type = BlockType.Property, Level = PropertyLevel.Barata, HousePrice = 120, HotelPrice = 240, RentsCsv = "12,60,120,216,264,288,300", BoardDefinitionId = boardId },
                     new BlockTemplateEntity { Id = new Guid("00000000-0000-0000-0000-000000000117"), Position = 16, Name = "Bonsucesso", Description = "Bonsucesso (Barata)", ImageUrl = "/images/blocks/property_basic.svg", Color = "#8b4513", Price = 1000, Rent = 10, Type = BlockType.Property, Level = PropertyLevel.Barata, HousePrice = 100, HotelPrice = 200, RentsCsv = "10,50,100,180,220,240,250", BoardDefinitionId = boardId },
-                    new BlockTemplateEntity { Id = new Guid("00000000-0000-0000-0000-000000000118"), Position = 17, Name = "Campo Grande", Description = "Campo Grande (Barata)", ImageUrl = "/images/blocks/property_basic.svg", Color = "#8b4513", Price = 900, Rent = 9, Type = BlockType.Property, Level = PropertyLevel.Barata, HousePrice = 90, HotelPrice = 180, RentsCsv = "9,45,90,162,198,216,225", BoardDefinitionId = boardId },
                     new BlockTemplateEntity { Id = new Guid("00000000-0000-0000-0000-000000000119"), Position = 18, Name = "Realengo", Description = "Realengo (Barata)", ImageUrl = "/images/blocks/property_basic.svg", Color = "#8b4513", Price = 800, Rent = 8, Type = BlockType.Property, Level = PropertyLevel.Barata, HousePrice = 80, HotelPrice = 160, RentsCsv = "8,40,80,144,176,192,200", BoardDefinitionId = boardId },
                     new BlockTemplateEntity { Id = new Guid("00000000-0000-0000-0000-000000000120"), Position = 19, Name = "Paciência", Description = "Paciência (Barata)", ImageUrl = "/images/blocks/property_basic.svg", Color = "#8b4513", Price = 600, Rent = 6, Type = BlockType.Property, Level = PropertyLevel.Barata, HousePrice = 60, HotelPrice = 120, RentsCsv = "6,30,60,108,132,144,150", BoardDefinitionId = boardId }
                  );

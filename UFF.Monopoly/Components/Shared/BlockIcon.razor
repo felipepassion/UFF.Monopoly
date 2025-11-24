@@ -1,0 +1,90 @@
+@using UFF.Monopoly.Entities
+@using UFF.Monopoly.Components.Pages.BoardBuilders
+@using UFF.Monopoly.Components.Shared
+@using Microsoft.AspNetCore.Components.Web
+
+<div class="block-icon-wrapper" @onmouseover="ShowTip" @onmousemove="MoveTip" @onmouseout="HideTip" @onclick:stopPropagation="true" @onclick="OnClickInternal">
+    <img src="@ImageUrl" alt="@AltText" class="block-icon-img @( _animateImageChange ? "img-change" : string.Empty)" />
+    <div class="icon-info-bar @PriceThresholds.GetPriceClass(Price)" title="@GetTitleText()">
+        @if (ShouldShowSecondaryTag())
+        {
+            <span class="info-rent">@GetSecondaryTagLabel(): @FormatSecondaryValue()</span>
+        }
+        else if (IsPropertyCard())
+        {
+            <span class="info-price">@Price</span>
+            <span class="info-name text-truncate">@Name</span>
+        }
+        else
+        {
+            <span class="info-name text-truncate">@Name</span>
+        }
+    </div>
+    @if (_showTip)
+    {
+        <div class="evo-tooltip" style="left:@(_tipX)px; top:@(_tipY)px;">
+            <div class="evo-tooltip-header d-flex align-items-center gap-2">
+                <img src="@ImageUrl" alt="img" class="evo-tooltip-img" />
+                <div class="evo-tooltip-title fw-semibold">@Name</div>
+            </div>
+            @if (IsPropertyCard())
+            {
+                <div class="evo-tooltip-sub">Categoria: @BuildingType</div>
+                <div class="evo-tooltip-price">Preço de compra: $ @Price</div>
+                <div class="evo-tooltip-desc">@GetEvolutionDescription()</div>
+            }
+            else 
+            {
+                <div class="evo-tooltip-rent">@GetSecondaryTooltipText()</div>
+            }
+            @if (!string.IsNullOrWhiteSpace(Description))
+            {
+                <div class="evo-tooltip-desc">@Description</div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string ImageUrl { get; set; } = string.Empty;
+    [Parameter] public string Name { get; set; } = string.Empty;
+    [Parameter] public string Description { get; set; } = string.Empty;
+    [Parameter] public int Price { get; set; }
+    [Parameter] public int Rent { get; set; }
+    [Parameter] public BlockType Type { get; set; }
+    [Parameter] public BuildingType BuildingType { get; set; } = BuildingType.None;
+    [Parameter] public int BuildingLevel { get; set; } = 0; // 0..4
+    [Parameter] public EventCallback<MouseEventArgs> OnClick { get; set; }
+    [Parameter] public bool ShowRentTag { get; set; } = true;
+
+    private bool _showTip; private double _tipX; private double _tipY;
+    private string AltText => string.IsNullOrWhiteSpace(Name) ? "Bloco" : Name;
+    private string? _lastImageUrl; private bool _animateImageChange;
+
+    protected override void OnParametersSet()
+    {
+        if (_lastImageUrl != ImageUrl)
+        {
+            if (!string.IsNullOrEmpty(_lastImageUrl))
+            {
+                _animateImageChange = true;
+                _ = Task.Run(async () => { try { await Task.Delay(450); } catch { } _animateImageChange = false; await InvokeAsync(StateHasChanged); });
+            }
+            _lastImageUrl = ImageUrl;
+        }
+    }
+
+    private void OnClickInternal(MouseEventArgs e) => OnClick.InvokeAsync(e);
+    private void ShowTip(MouseEventArgs e) { _showTip = true; MoveTip(e); }
+    private void MoveTip(MouseEventArgs e) { if (!_showTip) return; _tipX = e.ClientX + 14; _tipY = e.ClientY + 14; StateHasChanged(); }
+    private void HideTip() { _showTip = false; StateHasChanged(); }
+
+    private string GetEvolutionDescription() { if (BuildingType == BuildingType.None || BuildingLevel < 1) return Description; var evo = BuildingEvolutionDescriptions.Get(BuildingType, Math.Clamp(BuildingLevel, 1, 4)); return $"{evo.Name}: {evo.Description}"; }
+
+    private bool ShouldShowSecondaryTag() => ShowRentTag && (Type is BlockType.Tax or BlockType.Chance or BlockType.Reves or BlockType.GoToJail) && Rent != 0;
+    private bool IsPropertyCard() => Type is BlockType.Property or BlockType.Company;
+    private string GetTitleText() => IsPropertyCard() ? $"{Name} ($ {Price})" : Name;
+    private string GetSecondaryTagLabel() => Type switch { BlockType.Tax => "Taxa", BlockType.Chance => "Sorte", BlockType.Reves => "Revés", BlockType.GoToJail => "Prisão", _ => "" };
+    private string FormatSecondaryValue() => Type switch { BlockType.Tax => "$ {Rent}", BlockType.Chance => Rent >= 0 ? $"+${Rent}" : $"-${-Rent}", BlockType.Reves => $"{Rent} casas", BlockType.GoToJail => $"{Rent} turnos", _ => Rent.ToString() };
+    private string GetSecondaryTooltipText() => Type switch { BlockType.Tax => $"Taxa fixa: $ {Rent}", BlockType.Chance => $"Valor sorte aplicado: {(Rent >= 0 ? "+" : "-")}${Math.Abs(Rent)}", BlockType.Reves => $"Volta {Rent} casas ao cair aqui", BlockType.GoToJail => $"Jogador fica {Rent} turnos na prisão", _ => string.Empty };
+}

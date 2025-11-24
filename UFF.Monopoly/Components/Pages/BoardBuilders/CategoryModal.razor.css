@@ -1,0 +1,23 @@
+.category-modal-surface{background:var(--surface);border:1px solid rgba(255,255,255,0.08);color:var(--text);animation:modalIn .28s cubic-bezier(.32,.08,.24,1.15)}
+.modal-backdrop.show{animation:fadeIn .25s ease}
+.category-modal .cat-row{background:rgba(255,255,255,.02);transition:background .15s ease,border-color .15s ease;display:flex;justify-content:space-between}
+.category-modal .cat-row:hover{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.35)}
+.category-modal .level-btn{position:relative;display:inline-flex;flex-direction:column;align-items:center;justify-content:flex-start;width:96px;padding:6px 4px;gap:4px;border-radius:10px;background:rgba(255,255,255,.03);transition:background .15s ease,transform .15s ease,box-shadow .15s ease}
+.category-modal .level-btn:hover{background:rgba(255,255,255,.08);transform:translateY(-2px);box-shadow:0 6px 14px -6px rgba(0,0,0,.6)}
+.category-modal .level-btn:active{transform:scale(.95)}
+.category-modal .level-img{width:68px;height:68px;object-fit:contain;transition:transform .15s ease,filter .15s ease}
+.category-modal .level-btn:hover .level-img{transform:scale(1.07);filter:drop-shadow(0 3px 6px rgba(0,0,0,.5))}
+.category-modal .level-tag{position:absolute;top:6px;right:8px;font-size:11px;padding:0 8px;border-radius:10px;background:rgba(0,0,0,.55);color:#fff;line-height:18px;font-weight:600}
+.category-modal .level-price{font-size:12px;line-height:14px;color:var(--text);font-weight:600;white-space:nowrap;background:rgba(0,0,0,.35);padding:2px 6px;border-radius:6px}
+.category-modal .level-name{font-size:11px;font-weight:600;color:var(--text-muted)}
+.shortcut-hint{font-size:11px;font-weight:500;color:var(--text-muted);margin-left:4px}
+.cat-shortcuts{font-size:11px;font-weight:500;color:var(--text-muted)}
+.evo-tooltip{position:fixed;z-index:2000;max-width:280px;background:linear-gradient(145deg,#101b24,#182a35);border:1px solid rgba(255,255,255,.12);padding:10px 12px;border-radius:12px;box-shadow:0 12px 32px -6px rgba(0,0,0,.65),0 0 0 1px rgba(255,255,255,.05);animation:tooltipIn .22s ease;pointer-events:none;color:var(--text)}
+.evo-tooltip-header{margin-bottom:6px}
+.evo-tooltip-img{width:40px;height:40px;object-fit:contain;filter:drop-shadow(0 2px 4px rgba(0,0,0,.5))}
+.evo-tooltip-title{font-size:15px;line-height:18px}
+.evo-tooltip-price{font-size:12px;font-weight:600;color:var(--primary);margin-bottom:4px}
+.evo-tooltip-desc{font-size:12px;line-height:16px;color:var(--text-muted)}
+@keyframes tooltipIn{0%{opacity:0;transform:translateY(4px) scale(.95)}100%{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes modalIn{0%{opacity:0;transform:translateY(14px) scale(.9)}55%{opacity:1;transform:translateY(-4px) scale(1.02)}100%{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}

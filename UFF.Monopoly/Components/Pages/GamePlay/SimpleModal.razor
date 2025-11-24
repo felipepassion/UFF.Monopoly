@@ -1,0 +1,29 @@
+@inherits ComponentBase
+
+@if (Show)
+{
+    <div class="modal-backdrop show" style="z-index:@(BaseZ)"></div>
+    <div class="modal d-block" tabindex="-1" style="z-index:@(BaseZ + 1)">
+        <div class="modal-dialog modal-sm">
+            <div class="modal-content p-2 modal-surface">
+                <div class="modal-header">
+                    <h5 class="modal-title">@Title</h5>
+                </div>
+                <div class="modal-body">
+                    <div>@Message</div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="OnClose">Fechar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool Show { get; set; }
+    [Parameter] public string Title { get; set; } = string.Empty;
+    [Parameter] public string Message { get; set; } = string.Empty;
+    [Parameter] public int BaseZ { get; set; } = 22000;
+    [Parameter] public EventCallback OnClose { get; set; }
+}

@@ -1,0 +1,48 @@
+@using UFF.Monopoly.Entities
+@inherits ComponentBase
+
+@if (Game is not null)
+{
+    @for (int i = 0; i < Game.Players.Count; i++)
+    {
+        var p = Game.Players[i];
+        if (p.IsBankrupt) continue;
+        var renderIndex = (i == Game.CurrentPlayerIndex && PawnAnimPosition >= 0) ? PawnAnimPosition : p.CurrentPosition;
+        var (top, left, z) = GetTokenOffsetPositionByBoardIndex(renderIndex, i);
+        var pawnSize = (int)(CellSize * BoardScale * 0.5) + "px";
+        var pawnUrl = GetPawnUrlForPlayer(i);
+        <img src="@pawnUrl" alt="pawn" class="pawn-img"
+             style="top:@top; left:@left; width:@pawnSize; height:@pawnSize; z-index:@z;" />
+    }
+}
+
+@code {
+    [Parameter] public Game? Game { get; set; }
+    [Parameter] public int PawnAnimPosition { get; set; } = -1;
+    [Parameter] public int CellSize { get; set; }
+    [Parameter] public double BoardScale { get; set; } = 1.5;
+    [Parameter] public List<(int r,int c)> Perimeter { get; set; } = new();
+    [Parameter] public List<int> PawnIndexes { get; set; } = new();
+    [Parameter] public string DefaultPawnUrl { get; set; } = "/images/pawns/PawnsB1.png";
+    [Parameter] public Func<int,string>? PawnUrlResolver { get; set; }
+
+    private string GetPawnUrlForPlayer(int playerIndex)
+        => PawnUrlResolver?.Invoke(playerIndex) ?? (playerIndex < PawnIndexes.Count ? $"images/pawns/PawnsB{PawnIndexes[playerIndex]}.png" : DefaultPawnUrl);
+
+    private (string top, string left, int z) GetTokenOffsetPositionByBoardIndex(int boardIndex, int playerIndex)
+    {
+        var (r, c) = Perimeter[Math.Clamp(boardIndex, 0, Perimeter.Count - 1)];
+        var baseTop = (int)(r * CellSize * BoardScale);
+        var baseLeft = (int)(c * CellSize * BoardScale);
+        var cellScaled = (int)(CellSize * BoardScale);
+        int offsetX = 0, offsetY = 0;
+        switch (playerIndex)
+        {
+            case 1: offsetX = (int)(cellScaled * 0.28); break;
+            case 2: offsetY = (int)(cellScaled * 0.28); break;
+            case 3: offsetX = (int)(cellScaled * 0.28); offsetY = (int)(cellScaled * 0.28); break;
+        }
+        if (offsetX > 0) offsetX += 12; if (offsetY > 0) offsetY += 6;
+        return ($"{baseTop + offsetY}px", $"{baseLeft + offsetX}px", playerIndex >= 2 ? 1200 : 1100);
+    }
+}

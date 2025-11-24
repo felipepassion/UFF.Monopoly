@@ -8,29 +8,21 @@ public class Block
     public string ImageUrl { get; set; } = string.Empty;
     public string Color { get; set; } = string.Empty;
     public int Price { get; set; } = 0;
-    public int Rent { get; set; } = 0;
+    public int Rent { get; set; } = 0; // base rent (level 0)
     public Player? Owner { get; set; } = null;
     public bool IsMortgaged { get; set; } = false;
     public BlockType Type { get; set; } = BlockType.Property;
 
-    // Action to be executed when a player lands on this block.
     public virtual Task Action(Game game, Player player)
     {
         switch (Type)
         {
             case BlockType.Go:
-                // nothing special on landing beyond salary handled on pass
                 break;
             case BlockType.Property:
-                if (Owner != null && Owner != player && !IsMortgaged)
-                {
-                    game.Transfer(player, Owner, Rent);
-                }
-                break;
             case BlockType.Company:
                 if (Owner != null && Owner != player && !IsMortgaged)
                 {
-                    // Company has fixed rent value in Rent
                     game.Transfer(player, Owner, Rent);
                 }
                 break;
@@ -41,37 +33,18 @@ public class Block
                 game.SendToJail(player);
                 break;
             case BlockType.Jail:
-                // just visiting when landing
                 break;
             case BlockType.Chance:
-                // basic chance: give or take small amount randomly
                 var rng = new Random();
-                var delta = rng.Next(-200, 301); // -200..300
-                if (delta >= 0)
-                {
-                    // bank pays player
-                    player.Money += delta;
-                }
-                else
-                {
-                    game.PayBank(player, -delta);
-                }
+                var delta = rng.Next(-200, 301);
+                if (delta >= 0) player.Money += delta; else game.PayBank(player, -delta);
                 break;
             case BlockType.Reves:
-                // reverse of chance
                 var rng2 = new Random();
                 var delta2 = rng2.Next(-100, 201);
-                if (delta2 >= 0)
-                {
-                    player.Money += delta2;
-                }
-                else
-                {
-                    game.PayBank(player, -delta2);
-                }
+                if (delta2 >= 0) player.Money += delta2; else game.PayBank(player, -delta2);
                 break;
             case BlockType.FreeParking:
-                // nothing for now
                 break;
         }
         return Task.CompletedTask;
@@ -90,19 +63,14 @@ public class CompanyBlock : Block
 
 public class PropertyBlock : Block
 {
-    public PropertyLevel Level { get; set; } = PropertyLevel.Barata;
-    public int Houses { get; set; } = 0; // 0..4
-    public int Hotels { get; set; } = 0; // 0..2
+    public PropertyLevel Level { get; set; } = PropertyLevel.Barata; // mantém classificação econômica
 
-    // group id to identify monopoly sets
+    // Sistema simplificado: apenas tipo e nível (0..4)
+    public BuildingType BuildingType { get; set; } = BuildingType.None;
+    public int BuildingLevel { get; set; } = 0; // 0 = sem construção
+    public int[] BuildingPrices { get; set; } = new int[4]; // custo incremental para níveis 1..4
+
     public Guid? GroupId { get; set; }
-
-    // Price details for building
-    public int HousePrice { get; set; } = 0;
-    public int HotelPrice { get; set; } = 0;
-
-    // rents for 0..4 houses and 1..2 hotels (hotels index at 5 and 6)
-    public int[] Rents { get; set; } = new int[7];
 
     public PropertyBlock()
     {
@@ -111,47 +79,68 @@ public class PropertyBlock : Block
 
     public override Task Action(Game game, Player player)
     {
-        // Action is invoked only when player stops on this block (landing).
         if (Owner != null && Owner != player && !IsMortgaged)
         {
-            var rent = CalculateRent();
-            game.Transfer(player, Owner, rent);
+            var rentToPay = CalculateRent();
+            game.Transfer(player, Owner, rentToPay);
         }
-        // If owner is player, they can choose to build via UI elsewhere; building not automatic here.
         return Task.CompletedTask;
     }
 
     public int CalculateRent()
     {
-        // if hotels > 0, use hotel rents; else use house rents based on Houses
-        if (Hotels > 0)
+        if (BuildingType == BuildingType.None || BuildingLevel == 0)
+            return Rent; // base
+
+        // Curva simples e compreensível: níveis adicionam +60%, +140%, +230%, +340% sobre o base
+        var increments = new[] { 0.60m, 1.40m, 2.30m, 3.40m };
+        var baseRent = Rent;
+        var total = baseRent + (int)(baseRent * increments[BuildingLevel - 1]);
+
+        // Ajustes pequenos por tipo (mantém simplicidade): Company +10%, Special +15%
+        if (BuildingType == BuildingType.Company) total = (int)(total * 1.10m);
+        if (BuildingType == BuildingType.Special) total = (int)(total * 1.15m);
+        return total;
+    }
+
+    public bool CanUpgrade() => BuildingType != BuildingType.None && BuildingLevel < 4;
+
+    public bool Upgrade(Player player)
+    {
+        if (!CanUpgrade()) return false;
+        var cost = BuildingPrices[BuildingLevel]; // índice 0 = custo para nível 1
+        if (player.Money < cost) return false;
+        player.Money -= cost;
+        BuildingLevel++;
+        ImageUrl = BuildingType switch
         {
-            var idx = 5 + Math.Min(Hotels - 1, 1); // 5 -> first hotel, 6 -> second hotel
-            return Rents[idx];
-        }
-        return Rents[Math.Clamp(Houses, 0, 4)];
-    }
-
-    public bool CanBuildHouse() => Hotels == 0 && Houses < 4;
-    public bool CanBuildHotel() => Houses == 4 && Hotels < 2;
-
-    public bool BuildHouse(Player player)
-    {
-        if (!CanBuildHouse()) return false;
-        if (player.Money < HousePrice) return false;
-        player.Money -= HousePrice;
-        Houses++;
+            BuildingType.House => $"/images/board/buildings/house{BuildingLevel}.png",
+            BuildingType.Hotel => $"/images/board/buildings/hotel{BuildingLevel}.png",
+            BuildingType.Company => $"/images/board/buildings/company{BuildingLevel}.png",
+            BuildingType.Special => BuildingLevel switch
+            {
+                1 => "/images/board/buildings/special_circus.png",
+                2 => "/images/board/buildings/special_shopping.png",
+                3 => "/images/board/buildings/special_stadium.png",
+                4 => "/images/board/buildings/special_airport.png",
+                _ => ImageUrl
+            },
+            _ => ImageUrl
+        };
         return true;
     }
 
-    public bool BuildHotel(Player player)
+    public void SetBuildingType(BuildingType type)
     {
-        if (!CanBuildHotel()) return false;
-        if (player.Money < HotelPrice) return false;
-        player.Money -= HotelPrice;
-        // convert 4 houses into 1 hotel
-        Houses = 0;
-        Hotels++;
-        return true;
+        if (BuildingLevel > 0) return; // já iniciado
+        BuildingType = type;
+        ImageUrl = type switch
+        {
+            BuildingType.House => "/images/board/buildings/house1.png",
+            BuildingType.Hotel => "/images/board/buildings/hotel1.png",
+            BuildingType.Company => "/images/board/buildings/company1.png",
+            BuildingType.Special => "/images/board/buildings/special_circus.png",
+            _ => ImageUrl
+        };
     }
 }
