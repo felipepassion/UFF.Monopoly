@@ -1,0 +1,2 @@
+.space-inner{position:relative;width:100%;height:100%}
+.owner-overlay{position:absolute;inset:0;border-radius:8px;mix-blend-mode:color;opacity:.55;pointer-events:none}

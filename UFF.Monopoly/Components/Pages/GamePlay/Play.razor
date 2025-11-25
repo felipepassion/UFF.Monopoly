@@ -1,4 +1,4 @@
-@page "/play/{GameId:guid}"
+ï»¿@page "/play/{GameId:guid}"
 
 @using Microsoft.EntityFrameworkCore
 @using UFF.Monopoly.Data
@@ -10,39 +10,35 @@
 <h3 class="mb-2">Partida local</h3>
 
 <div class="mt-2 d-flex align-items-md-center justify-content-center full-center-wrapper play-container">
-    <div class="board-shell d-inline-block">
+    <div class="board-shell d-inline-block" style="position:relative;">
         @if (_loading)
         {
             <div class="p-4">Carregando...</div>
         }
         else if (_game is null)
         {
-            <div class="p-4">Jogo não encontrado.</div>
+            <div class="p-4">Jogo nï¿½o encontrado.</div>
         }
         else
         {
             <GameBoard BoardWidthCss="@_boardWidthCss" BoardHeightCss="@_boardHeightCss">
-                @* Imagem de fundo interna do board *@
                 @if (!string.IsNullOrWhiteSpace(_boardCenterImageUrl))
                 {
                     <div class="board-center-bg"><img src="@_boardCenterImageUrl" alt="bg" /></div>
                 }
                 <div class="round-badge">Rodada: @_game.RoundCount</div>
                 <div class="turn-badge">Vez: @_game.Players.ElementAtOrDefault(_game.CurrentPlayerIndex)?.Name</div>
-
-                @* Imagem central (animação de boca) *@
-                <img src="@_mouthImageUrl" style="@_centerCharStyle" alt="personagem" />
-
-                @* Chat container (clique para avançar) *@
-                <div style="@_chatContainerStyle" @onclick="OnChatClicked">
-                    <div style="@_chatTextStyle">@_chatMessage</div>
-                </div>
-
+                @if (!(_showDiceOverlay || _pawnAnimPosition != -1))
+                {
+                    <img src="@_mouthImageUrl" style="@_centerCharStyle" alt="personagem" />
+                    <div style="@_chatContainerStyle" @onclick="OnChatClicked">
+                        <div style="@_chatTextStyle">@_chatMessage</div>
+                    </div>
+                }
                 @foreach (var space in BoardSpaces)
                 {
                     <BoardSpace Space="space" OnClick="HandleClick" />
                 }
-
                 <BoardPawnLayer Game="@_game"
                                 PawnAnimPosition="@_pawnAnimPosition"
                                 CellSize="@CellSize"
@@ -51,7 +47,6 @@
                                 PawnIndexes="@_pawnsForPlayers"
                                 DefaultPawnUrl="@PawnUrl"
                                 PawnUrlResolver="@_pawnUrlResolver" />
-
                 @if (_showDiceOverlay)
                 {
                     var diceImgSize = Math.Max(24, (int)(CellSize * 0.6 * _boardScale)) + "px";
@@ -69,7 +64,6 @@
                                  GifOffset="@gifOffset"
                                  DiceOffset="@diceOffset" />
                 }
-
                 <BlockModal Show="@(_showBlockModal && _modalBlock is not null && _modalPlayer is not null)"
                             Block="@_modalBlock" Player="@_modalPlayer" TemplateEntity="@_modalTemplateEntity" BaseZ="20000" OnClose="CloseBlockModal">
                     @if (_modalBlock is not null && _modalPlayer is not null)
@@ -90,22 +84,20 @@
                         </BlockActionContent>
                     }
                 </BlockModal>
-
                 <SimpleModal Show="@_showLoserModal" Title="Derrota" Message="@($"O jogador {_loserName} foi eliminado.")" BaseZ="22000" OnClose="CloseLoserModal" />
-                <SimpleModal Show="@_showWinnerModal" Title="Vencedor" Message="@($"Parabéns! {_winnerName} venceu o jogo.")" BaseZ="23000" OnClose="CloseWinnerModal" />
-            </GameBoard>
-
-            @* Painel de jogadores fixo já adicionado em HUD *@
-            <PlayersPanel Players="@_game.Players" CurrentPlayerIndex="@_game.CurrentPlayerIndex" PawnUrlResolver="@_pawnUrlResolver" />
-
-            @* Container de ações de turno centralizado *@
-            <div class="turn-actions-container">
-                @if (IsPlayerTurn && !HasRolledThisTurn && CanRollDice)
+                <SimpleModal Show="@_showWinnerModal" Title="Vencedor" Message="@($"Parabï¿½ns! {_winnerName} venceu o jogo.")" BaseZ="23000" OnClose="CloseWinnerModal" />
+                @if (_game is not null && !_showDiceOverlay)
                 {
-                    <button class="btn btn-primary turn-btn roll-btn" @onclick="RollForCurrentPlayer">Rolar Dados</button>
+                    <PlayersPanel Players="@_game.Players"
+                                  CurrentPlayerIndex="@_game.CurrentPlayerIndex"
+                                  PawnUrlResolver="@_pawnUrlResolver"
+                                  HudStyle="@_playersHudStyle"
+                                  ShowRollButton="@(IsPlayerTurn && !HasRolledThisTurn && CanRollDice)"
+                                  ShowEndTurnButton="@CanEndTurn"
+                                  OnRollDice="EventCallback.Factory.Create(this, RollForCurrentPlayer)"
+                                  OnEndTurn="EventCallback.Factory.Create(this, EndTurn)" />
                 }
-            </div>
-
+            </GameBoard>
             @if (_showBotActionToast)
             {
                 <div class="bot-toast-wrapper">
@@ -116,5 +108,4 @@
     </div>
 </div>
 
-@code {
-}
+@code { }

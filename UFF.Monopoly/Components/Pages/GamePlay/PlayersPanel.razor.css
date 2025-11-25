@@ -1,5 +1,6 @@
 .players-panel{ }
-.players-hud { position: fixed; bottom: 84px; left: 12px; width: 260px; max-height: 45vh; overflow-y: auto; background: rgba(0,0,0,0.35); backdrop-filter: blur(4px); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 10px 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.4); font-size: 13px; }
+.players-hud { position: relative; width: 100%; max-height: 45vh; overflow-y: auto; background: rgba(0,0,0,0.35); backdrop-filter: blur(4px); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 10px 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.4); font-size: 13px; }
+.players-hud.floating { position: absolute; }
 .players-hud-center { left: 50%; transform: translateX(-50%); width: clamp(280px, 70vw, 860px); max-width: 90vw; }
 .players-hud-header { font-weight: 600; font-size: 14px; margin-bottom: 6px; letter-spacing: .5px; text-align: center; }
 .players-hud-list { display: flex; flex-direction: column; gap: 6px; }
@@ -16,7 +17,7 @@
 .asset { font-size: 11px; font-weight: 500; opacity: .85; }
 
 @media (max-width: 640px) {
-  .players-hud { bottom: 96px; font-size: 12px; }
+  .players-hud { font-size: 12px; }
   .player-card { min-width: 180px; flex: 1 1 180px; }
   .money { font-size: 14px; }
 }
@@ -25,3 +26,18 @@
 .players-hud::-webkit-scrollbar-track { background: transparent; }
 .players-hud::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 4px; }
 .players-hud::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.25); }
+
+
+/* Turn action buttons container */
+.turn-actions-container { display: flex; flex-direction: column; justify-content:center; align-items: center; z-index: 4000; }
+.turn-btn { min-width: 220px; padding: 14px 26px; font-size: 18px; font-weight: 600; border-radius: 12px; box-shadow: 0 6px 14px rgba(0,0,0,0.4); transition: transform .18s ease, box-shadow .18s ease, opacity .18s; }
+.turn-btn:active { transform: translateY(2px); box-shadow: 0 3px 8px rgba(0,0,0,0.4); }
+.roll-btn { animation: fadeScaleIn .35s ease; }
+.end-btn { animation: fadeScaleIn .35s ease; }
+.turn-btn[disabled] { opacity: .55; cursor: not-allowed; }
+.players-hud floating {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+@keyframes fadeScaleIn { from { opacity:0; transform:translateX(-50%) scale(.85); } to { opacity:1; transform:translateX(-50%) scale(1); } }

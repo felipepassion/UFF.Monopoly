@@ -4,7 +4,7 @@
 @if (CurrentBlock is not null && Visible)
 {
     <div class="type-popup-overlay" @onclick="Close"></div>
-    <div class="type-popup shadow rounded-2" style="top:@(Y)px; left:@(X)px;" tabindex="0" @onkeydown="HandleShortcut" @onclick:stopPropagation="true">
+    <div id="@_popupId" class="type-popup shadow rounded-2" style="top:@(Y)px; left:@(X)px;" tabindex="0" @onkeydown="HandleShortcut" @onclick:stopPropagation="true" @ref="_popupRef">
         <div class="type-popup-header d-flex justify-content-between align-items-center">
             <div class="title small">Tipo</div>
             <button type="button" class="btn-close btn-close-white" aria-label="Fechar" @onclick="Close"></button>
@@ -116,8 +116,34 @@
     [Parameter] public Func<BuildingType, int, int>? GetCachedPrice { get; set; }
     [Parameter] public Action<BuildingType, int, int>? SetCachedPrice { get; set; }
 
+    [Inject] private IJSRuntime JS { get; set; } = default!;
+
     private bool _showLevelTip; private string _tipTitle = ""; private string _tipDesc = ""; private string _tipImage = ""; private int _tipPrice; private double _tipX; private double _tipY;
     private bool _editingTipPrice; private int _tipLevel; private BuildingType _tipCategory; private int _tipPriceEditValue;
+
+    private ElementReference _popupRef; private string _popupId => $"type-popup-{Index}"; private bool _didReposition;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (Visible && !_didReposition)
+        {
+            try
+            {
+                await JS.InvokeVoidAsync("boardBuilder.repositionPopup", _popupId);
+                _didReposition = true;
+            }
+            catch { }
+        }
+        // Reset reposition flag if coordinates changed significantly (e.g., user re-opened elsewhere)
+        if (!_didReposition && Visible) _didReposition = false;
+    }
+
+    protected override void OnParametersSet()
+    {
+        // allow reposition each time popup opens at new index/coordinates
+        if (Visible)
+            _didReposition = false;
+    }
 
     private string GetTooltipStyle() => $"left:{_tipX}px; top:{_tipY}px; position:fixed; z-index:2000;";
 
