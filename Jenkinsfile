@@ -71,11 +71,11 @@ REMOTE_EOF'''
                         sh '''ssh -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST} bash -s <<'REMOTE_EOF'
 set -e
 echo "Cleaning deployment directory..."
-sudo rm -rf /taxifort/volumes/WebApp/* || true
+sudo rm -rf /UFFMonopoly/volumes/WebApp/* || true
 
 echo "Building and publishing application..."
 cd ~/UFF.Monopoly
-sudo ~/dotnet/dotnet publish --os linux --arch x64 -p:PublishTrimmed=false -o /taxifort/volumes/WebApp
+sudo ~/dotnet/dotnet publish --os linux --arch x64 -p:PublishTrimmed=false -o /UFFMonopoly/volumes/WebApp
 echo "Build completed successfully"
 REMOTE_EOF'''
                     }
@@ -90,15 +90,15 @@ REMOTE_EOF'''
                         sh '''ssh -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST} bash -s <<'REMOTE_EOF'
 set -e
 echo "Stopping and removing existing container..."
-sudo docker stop taxifort-webapp || true
-sudo docker rm taxifort-webapp || true
+sudo docker stop UFFMonopoly-webapp || true
+sudo docker rm UFFMonopoly-webapp || true
 
 echo "Deploying with docker-compose..."
-cd ~/taxifort-ansible-deploy
+cd ~/docker-uff/docker-uff
 sudo docker-compose up -d --build
 
 echo "Verifying deployment..."
-sudo docker ps -a | grep taxifort-webapp
+sudo docker ps -a | grep UFFMonopoly-webapp
 echo "Deployment completed successfully"
 REMOTE_EOF'''
                     }
