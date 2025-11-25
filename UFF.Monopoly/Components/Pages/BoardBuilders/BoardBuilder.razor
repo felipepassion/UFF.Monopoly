@@ -11,7 +11,7 @@
 <div class="row gx-2 gy-2 align-items-start">
     <div class="col-12 col-xl-3 d-flex flex-column">
         <BoardList Boards="@ExistingBoards" OnEditBoard="EditBoard" OnNewBoard="NewBoard" />
-        <BoardConfigForm Form="@Form" BlocksCount="@Blocks.Count" OnGenerateGrid="GenerateGrid" OnGenerateRandom="GenerateRandomBoard" OnSave="SaveAsync" OnPlay="PlayBoard" />
+        <BoardConfigForm Form="@Form" BlocksCount="@Blocks.Count" OnGenerateGrid="GenerateGrid" OnGenerateRandom="GenerateRandomBoard" OnSave="SaveAsync" OnPlay="PlayBoard" BackgroundOptions="@BackgroundOptions" />
     </div>
     <div class="col-12 col-xl-9">
         @if (Form.Rows > 0 && Form.Cols > 0)

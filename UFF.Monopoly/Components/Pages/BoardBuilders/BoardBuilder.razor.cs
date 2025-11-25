@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.EntityFrameworkCore; // corrigido namespace EF Core
 using Microsoft.AspNetCore.Components.Web;
+using Microsoft.AspNetCore.Hosting;
 using UFF.Monopoly.Data;
 using UFF.Monopoly.Data.Entities;
 using UFF.Monopoly.Entities;
@@ -15,6 +16,7 @@ public partial class BoardBuilder : ComponentBase
 
     [Inject] public IDbContextFactory<ApplicationDbContext> DbFactory { get; set; } = default!;
     [Inject] public NavigationManager Nav { get; set; } = default!;
+    [Inject] public IWebHostEnvironment Env { get; set; } = default!;
 
     private bool _savedToastShown;
     private Guid CurrentBoardId;
@@ -27,8 +29,52 @@ public partial class BoardBuilder : ComponentBase
     internal (bool Show, int Index, BlockType? Type) _specialModal = (false, -1, null);
     internal bool ShowToast; internal string ToastMessage = string.Empty;
 
+    internal List<string> BackgroundOptions { get; private set; } = new();
+
     // Cache de preços editados em memória até F5
     private readonly Dictionary<(Guid blockId, BuildingType cat, int level), int> _priceCache = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        LoadBackgroundOptions();
+        await LoadBoardsListAsync();
+    }
+
+    private void LoadBackgroundOptions()
+    {
+        BackgroundOptions = EnumerateBackgroundUrls().ToList();
+    }
+
+    private IEnumerable<string> EnumerateBackgroundUrls()
+    {
+        var dirs = new[]
+        {
+            "images/mr_monopoly/stages bg images",
+            "images/mr_monopoly/bgimages",
+            "images/bgimages",
+            "images/backgrounds"
+        };
+        foreach (var dir in dirs)
+        {
+            var contents = Env.WebRootFileProvider.GetDirectoryContents(dir);
+            if (!contents.Exists) continue;
+            foreach (var f in contents)
+            {
+                if (f.IsDirectory) continue;
+                if (!IsImage(f.Name)) continue;
+                var encodedDir = string.Join('/', dir.Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Select(Uri.EscapeDataString));
+                var encodedFile = Uri.EscapeDataString(f.Name);
+                yield return $"/{encodedDir}/{encodedFile}";
+            }
+        }
+    }
+
+    private static bool IsImage(string name)
+        => name.EndsWith(".png", StringComparison.OrdinalIgnoreCase)
+        || name.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase)
+        || name.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase)
+        || name.EndsWith(".webp", StringComparison.OrdinalIgnoreCase)
+        || name.EndsWith(".gif", StringComparison.OrdinalIgnoreCase);
 
     internal int GetCachedPrice(BlockTemplateEntity? block, BuildingType cat, int level)
     {
@@ -65,8 +111,6 @@ public partial class BoardBuilder : ComponentBase
             if (block.Rent <= 0) block.Rent = (int)Math.Max(1, Math.Round(block.Price * 0.08));
         }
     }
-
-    protected override async Task OnInitializedAsync() => await LoadBoardsListAsync();
 
     protected override async Task OnParametersSetAsync()
     { if (BoardId.HasValue && BoardId.Value != Guid.Empty && BoardId.Value != CurrentBoardId) { await LoadBoardAsync(BoardId.Value); } if (Saved && !_savedToastShown) { _savedToastShown = true; _ = ShowSuccessToast("Salvo com sucesso!"); } }
