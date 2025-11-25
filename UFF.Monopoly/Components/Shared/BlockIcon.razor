@@ -30,7 +30,7 @@
             @if (IsPropertyCard())
             {
                 <div class="evo-tooltip-sub">Categoria: @BuildingType</div>
-                <div class="evo-tooltip-price">Preço de compra: $ @Price</div>
+                <div class="evo-tooltip-price">PreÃ§o de compra: $ @Price</div>
                 <div class="evo-tooltip-desc">@GetEvolutionDescription()</div>
             }
             else 
@@ -87,7 +87,7 @@
     private bool ShouldShowSecondaryTag() => ShowRentTag && (Type is BlockType.Tax or BlockType.Chance or BlockType.Reves or BlockType.GoToJail) && Rent != 0;
     private bool IsPropertyCard() => Type is BlockType.Property or BlockType.Company;
     private string GetTitleText() => IsPropertyCard() ? $"{Name} ($ {Price})" : Name;
-    private string GetSecondaryTagLabel() => Type switch { BlockType.Tax => "Taxa", BlockType.Chance => "Sorte", BlockType.Reves => "Revés", BlockType.GoToJail => "Prisão", _ => "" };
+    private string GetSecondaryTagLabel() => Type switch { BlockType.Tax => "Taxa", BlockType.Chance => "Sorte", BlockType.Reves => "RevÃ©s", BlockType.GoToJail => "PrisÃ£o", _ => "" };
     private string FormatSecondaryValue() => Type switch { BlockType.Tax => "$ {Rent}", BlockType.Chance => Rent >= 0 ? $"+${Rent}" : $"-${-Rent}", BlockType.Reves => $"{Rent} casas", BlockType.GoToJail => $"{Rent} turnos", _ => Rent.ToString() };
-    private string GetSecondaryTooltipText() => Type switch { BlockType.Tax => $"Taxa fixa: $ {Rent}", BlockType.Chance => $"Valor sorte aplicado: {(Rent >= 0 ? "+" : "-")}${Math.Abs(Rent)}", BlockType.Reves => $"Volta {Rent} casas ao cair aqui", BlockType.GoToJail => $"Jogador fica {Rent} turnos na prisão", _ => string.Empty };
+    private string GetSecondaryTooltipText() => Type switch { BlockType.Tax => $"Taxa fixa: $ {Rent}", BlockType.Chance => $"Valor sorte aplicado: {(Rent >= 0 ? "+" : "-")}${Math.Abs(Rent)}", BlockType.Reves => $"Volta {Rent} casas ao cair aqui", BlockType.GoToJail => $"Jogador fica {Rent} turnos na prisÃ£o", _ => string.Empty };
 }

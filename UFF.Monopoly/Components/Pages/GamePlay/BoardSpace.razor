@@ -30,7 +30,7 @@
         style.Append($"left:{Space.Style.Left};");
         style.Append($"width:{Space.Style.Width};");
         style.Append($"height:{Space.Style.Height};");
-        // expor vari·vel para dimensionamento interno
+        // expor vari√°vel para dimensionamento interno
         style.Append($"--cell-size:{Space.Style.Width};");
         if (!string.IsNullOrWhiteSpace(Space.Style.Transform))
         {
@@ -42,6 +42,6 @@
     private string GetOwnerColor(int index)
     {
         if (OwnerColors is null || OwnerColors.Length == 0) return "rgba(255,255,255,0.25)";
-        return index < OwnerColors.Length ? OwnerColors[index] + "99" : "rgba(255,255,255,0.25)"; // adicionar translucÍncia
+        return index < OwnerColors.Length ? OwnerColors[index] + "99" : "rgba(255,255,255,0.25)"; // adicionar transluc√™ncia
     }
 }

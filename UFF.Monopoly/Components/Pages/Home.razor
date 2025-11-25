@@ -1,4 +1,4 @@
-﻿@page "/"
+@page "/"
 
 
 @inject NavigationManager Nav
@@ -13,6 +13,17 @@
         <button class="btn btn-lg" style="background:var(--accent); color:#00121a; font-weight:700; padding:14px;" @onclick="GoLocal">Local</button>
     </div>
 </div>
+
+<style>
+    .btn:hover {
+        filter: brightness(1.1);
+    }
+
+
+    .page{
+        background: var('images/mr_monopoly/bg_niteroi_inativo.png');
+    }
+</style>
 
 @code {
     private void GoMultiplayer() => Nav.NavigateTo("#");
