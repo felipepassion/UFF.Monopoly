@@ -18,7 +18,7 @@ namespace UFF.Monopoly.Components.Pages.GamePlay;
 
 public partial class Play : ComponentBase, IAsyncDisposable
 {
-    // Inje��es
+    // Injeções
     [Inject] public IDbContextFactory<ApplicationDbContext> DbFactory { get; set; } = default!;
     [Inject] public IGameRepository GameRepo { get; set; } = default!;
     [Inject] public NavigationManager Navigation { get; set; } = default!;
@@ -26,7 +26,7 @@ public partial class Play : ComponentBase, IAsyncDisposable
     [Inject] public IJSRuntime JSRuntime { get; set; } = default!;
     [Inject] public HttpClient Http { get; set; } = default!;
 
-    // Par�metros
+    // Parâmetros
     [Parameter] public Guid GameId { get; set; }
     [SupplyParameterFromQuery] public Guid? boardId { get; set; }
     [SupplyParameterFromQuery(Name = "humanCount")] public int? HumanCountQuery { get; set; }
@@ -39,30 +39,30 @@ public partial class Play : ComponentBase, IAsyncDisposable
 
     // Board layout
     private int Rows; private int Cols; private int CellSize; private List<(int r, int c)> Perimeter = new();
-    // Escala do board (antes era constante 1.5). Agora din�mica para respeitar exatamente o CellSize configurado.
+    // Escala do board (antes era constante 1.5). Agora dinâmica para respeitar exatamente o CellSize configurado.
     // Usamos 1.0 para aplicar o tamanho salvo sem multiplicar.
     private double _boardScale = 1.0; private string _boardWidthCss = "0px"; private string _boardHeightCss = "0px";
 
-    // Pe�es
+    // Peões
     private string PawnUrl = "/images/pawns/PawnsB1.png";
     private List<int> _pawnsForPlayers = new();
     private int _pawnAnimPosition = -1;
 
-    // Anima��es
+    // Animações
     private bool _isAnimating; private int _animStepMs = 140; private bool _showDiceOverlay; private int _diceFace1 = 1; private int _diceFace2 = 1; private string _rollingGifUrl = string.Empty;
 
-    // Modais / a��o de bloco
+    // Modais / ação de bloco
     private bool _showBlockModal; private Block? _modalBlock; private Player? _modalPlayer; private bool _modalFromMove; private BlockTemplateEntity? _modalTemplateEntity; private int _preMovePlayerMoney;
     private PendingActionKind _pendingActionKind = PendingActionKind.None; private int _pendingAmount; private int _pendingBackSteps;
 
-    // Vit�ria / derrota
+    // Vitória / derrota
     private bool _showWinnerModal; private string _winnerName = string.Empty; private bool _showLoserModal; private string _loserName = string.Empty;
 
     // Bot toast
     private bool _showBotActionToast; private string _botActionMessage = string.Empty; private bool _botHasActedThisModal;
 
-    // Estados de turno (HUD e bot�es)
-    private bool HasRolledThisTurn; // se jogador humano j� rolou dados neste turno
+    // Estados de turno (HUD e botões)
+    private bool HasRolledThisTurn; // se jogador humano já rolou dados neste turno
 
     // Helper para classificar humano/bot sem depender da ordem
     private static bool IsBotPlayer(Player? p) => p?.Name?.StartsWith("Bot ", StringComparison.OrdinalIgnoreCase) == true;
@@ -76,7 +76,7 @@ public partial class Play : ComponentBase, IAsyncDisposable
     private bool IsDiceAnimating => _isAnimating || _showDiceOverlay;
     private bool CanEndTurn => IsPlayerTurn && HasRolledThisTurn && !_isAnimating && !_showBlockModal && !_showWinnerModal && !_showLoserModal;
 
-    // Di�logo / chat
+    // Diálogo / chat
     private readonly Random _rand = new();
     private readonly string[] _mouthFrames = { "/images/mr_monopoly/mr_monopoly_1.png", "/images/mr_monopoly/mr_monopoly_2.png", "/images/mr_monopoly/mr_monopoly_3.png", "/images/mr_monopoly/mr_monopoly_4.png" };
     private string _mouthImageUrl = "/images/mr_monopoly/mr_monopoly_1.png"; private int _mouthFrameIndex;
@@ -90,18 +90,18 @@ public partial class Play : ComponentBase, IAsyncDisposable
 
     // Adicionar campo para imagem de fundo do tabuleiro (centro)
     private string? _boardCenterImageUrl;
-    // Paleta simples para cores de overlay por jogador (substitu�da por PlayerColors)
+    // Paleta simples para cores de overlay por jogador (substituída por PlayerColors)
     private readonly string[] _ownerColors = PlayerColors.Colors;
 
     // Taunts do Mr. Monopoly para quando for a vez do humano
     private readonly string[] _humanTurnTaunts = new[]
     {
-        "Sua vez, {PLAYER}! Vamos ver se voc� consegue algo al�m de pagar aluguel.",
-        "Sua vez, {PLAYER}. Capricha no dado... eu adoro quando voc� erra!",
-        "� agora, {PLAYER}. Mostra servi�o ou deixa que eu ensino como se joga.",
+        "Sua vez, {PLAYER}! Vamos ver se você consegue algo além de pagar aluguel.",
+        "Sua vez, {PLAYER}. Capricha no dado... eu adoro quando você erra!",
+        "É agora, {PLAYER}. Mostra serviço ou deixa que eu ensino como se joga.",
         "Sua vez! Se prepara pra tomar renda, {PLAYER}.",
         "Sua vez, {PLAYER}. Prometo pegar leve... mentira." ,
-        "Vai l�, {PLAYER}. Quanto mais voc� anda, mais voc� me deve." 
+        "Vai lá, {PLAYER}. Quanto mais você anda, mais você me deve." 
     };
 
     protected override async Task OnParametersSetAsync() => await InitializeAsync();
@@ -126,7 +126,7 @@ public partial class Play : ComponentBase, IAsyncDisposable
             EnqueueGroup("inicio", new DialogueContext { Player = _game?.Players.FirstOrDefault()?.Name ?? "Jogador" });
             _dialogueInitialized = true;
         }
-        // Anuncia caso j� seja a vez do humano na carga inicial
+        // Anuncia caso já seja a vez do humano na carga inicial
         AnnounceHumanTurnIfNeeded();
         AdvanceDialogueIfIdle();
         _loading = false; StateHasChanged();
@@ -158,7 +158,7 @@ public partial class Play : ComponentBase, IAsyncDisposable
                     var evo = BuildingEvolutionDescriptions.Get(pb.BuildingType, Math.Clamp(pb.BuildingLevel, 1, 4));
                     pb.Name = evo.Name; // atualiza nome do bloco
                 }
-                space.Name = pb.Name; // refletir no espa�o
+                space.Name = pb.Name; // refletir no espaço
                 space.BuildingType = pb.BuildingType;
                 space.BuildingLevel = pb.BuildingLevel;
                 space.ImageUrl = string.IsNullOrWhiteSpace(pb.ImageUrl) ? space.ImageUrl : pb.ImageUrl;
@@ -173,7 +173,7 @@ public partial class Play : ComponentBase, IAsyncDisposable
         var board = await db.Boards.AsNoTracking().FirstOrDefaultAsync(b => b.Id == bId);
         if (board is null) return;
         Rows = board.Rows; Cols = board.Cols; CellSize = board.CellSizePx; Perimeter = BuildPerimeterClockwise(Rows, Cols);
-        // Ajustar escala: se c�lula muito pequena, aumentar um pouco para legibilidade, sen�o usar 1.0
+        // Ajustar escala: se célula muito pequena, aumentar um pouco para legibilidade, senão usar 1.0
         _boardScale = CellSize switch
         {
             < 50 => 1.5,
@@ -184,8 +184,8 @@ public partial class Play : ComponentBase, IAsyncDisposable
         _boardCenterImageUrl = board.CenterImageUrl;
         var templates = await db.BlockTemplates.AsNoTracking().Where(t => t.BoardDefinitionId == bId).OrderBy(t => t.Position).ToListAsync();
 
-        // Se o n�mero de blocos (templates) n�o bate com o per�metro calculado,
-        // ajustamos o per�metro para o menor comprimento para evitar "teleporte" na anima��o.
+        // Se o número de blocos (templates) não bate com o perímetro calculado,
+        // ajustamos o perímetro para o menor comprimento para evitar "teleporte" na animação.
         if (templates.Count > 0 && Perimeter.Count != templates.Count)
         {
             var effective = Math.Min(Perimeter.Count, templates.Count);
@@ -221,9 +221,9 @@ public partial class Play : ComponentBase, IAsyncDisposable
             var chatHeight = Math.Min((int)(cellScaled * 1.6), Math.Max(cellScaled, (int)(interiorHeight * 0.42))); // ligeiro ajuste
             var chatTop = interiorTop + interiorHeight - chatHeight - margin;
             _chatContainerStyle = $"position:absolute;left:{interiorLeft}px;top:{chatTop}px;width:{interiorWidth}px;height:{chatHeight}px;background:url('/images/mr_monopoly/conversation-container.png') center/100% 100% no-repeat;z-index:1200;pointer-events:none;";
-            var textPadLeft = (int)(cellScaled * 0.6); var textPadRight = (int)(cellScaled * 2.2); var textPadTop = (int)(cellScaled * 0.35); var textPadBottom = (int)(cellScaled * 0.4);
-            var fontSize = Math.Max(12, (int)(cellScaled * 0.26)); // antes 0.30 -> reduzido
-            _chatTextStyle = $"position:absolute;left:{textPadLeft}px;top:{textPadTop}px;right:{textPadRight}px;bottom:{textPadBottom}px;font-size:{fontSize}px;line-height:1.15;color:#d4e9dc;font-family:'Segoe UI',sans-serif;font-weight:600;text-shadow:0 2px 4px rgba(0,0,0,0.7);overflow:hidden;display:flex;align-items:flex-start;";
+            var textPadLeft = (int)(cellScaled * 0.25); var textPadRight = (int)(cellScaled * 1.8); var textPadTop = (int)(cellScaled * 0.23); var textPadBottom = (int)(cellScaled * 0.2); // top antes 0.15 -> 0.23
+            var fontSize = Math.Max(9, (int)(cellScaled * 0.16)); // reduzido significativamente para 0.16
+            _chatTextStyle = $"position:absolute;left:{textPadLeft}px;top:{textPadTop}px;right:{textPadRight}px;bottom:{textPadBottom}px;font-size:{fontSize}px;line-height:1.15;color:#d4e9dc;font-family:'Segoe UI',sans-serif;font-weight:600;text-shadow:0 2px 4px rgba(0,0,0,0.7);overflow:hidden;display:flex;align-items:flex-start;word-wrap:break-word;";
             var hudWidth = Math.Min(interiorWidth, (int)(cellScaled * 14));
             var hudLeft = interiorLeft + (interiorWidth - hudWidth) / 2;
             var hudBottomGap = (int)(cellScaled * 0.15);
@@ -239,14 +239,14 @@ public partial class Play : ComponentBase, IAsyncDisposable
         {
             var chatHeightSmall = (int)(cellScaled * 2.0);
             _chatContainerStyle = $"position:absolute;left:0;bottom:0;width:{Cols * cellScaled}px;height:{chatHeightSmall}px;background:url('/images/mr_monopoly/conversation-container.png') center/100% 100% no-repeat;z-index:1200;pointer-events:none;";
-            _chatTextStyle = $"position:absolute;left:{(int)(cellScaled * 0.5)}px;top:{(int)(cellScaled * 0.4)}px;right:{(int)(cellScaled * 2.5)}px;bottom:{(int)(cellScaled * 0.6)}px;font-size:{Math.Max(14, (int)(cellScaled * 0.5))}px;line-height:1.15;color:#d4e9dc;font-family:'Segoe UI',sans-serif;font-weight:600;text-shadow:0 2px 4px rgba(0,0,0,0.7);overflow:hidden;display:flex;align-items:flex-start;";
+            _chatTextStyle = $"position:absolute;left:{(int)(cellScaled * 0.2)}px;top:{(int)(cellScaled * 0.22)}px;right:{(int)(cellScaled * 1.8)}px;bottom:{(int)(cellScaled * 0.3)}px;font-size:{Math.Max(8, (int)(cellScaled * 0.28))}px;line-height:1.15;color:#d4e9dc;font-family:'Segoe UI',sans-serif;font-weight:600;text-shadow:0 2px 4px rgba(0,0,0,0.7);overflow:hidden;display:flex;align-items:flex-start;word-wrap:break-word;"; // top antes 0.15 -> 0.22
             // Simplified HUD placement for small boards
             _playersHudStyle = $"left:0;top:0;width:{Cols * cellScaled}px;z-index:1600;";
             _turnActionsStyle = $"position:absolute;left:0;top:{(int)(cellScaled * 2.3)}px;width:{Cols * cellScaled}px;display:flex;justify-content:center;gap:12px;z-index:1650;";
         }
     }
 
-    // ===== Di�logo =====
+    // ===== Diálogo =====
     private async Task LoadDialogueJsonAsync()
     { try { var baseUri = Navigation.BaseUri.TrimEnd('/'); var json = await Http.GetStringAsync($"{baseUri}/dialogues/monopoly-dialogues.json"); _dialogueData = JsonSerializer.Deserialize<DialogueData>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new DialogueData(); } catch { _dialogueData = new DialogueData(); } }
     private void EnqueueGroup(string groupName, DialogueContext ctx, bool randomSingle = false)
@@ -262,11 +262,11 @@ public partial class Play : ComponentBase, IAsyncDisposable
     { while (_isTypingChat && !token.IsCancellationRequested) { _mouthFrameIndex = (_mouthFrameIndex + 1) % _mouthFrames.Length; _mouthImageUrl = _mouthFrames[_mouthFrameIndex]; StateHasChanged(); try { await Task.Delay(Math.Max(90, _typingDelayMs * 3), token); } catch { break; } } _mouthFrameIndex = 0; _mouthImageUrl = _mouthFrames[_mouthFrameIndex]; StateHasChanged(); }
     private async Task OnChatClicked() { if (_isTypingChat) { _typingCts?.Cancel(); _isTypingChat = false; _chatDisplay = _chatFull; _mouthFrameIndex = 0; _mouthImageUrl = _mouthFrames[_mouthFrameIndex]; StateHasChanged(); return; } AdvanceDialogueIfIdle(); await Task.CompletedTask; }
 
-    // ===== A��es turno / dados =====
+    // ===== Ações turno / dados =====
     private async Task RollForCurrentPlayer()
     { if (_game is null || _isAnimating || HasRolledThisTurn) return; if (!IsCurrentPlayerHuman()) return; await RollAndMove(); }
     private async Task RollAndMove()
-    { if (_game is null || _isAnimating) return; var currentPlayer = _game.Players[_game.CurrentPlayerIndex]; if (currentPlayer.Money < 0) { await RegisterLoserAsync(currentPlayer); return; } _isAnimating = true; HasRolledThisTurn = true; var (die1, die2, total) = _game.RollDice(); EnqueueGroup("rolagem", new DialogueContext { Player = currentPlayer.Name }, true); await ShowDiceAnimationAsync(die1, die2); await AnimateForwardAsync(total); _preMovePlayerMoney = currentPlayer.Money; await _game.MoveCurrentPlayerAsync(total); AddDialogueTemplate("{PLAYER} avan�a {STEPS} casas.", new DialogueContext { Player = currentPlayer.Name, Steps = total }); await GameRepo.SaveGameAsync(GameId, _game); PrepareModalForLanding(currentPlayer); _isAnimating = false; StateHasChanged(); TriggerBotModalIfNeeded(currentPlayer); AdvanceDialogueIfIdle(); }
+    { if (_game is null || _isAnimating) return; var currentPlayer = _game.Players[_game.CurrentPlayerIndex]; if (currentPlayer.Money < 0) { await RegisterLoserAsync(currentPlayer); return; } _isAnimating = true; HasRolledThisTurn = true; var (die1, die2, total) = _game.RollDice(); EnqueueGroup("rolagem", new DialogueContext { Player = currentPlayer.Name }, true); await ShowDiceAnimationAsync(die1, die2); await AnimateForwardAsync(total); _preMovePlayerMoney = currentPlayer.Money; await _game.MoveCurrentPlayerAsync(total); AddDialogueTemplate("{PLAYER} avança {STEPS} casas.", new DialogueContext { Player = currentPlayer.Name, Steps = total }); await GameRepo.SaveGameAsync(GameId, _game); PrepareModalForLanding(currentPlayer); _isAnimating = false; StateHasChanged(); TriggerBotModalIfNeeded(currentPlayer); AdvanceDialogueIfIdle(); }
     private async Task EndTurn()
     { if (_game is null || !CanEndTurn) return; HasRolledThisTurn = false; _game.NextTurn(); EnqueueGroup("transicao_turno", new DialogueContext { Player = _game.Players[_game.CurrentPlayerIndex].Name }, true); await GameRepo.SaveGameAsync(GameId, _game); // avisa se passou para o humano
       AnnounceHumanTurnIfNeeded(); StateHasChanged(); AdvanceDialogueIfIdle(); await TryAutoRollForBotAsync(); }
@@ -275,7 +275,7 @@ public partial class Play : ComponentBase, IAsyncDisposable
     private void TriggerBotModalIfNeeded(Player currentPlayer)
     { if (IsBotPlayer(currentPlayer)) { _botHasActedThisModal = false; _ = InvokeAsync(async () => { try { await Task.Delay(150); } catch { } await BotActOnModalAsync(); }); } }
     private async Task TryAutoRollForBotAsync()
-    { if (_game is null) return; if (IsCurrentPlayerBot() && !_isAnimating && !HasRolledThisTurn) { try { await Task.Delay(700); } catch { } if (!_isAnimating) { await RollAndMove(); if (!_showBlockModal) { _game.NextTurn(); HasRolledThisTurn = false; EnqueueGroup("transicao_turno", new DialogueContext { Player = _game.Players[_game.CurrentPlayerIndex].Name }, true); await GameRepo.SaveGameAsync(GameId, _game); // Se agora � humano, provocar
+    { if (_game is null) return; if (IsCurrentPlayerBot() && !_isAnimating && !HasRolledThisTurn) { try { await Task.Delay(700); } catch { } if (!_isAnimating) { await RollAndMove(); if (!_showBlockModal) { _game.NextTurn(); HasRolledThisTurn = false; EnqueueGroup("transicao_turno", new DialogueContext { Player = _game.Players[_game.CurrentPlayerIndex].Name }, true); await GameRepo.SaveGameAsync(GameId, _game); // Se agora é humano, provocar
                         AnnounceHumanTurnIfNeeded(); await TryAutoRollForBotAsync(); } } } else { // Chegamos na vez do humano, anunciar
             AnnounceHumanTurnIfNeeded(); }
     }
@@ -292,27 +292,27 @@ public partial class Play : ComponentBase, IAsyncDisposable
     { _showBlockModal = false; if (_modalFromMove && _game is not null && _modalPlayer is not null) { await ApplyPendingActionAsync(); if (_modalPlayer.Money < 0) { await RegisterLoserAsync(_modalPlayer); CleanupModal(); return; } await BotAutoActionsIfNeeded(); _game.NextTurn(); HasRolledThisTurn = false; EnqueueGroup("transicao_turno", new DialogueContext { Player = _game.Players[_game.CurrentPlayerIndex].Name }, true); await GameRepo.SaveGameAsync(GameId, _game); } CleanupModal(); StateHasChanged(); AnnounceHumanTurnIfNeeded(); AdvanceDialogueIfIdle(); await TryAutoRollForBotAsync(); }
     private void CleanupModal() { _modalFromMove = false; _modalTemplateEntity = null; }
 
-    // ===== A��es especiais pendentes =====
+    // ===== Ações especiais pendentes =====
     private void ConfigureTax(Block landed, Player player) { var percents = new[] { 5, 10, 15, 20, 25, 30 }; var pct = percents[_rand.Next(percents.Length)]; var taxAmount = (int)Math.Round(player.Money * pct / 100.0); _pendingActionKind = PendingActionKind.Tax; _pendingAmount = taxAmount; landed.Rent = taxAmount; }
     private void ConfigureChance() { var choices = new[] { 50, 100, 150, 200, 300, 350, 400, 500, 600, 700 }; _pendingActionKind = PendingActionKind.Chance; _pendingAmount = choices[_rand.Next(choices.Length)]; }
     private void ConfigureReves() { var takeMoneyOptions = new[] { 100, 200 }; _pendingActionKind = PendingActionKind.Reves; if (_rand.NextDouble() < 0.5) { _pendingAmount = takeMoneyOptions[_rand.Next(takeMoneyOptions.Length)]; } else { _pendingBackSteps = _rand.Next(2, 7); } }
     private async Task ApplyPendingActionAsync()
     { if (_game is null || _modalPlayer is null || _pendingActionKind == PendingActionKind.None) return; var player = _modalPlayer; var landed = _game.Board.FirstOrDefault(b => b.Position == player.CurrentPosition); switch (_pendingActionKind) { case PendingActionKind.Tax: player.Money = Math.Max(0, player.Money - _pendingAmount); if (landed is not null) landed.Rent = _pendingAmount; EnqueueGroup("evento_tax", new DialogueContext { Player = player.Name, Amount = _pendingAmount }, true); break; case PendingActionKind.Chance: player.Money += _pendingAmount; EnqueueGroup("evento_chance", new DialogueContext { Player = player.Name, Amount = _pendingAmount }, true); break; case PendingActionKind.Reves: if (_pendingBackSteps > 0) { await AnimateBackwardAsync(GetPlayerIndex(player.Id), _pendingBackSteps); EnqueueGroup("evento_reves", new DialogueContext { Player = player.Name, Steps = _pendingBackSteps }, true); } else if (_pendingAmount > 0) { player.Money = Math.Max(0, player.Money - _pendingAmount); EnqueueGroup("evento_reves", new DialogueContext { Player = player.Name, Amount = _pendingAmount }, true); } break; } await GameRepo.SaveGameAsync(GameId, _game); _pendingActionKind = PendingActionKind.None; _pendingAmount = 0; _pendingBackSteps = 0; AdvanceDialogueIfIdle(); }
 
-    // ===== A��es de propriedade =====
+    // ===== Ações de propriedade =====
     private async Task OnBuyPropertyAsync() { if (_modalBlock is null || _modalPlayer is null) return; if (_game!.TryBuyProperty(_modalPlayer, _modalBlock)) { await GameRepo.SaveGameAsync(GameId, _game); EnqueueGroup("acao_compra", new DialogueContext { Player = _modalPlayer.Name, Block = _modalBlock.Name }, true); SyncOwnersToBoardSpaces(); } StateHasChanged(); AdvanceDialogueIfIdle(); }
     private async Task OnUpgradeAsync() { if (_modalBlock is PropertyBlock pb && _modalPlayer is not null && CanUpgradeAllowed(pb)) { if (pb.Upgrade(_modalPlayer)) { if (pb.BuildingType != BuildingType.None && pb.BuildingLevel > 0) { var evo = BuildingEvolutionDescriptions.Get(pb.BuildingType, Math.Clamp(pb.BuildingLevel,1,4)); pb.Name = evo.Name; } _modalPlayer.LastBuildTurn = _game!.RoundCount; await GameRepo.SaveGameAsync(GameId, _game); SyncOwnersToBoardSpaces(); StateHasChanged(); EnqueueGroup("acao_upgrade", new DialogueContext { Player = _modalPlayer.Name, Block = pb.Name, Amount = pb.BuildingLevel }, true); } StateHasChanged(); AdvanceDialogueIfIdle(); } }
     private async Task OnSellPropertyAsync() { if (_modalBlock is PropertyBlock pb && pb.Owner is not null) { var owner = pb.Owner; owner.Money += pb.Price / 2; owner.OwnedProperties.Remove(pb); pb.Owner = null; pb.IsMortgaged = false; await GameRepo.SaveGameAsync(GameId, _game!); EnqueueGroup("acao_venda", new DialogueContext { Player = owner.Name, Block = pb.Name }, true); StateHasChanged(); AdvanceDialogueIfIdle(); } }
     private bool CanUpgradeAllowed(PropertyBlock pb) { if (_game is null || _modalPlayer is null) return false; if (pb.Owner != _modalPlayer) return false; if (_modalPlayer.CurrentPosition != pb.Position) return false; if (_modalPlayer.LastPurchaseTurn >= 0 && _game.RoundCount <= _modalPlayer.LastPurchaseTurn) return false; if (_modalPlayer.LastBuildTurn == _game.RoundCount) return false; if (pb.BuildingType == BuildingType.None) return false; if (!pb.CanUpgrade()) return false; var nextCost = pb.BuildingPrices[pb.BuildingLevel]; if (_modalPlayer.Money < nextCost) return false; return true; }
     private int GetNextUpgradeCost(PropertyBlock pb) => pb.CanUpgrade() ? pb.BuildingPrices[pb.BuildingLevel] : 0;
 
-    // ===== Perda / vit�ria =====
+    // ===== Perda / vitória =====
     private async Task RegisterLoserAsync(Player player)
     { if (_game is null) return; player.IsBankrupt = true; foreach (var prop in player.OwnedProperties) { prop.Owner = null; prop.IsMortgaged = false; } player.OwnedProperties.Clear(); _loserName = player.Name; var ativos = _game.Players.Count(p => !p.IsBankrupt); if (ativos == 1) { var winner = _game.Players.First(p => !p.IsBankrupt); _winnerName = winner.Name; _showWinnerModal = true; _showLoserModal = false; _game.Finish(); EnqueueGroup("vitoria", new DialogueContext { Player = winner.Name }, true); } else { _showLoserModal = true; _showWinnerModal = false; _game.NextTurn(); HasRolledThisTurn = false; EnqueueGroup("eliminacao", new DialogueContext { Player = player.Name }, true); } await GameRepo.SaveGameAsync(GameId, _game); StateHasChanged(); AdvanceDialogueIfIdle(); }
     private void CloseLoserModal() { _showLoserModal = false; StateHasChanged(); _ = TryAutoRollForBotAsync(); }
     private void CloseWinnerModal() { _showWinnerModal = false; StateHasChanged(); }
 
-    // ===== Anima��es pe�o / dados =====
+    // ===== Animações peão / dados =====
     private async Task ShowDiceAnimationAsync(int finalDie1, int finalDie2)
     {
         try
@@ -322,7 +322,7 @@ public partial class Play : ComponentBase, IAsyncDisposable
             _showDiceOverlay = true;
             StateHasChanged();
 
-            // Dura��o aleat�ria entre 2 e 3 segundos
+            // Duração aleatória entre 2 e 3 segundos
             var totalMs = _rand.Next(2000, 3001);
             var frameMs = 80;
             var elapsed = 0;
@@ -348,7 +348,7 @@ public partial class Play : ComponentBase, IAsyncDisposable
         }
     }
 
-    // Retorna o tamanho efetivo da trilha (evita inconsist�ncias entre Perimeter e Board)
+    // Retorna o tamanho efetivo da trilha (evita inconsistências entre Perimeter e Board)
     private int GetTrackLength() => Math.Min(Perimeter.Count, _game?.Board.Count ?? int.MaxValue);
 
     private async Task AnimateForwardAsync(int steps)
@@ -391,7 +391,7 @@ public partial class Play : ComponentBase, IAsyncDisposable
     private async Task HandleClick(BoardSpaceDto space)
     { if (_game is null || space is null || _showBlockModal) return; var parts = (space.Id ?? string.Empty).Split('-', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries); if (parts.Length < 2) return; if (!int.TryParse(parts[1], out var pos)) return; var block = _game.Board.FirstOrDefault(b => b.Position == pos); if (block is null) return; _modalFromMove = false; _modalBlock = block; _modalPlayer = _game.Players.ElementAtOrDefault(_game.CurrentPlayerIndex); _preMovePlayerMoney = _modalPlayer?.Money ?? 0; _modalTemplateEntity = _templatesByPosition.TryGetValue(pos, out var tmpl) ? tmpl : null; _showBlockModal = true; AddDialogueTemplate("{PLAYER} abriu {BLOCK}.", new DialogueContext { Player = _modalPlayer?.Name, Block = _modalBlock?.Name }); StateHasChanged(); await Task.CompletedTask; }
 
-    // ===== Utilit�rios =====
+    // ===== Utilitários =====
     private int GetHumanPlayersCount() { if (HumanCountQuery.HasValue) return Math.Max(0, HumanCountQuery.Value); try { var uri = Navigation.ToAbsoluteUri(Navigation.Uri); var q = QueryHelpers.ParseQuery(uri.Query); if (q.TryGetValue("humanCount", out var hv) && int.TryParse(hv.ToString(), out var parsed)) return Math.Max(0, parsed); } catch { } return 1; }
     private int GetPlayerIndex(Guid playerId) { if (_game is null) return -1; for (int i = 0; i < _game.Players.Count; i++) if (_game.Players[i].Id == playerId) return i; return -1; }
     private static List<(int r, int c)> BuildPerimeterClockwise(int rows, int cols) { var list = new List<(int r, int c)>(Math.Max(0, 2 * rows + 2 * cols - 4)); if (rows < 2 || cols < 2) return list; int bottom = rows - 1, top = 0, left = 0, right = cols - 1; for (int c = right; c >= left; c--) list.Add((bottom, c)); for (int r = bottom - 1; r >= top; r--) list.Add((r, left)); for (int c = left + 1; c <= right; c++) list.Add((top, c)); for (int r = top + 1; r <= bottom - 1; r++) list.Add((r, right)); return list; }
@@ -399,7 +399,7 @@ public partial class Play : ComponentBase, IAsyncDisposable
     private Func<int, string> _pawnUrlResolver => i => i < _pawnsForPlayers.Count ? $"{Navigation.BaseUri}images/pawns/PawnsB{_pawnsForPlayers[i]}.png" : PawnUrl;
     private void ParsePawnsQuery() { _pawnsForPlayers.Clear(); if (string.IsNullOrWhiteSpace(pawns)) return; foreach (var p in pawns.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)) if (int.TryParse(p, out var v)) _pawnsForPlayers.Add(Math.Clamp(v, 1, 6)); }
 
-    // Anuncia/Provoca quando a vez � do humano
+    // Anuncia/Provoca quando a vez é do humano
     private void AnnounceHumanTurnIfNeeded()
     {
         if (_game is null) return;

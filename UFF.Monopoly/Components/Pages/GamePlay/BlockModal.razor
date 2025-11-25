@@ -33,10 +33,7 @@
                     @ChildContent
                 </div>
                 <div class="modal-footer d-flex justify-content-end gap-2">
-                    @if ((Block.Type == BlockType.Property || Block.Type == BlockType.Company) && Block.Owner is null && !Block.IsMortgaged && !IsBotTurn)
-                    {
-                        <button class="btn btn-success" @onclick="OnBuy" disabled="@(Player.Money < Block.Price)">Comprar (R$ @Block.Price)</button>
-                    }
+                 
                     @if (!IsBotTurn)
                     {
                         <button class="btn btn-secondary" @onclick="OnClose">Fechar</button>
