@@ -63,6 +63,8 @@ public partial class Play : ComponentBase, IAsyncDisposable
 
     // Estados de turno (HUD e botões)
     private bool HasRolledThisTurn; // se jogador humano já rolou dados neste turno
+    // Flags de ações pendentes enquanto chat digita
+    private bool _pendingHumanRoll; private bool _pendingBotRoll;
 
     // Helper para classificar humano/bot sem depender da ordem
     private static bool IsBotPlayer(Player? p) => p?.Name?.StartsWith("Bot ", StringComparison.OrdinalIgnoreCase) == true;
@@ -72,7 +74,7 @@ public partial class Play : ComponentBase, IAsyncDisposable
         => _game is not null && !_game.IsFinished && _game.CurrentPlayerIndex >= 0 && _game.CurrentPlayerIndex < _game.Players.Count && IsBotPlayer(_game.Players[_game.CurrentPlayerIndex]);
 
     private bool IsPlayerTurn => IsCurrentPlayerHuman();
-    private bool CanRollDice => IsPlayerTurn && !HasRolledThisTurn && !_isAnimating && !_showBlockModal && !_showWinnerModal && !_showLoserModal;
+    private bool CanRollDice => IsPlayerTurn && !HasRolledThisTurn && !_isAnimating && !_showBlockModal && !_showWinnerModal && !_showLoserModal && !_isTypingChat; // adiciona checagem de chat
     private bool IsDiceAnimating => _isAnimating || _showDiceOverlay;
     private bool CanEndTurn => IsPlayerTurn && HasRolledThisTurn && !_isAnimating && !_showBlockModal && !_showWinnerModal && !_showLoserModal;
 
@@ -83,6 +85,7 @@ public partial class Play : ComponentBase, IAsyncDisposable
     private string _chatDisplay = string.Empty; private string _chatFull = string.Empty; private CancellationTokenSource? _typingCts; private int _typingDelayMs = 35; private bool _isTypingChat;
     private DialogueData? _dialogueData; private readonly Queue<string> _dialogueQueue = new(); private bool _dialogueInitialized; private static readonly Regex _placeholderRegex = new("{(?<key>[A-Z_]+)}", RegexOptions.Compiled);
     private string _chatMessage { get => _chatDisplay; set => _ = StartTypingAsync(value); }
+    private bool _initialIntroDone; // bloqueia HUD até terminar falas de inicio
 
     // Estilos calculados dinamicamente
     private string _centerCharStyle = string.Empty; private string _chatContainerStyle = string.Empty; private string _chatTextStyle = string.Empty;
@@ -123,10 +126,13 @@ public partial class Play : ComponentBase, IAsyncDisposable
         if (_game is not null) { SyncOwnersToBoardSpaces(); }
         if (!_dialogueInitialized)
         {
-            EnqueueGroup("inicio", new DialogueContext { Player = _game?.Players.FirstOrDefault()?.Name ?? "Jogador" });
+            var firstPlayerName = _game?.Players.FirstOrDefault()?.Name ?? "Jogador";
+            EnqueueGroup("inicio", new DialogueContext { Player = firstPlayerName });
+            AddDialogue("Eu sou o Sr. Monopoly. Só começam depois das minhas provocações. Mostrem que não vão falir tão rápido!");
             _dialogueInitialized = true;
+            _initialIntroDone = false; // bloquear HUD até terminar
         }
-        // Anuncia caso já seja a vez do humano na carga inicial
+        // Anuncia caso já seja a vez do humano na carga inicial (só será exibido depois da intro)
         AnnounceHumanTurnIfNeeded();
         AdvanceDialogueIfIdle();
         _loading = false; StateHasChanged();
@@ -224,6 +230,7 @@ public partial class Play : ComponentBase, IAsyncDisposable
             var textPadLeft = (int)(cellScaled * 0.25); var textPadRight = (int)(cellScaled * 1.8); var textPadTop = (int)(cellScaled * 0.23); var textPadBottom = (int)(cellScaled * 0.2); // top antes 0.15 -> 0.23
             var fontSize = Math.Max(9, (int)(cellScaled * 0.16)); // reduzido significativamente para 0.16
             _chatTextStyle = $"position:absolute;left:{textPadLeft}px;top:{textPadTop}px;right:{textPadRight}px;bottom:{textPadBottom}px;font-size:{fontSize}px;line-height:1.15;color:#d4e9dc;font-family:'Segoe UI',sans-serif;font-weight:600;text-shadow:0 2px 4px rgba(0,0,0,0.7);overflow:hidden;display:flex;align-items:flex-start;word-wrap:break-word;";
+
             var hudWidth = Math.Min(interiorWidth, (int)(cellScaled * 14));
             var hudLeft = interiorLeft + (interiorWidth - hudWidth) / 2;
             var hudBottomGap = (int)(cellScaled * 0.15);
@@ -250,34 +257,99 @@ public partial class Play : ComponentBase, IAsyncDisposable
     private async Task LoadDialogueJsonAsync()
     { try { var baseUri = Navigation.BaseUri.TrimEnd('/'); var json = await Http.GetStringAsync($"{baseUri}/dialogues/monopoly-dialogues.json"); _dialogueData = JsonSerializer.Deserialize<DialogueData>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new DialogueData(); } catch { _dialogueData = new DialogueData(); } }
     private void EnqueueGroup(string groupName, DialogueContext ctx, bool randomSingle = false)
-    { if (_dialogueData?.Groups.TryGetValue(groupName, out var lines) != true || lines.Count == 0) return; if (randomSingle) { var chosen = lines[_rand.Next(lines.Count)]; _dialogueQueue.Enqueue(ApplyPlaceholders(chosen.Text, ctx)); } else foreach (var l in lines) _dialogueQueue.Enqueue(ApplyPlaceholders(l.Text, ctx)); }
+    {
+        if (_dialogueData?.Groups.TryGetValue(groupName, out var lines) != true || lines.Count == 0) return;
+        // Se transição de turno e jogador for bot, usar falas em primeira pessoa customizadas
+        if (groupName == "transicao_turno" && IsBotName(ctx.Player))
+        {
+            var botLines = new[] { "Agora é a minha vez.", "Assumo o turno." };
+            var chosen = botLines[_rand.Next(botLines.Length)];
+            _dialogueQueue.Enqueue(chosen);
+            return;
+        }
+        if (randomSingle)
+        {
+            var chosen = lines[_rand.Next(lines.Count)];
+            _dialogueQueue.Enqueue(ApplyPlaceholders(chosen.Text, ctx));
+        }
+        else
+        {
+            foreach (var l in lines)
+                _dialogueQueue.Enqueue(ApplyPlaceholders(l.Text, ctx));
+        }
+    }
+
+    private static bool IsBotName(string? name) => !string.IsNullOrWhiteSpace(name) && Regex.IsMatch(name!, "^Bot \\d+", RegexOptions.IgnoreCase);
+
     private string ApplyPlaceholders(string? template, DialogueContext ctx)
     { if (string.IsNullOrWhiteSpace(template)) return string.Empty; return _placeholderRegex.Replace(template!, m => m.Groups["key"].Value switch { "PLAYER" => ctx.Player ?? string.Empty, "BLOCK" => ctx.Block ?? string.Empty, "AMOUNT" => ctx.Amount?.ToString() ?? string.Empty, "STEPS" => ctx.Steps?.ToString() ?? string.Empty, "DAYS" => ctx.Days?.ToString() ?? string.Empty, _ => m.Value }); }
     private void AddDialogueTemplate(string template, DialogueContext ctx) => AddDialogue(ApplyPlaceholders(template, ctx));
     private void AddDialogue(string raw) { if (!string.IsNullOrWhiteSpace(raw)) { _dialogueQueue.Enqueue(raw); AdvanceDialogueIfIdle(); } }
     private void AdvanceDialogueIfIdle() { if (_isTypingChat) return; if (_dialogueQueue.Count == 0) return; _chatMessage = _dialogueQueue.Dequeue(); }
     private async Task StartTypingAsync(string text)
-    { _typingCts?.Cancel(); _typingCts = new CancellationTokenSource(); var token = _typingCts.Token; _isTypingChat = true; _chatFull = text ?? string.Empty; _chatDisplay = string.Empty; StateHasChanged(); _ = AnimateMouthAsync(token); for (int i = 1; i <= _chatFull.Length; i++) { if (token.IsCancellationRequested) return; _chatDisplay = _chatFull[..i]; StateHasChanged(); try { await Task.Delay(_typingDelayMs, token); } catch { return; } } _isTypingChat = false; _mouthFrameIndex = 0; _mouthImageUrl = _mouthFrames[_mouthFrameIndex]; StateHasChanged(); }
+    { _typingCts?.Cancel(); _typingCts = new CancellationTokenSource(); var token = _typingCts.Token; _isTypingChat = true; _chatFull = text ?? string.Empty; _chatDisplay = string.Empty; StateHasChanged(); _ = AnimateMouthAsync(token); for (int i = 1; i <= _chatFull.Length; i++) { if (token.IsCancellationRequested) return; _chatDisplay = _chatFull[..i]; StateHasChanged(); try { await Task.Delay(_typingDelayMs, token); } catch { return; } } _isTypingChat = false; _mouthFrameIndex = 0; _mouthImageUrl = _mouthFrames[_mouthFrameIndex]; StateHasChanged(); OnChatFinished(); }
+    // Método de animação da boca (reintroduzido)
     private async Task AnimateMouthAsync(CancellationToken token)
     { while (_isTypingChat && !token.IsCancellationRequested) { _mouthFrameIndex = (_mouthFrameIndex + 1) % _mouthFrames.Length; _mouthImageUrl = _mouthFrames[_mouthFrameIndex]; StateHasChanged(); try { await Task.Delay(Math.Max(90, _typingDelayMs * 3), token); } catch { break; } } _mouthFrameIndex = 0; _mouthImageUrl = _mouthFrames[_mouthFrameIndex]; StateHasChanged(); }
-    private async Task OnChatClicked() { if (_isTypingChat) { _typingCts?.Cancel(); _isTypingChat = false; _chatDisplay = _chatFull; _mouthFrameIndex = 0; _mouthImageUrl = _mouthFrames[_mouthFrameIndex]; StateHasChanged(); return; } AdvanceDialogueIfIdle(); await Task.CompletedTask; }
+    // Clique no chat (reintroduzido) agora dispara OnChatFinished se interromper
+    private async Task OnChatClicked() { if (_isTypingChat) { _typingCts?.Cancel(); _isTypingChat = false; _chatDisplay = _chatFull; _mouthFrameIndex = 0; _mouthImageUrl = _mouthFrames[_mouthFrameIndex]; StateHasChanged(); OnChatFinished(); return; } AdvanceDialogueIfIdle(); await Task.CompletedTask; }
+    // Chamado quando termino de digitar uma fala completa
+    private void OnChatFinished()
+    {
+        // Libera HUD após término completo da intro (todas as mensagens "inicio" + provocação consumidas)
+        if (!_initialIntroDone && _dialogueInitialized && _dialogueQueue.Count == 0)
+        {
+            _initialIntroDone = true; // agora HUD pode aparecer
+            StateHasChanged();
+        }
+        // Se houver rolagem humana pendente
+        if (_pendingHumanRoll && !_isTypingChat)
+        {
+            _pendingHumanRoll = false;
+            _ = InvokeAsync(async () => { await RollForCurrentPlayer(); });
+        }
+        // Se houver rolagem automática de bot pendente
+        if (_pendingBotRoll && !_isTypingChat)
+        {
+            _pendingBotRoll = false;
+            _ = InvokeAsync(async () => { await TryAutoRollForBotAsync(); });
+        }
+    }
 
     // ===== Ações turno / dados =====
     private async Task RollForCurrentPlayer()
-    { if (_game is null || _isAnimating || HasRolledThisTurn) return; if (!IsCurrentPlayerHuman()) return; await RollAndMove(); }
+    { if (_game is null || _isAnimating || HasRolledThisTurn) return; if (!IsCurrentPlayerHuman()) return; if (_isTypingChat) { _pendingHumanRoll = true; return; } await RollAndMove(); }
     private async Task RollAndMove()
     { if (_game is null || _isAnimating) return; var currentPlayer = _game.Players[_game.CurrentPlayerIndex]; if (currentPlayer.Money < 0) { await RegisterLoserAsync(currentPlayer); return; } _isAnimating = true; HasRolledThisTurn = true; var (die1, die2, total) = _game.RollDice(); EnqueueGroup("rolagem", new DialogueContext { Player = currentPlayer.Name }, true); await ShowDiceAnimationAsync(die1, die2); await AnimateForwardAsync(total); _preMovePlayerMoney = currentPlayer.Money; await _game.MoveCurrentPlayerAsync(total); AddDialogueTemplate("{PLAYER} avança {STEPS} casas.", new DialogueContext { Player = currentPlayer.Name, Steps = total }); await GameRepo.SaveGameAsync(GameId, _game); PrepareModalForLanding(currentPlayer); _isAnimating = false; StateHasChanged(); TriggerBotModalIfNeeded(currentPlayer); AdvanceDialogueIfIdle(); }
-    private async Task EndTurn()
-    { if (_game is null || !CanEndTurn) return; HasRolledThisTurn = false; _game.NextTurn(); EnqueueGroup("transicao_turno", new DialogueContext { Player = _game.Players[_game.CurrentPlayerIndex].Name }, true); await GameRepo.SaveGameAsync(GameId, _game); // avisa se passou para o humano
-      AnnounceHumanTurnIfNeeded(); StateHasChanged(); AdvanceDialogueIfIdle(); await TryAutoRollForBotAsync(); }
+    private async Task EndTurn() { if (_game is null || !CanEndTurn) return; HasRolledThisTurn = false; _game.NextTurn(); EnqueueGroup("transicao_turno", new DialogueContext { Player = _game.Players[_game.CurrentPlayerIndex].Name }, true); await GameRepo.SaveGameAsync(GameId, _game); AnnounceHumanTurnIfNeeded(); StateHasChanged(); AdvanceDialogueIfIdle(); await TryAutoRollForBotAsync(); }
 
     // ===== Bot =====
     private void TriggerBotModalIfNeeded(Player currentPlayer)
     { if (IsBotPlayer(currentPlayer)) { _botHasActedThisModal = false; _ = InvokeAsync(async () => { try { await Task.Delay(150); } catch { } await BotActOnModalAsync(); }); } }
     private async Task TryAutoRollForBotAsync()
-    { if (_game is null) return; if (IsCurrentPlayerBot() && !_isAnimating && !HasRolledThisTurn) { try { await Task.Delay(700); } catch { } if (!_isAnimating) { await RollAndMove(); if (!_showBlockModal) { _game.NextTurn(); HasRolledThisTurn = false; EnqueueGroup("transicao_turno", new DialogueContext { Player = _game.Players[_game.CurrentPlayerIndex].Name }, true); await GameRepo.SaveGameAsync(GameId, _game); // Se agora é humano, provocar
-                        AnnounceHumanTurnIfNeeded(); await TryAutoRollForBotAsync(); } } } else { // Chegamos na vez do humano, anunciar
-            AnnounceHumanTurnIfNeeded(); }
+    { 
+        if (_game is null) return; 
+        if (_isTypingChat) { if (IsCurrentPlayerBot()) _pendingBotRoll = true; return; } 
+        if (IsCurrentPlayerBot() && !_isAnimating && !HasRolledThisTurn) 
+        { 
+            try { await Task.Delay(700); } catch { } 
+            if (!_isAnimating && !_isTypingChat) 
+            { 
+                await RollAndMove(); 
+                if (!_showBlockModal) 
+                { 
+                    _game.NextTurn(); HasRolledThisTurn = false; 
+                    EnqueueGroup("transicao_turno", new DialogueContext { Player = _game.Players[_game.CurrentPlayerIndex].Name }, true); 
+                    await GameRepo.SaveGameAsync(GameId, _game); 
+                    AnnounceHumanTurnIfNeeded(); 
+                    await TryAutoRollForBotAsync(); 
+                } 
+            } 
+        } 
+        else 
+        { 
+            AnnounceHumanTurnIfNeeded(); 
+        } 
     }
     private async Task TriggerBotTurnEndAsync() { if (_game is null) return; HasRolledThisTurn = false; _game.NextTurn(); EnqueueGroup("transicao_turno", new DialogueContext { Player = _game.Players[_game.CurrentPlayerIndex].Name }, true); await GameRepo.SaveGameAsync(GameId, _game); AnnounceHumanTurnIfNeeded(); StateHasChanged(); AdvanceDialogueIfIdle(); await TryAutoRollForBotAsync(); }
     private async Task BotActOnModalAsync() { if (_game is null || _modalPlayer is null || !_modalFromMove) return; var idx = GetPlayerIndex(_modalPlayer.Id); if (!IsBotPlayer(_modalPlayer) || _botHasActedThisModal) return; _botHasActedThisModal = true; EnqueueGroup("bot_pensando", new DialogueContext { Player = _modalPlayer.Name, Block = _modalBlock?.Name }, true); AdvanceDialogueIfIdle(); try { await Task.Delay(900); } catch { } await TryBotPurchaseAsync(); try { await Task.Delay(600); } catch { } await TryBotUpgradeAsync(); try { await Task.Delay(900); } catch { } await CloseBlockModal(); }
@@ -287,131 +359,63 @@ public partial class Play : ComponentBase, IAsyncDisposable
 
     // ===== Modal de bloco =====
     private void PrepareModalForLanding(Player currentPlayer)
-    { if (_game is null) return; var landed = _game.Board.FirstOrDefault(b => b.Position == currentPlayer.CurrentPosition); _pendingActionKind = PendingActionKind.None; _pendingAmount = 0; _pendingBackSteps = 0; if (landed is not null) { if (landed.Type == BlockType.Tax) ConfigureTax(landed, currentPlayer); else if (landed.Type == BlockType.Chance) ConfigureChance(); else if (landed.Type == BlockType.Reves) ConfigureReves(); } _modalPlayer = currentPlayer; _modalBlock = landed; _modalTemplateEntity = _templatesByPosition.TryGetValue(currentPlayer.CurrentPosition, out var tpl) ? tpl : null; _pawnAnimPosition = -1; _modalFromMove = true; _showBlockModal = true; }
+    { if (_game is null) return; var landed = _game.Board.FirstOrDefault(b => b.Position == currentPlayer.CurrentPosition); ResetPendingSpecial(); if (landed is not null) { if (landed.Type == BlockType.Tax) ConfigureTax(landed, currentPlayer); else if (landed.Type == BlockType.Chance) ConfigureChance(); else if (landed.Type == BlockType.Reves) ConfigureReves(); } _modalPlayer = currentPlayer; _modalBlock = landed; _modalTemplateEntity = _templatesByPosition.TryGetValue(currentPlayer.CurrentPosition, out var tpl) ? tpl : null; _pawnAnimPosition = -1; _modalFromMove = true; _showBlockModal = true; }
     private async Task CloseBlockModal()
-    { _showBlockModal = false; if (_modalFromMove && _game is not null && _modalPlayer is not null) { await ApplyPendingActionAsync(); if (_modalPlayer.Money < 0) { await RegisterLoserAsync(_modalPlayer); CleanupModal(); return; } await BotAutoActionsIfNeeded(); _game.NextTurn(); HasRolledThisTurn = false; EnqueueGroup("transicao_turno", new DialogueContext { Player = _game.Players[_game.CurrentPlayerIndex].Name }, true); await GameRepo.SaveGameAsync(GameId, _game); } CleanupModal(); StateHasChanged(); AnnounceHumanTurnIfNeeded(); AdvanceDialogueIfIdle(); await TryAutoRollForBotAsync(); }
+    { 
+        _showBlockModal = false; 
+        if (_modalFromMove && _game is not null && _modalPlayer is not null) 
+        { 
+            await ApplyPendingActionAsync(); 
+            if (_modalPlayer.Money < 0) { await RegisterLoserAsync(_modalPlayer); CleanupModal(); ResetPendingSpecial(); return; } 
+            await BotAutoActionsIfNeeded(); 
+            _game.NextTurn(); HasRolledThisTurn = false; 
+            EnqueueGroup("transicao_turno", new DialogueContext { Player = _game.Players[_game.CurrentPlayerIndex].Name }, true); 
+            await GameRepo.SaveGameAsync(GameId, _game); 
+        } 
+        CleanupModal(); 
+        ResetPendingSpecial();
+        StateHasChanged(); AnnounceHumanTurnIfNeeded(); AdvanceDialogueIfIdle(); await TryAutoRollForBotAsync(); }
     private void CleanupModal() { _modalFromMove = false; _modalTemplateEntity = null; }
+    private void ResetPendingSpecial() { _pendingActionKind = PendingActionKind.None; _pendingAmount = 0; _pendingBackSteps = 0; }
 
-    // ===== Ações especiais pendentes =====
     private void ConfigureTax(Block landed, Player player) { var percents = new[] { 5, 10, 15, 20, 25, 30 }; var pct = percents[_rand.Next(percents.Length)]; var taxAmount = (int)Math.Round(player.Money * pct / 100.0); _pendingActionKind = PendingActionKind.Tax; _pendingAmount = taxAmount; landed.Rent = taxAmount; }
     private void ConfigureChance() { var choices = new[] { 50, 100, 150, 200, 300, 350, 400, 500, 600, 700 }; _pendingActionKind = PendingActionKind.Chance; _pendingAmount = choices[_rand.Next(choices.Length)]; }
     private void ConfigureReves() { var takeMoneyOptions = new[] { 100, 200 }; _pendingActionKind = PendingActionKind.Reves; if (_rand.NextDouble() < 0.5) { _pendingAmount = takeMoneyOptions[_rand.Next(takeMoneyOptions.Length)]; } else { _pendingBackSteps = _rand.Next(2, 7); } }
     private async Task ApplyPendingActionAsync()
-    { if (_game is null || _modalPlayer is null || _pendingActionKind == PendingActionKind.None) return; var player = _modalPlayer; var landed = _game.Board.FirstOrDefault(b => b.Position == player.CurrentPosition); switch (_pendingActionKind) { case PendingActionKind.Tax: player.Money = Math.Max(0, player.Money - _pendingAmount); if (landed is not null) landed.Rent = _pendingAmount; EnqueueGroup("evento_tax", new DialogueContext { Player = player.Name, Amount = _pendingAmount }, true); break; case PendingActionKind.Chance: player.Money += _pendingAmount; EnqueueGroup("evento_chance", new DialogueContext { Player = player.Name, Amount = _pendingAmount }, true); break; case PendingActionKind.Reves: if (_pendingBackSteps > 0) { await AnimateBackwardAsync(GetPlayerIndex(player.Id), _pendingBackSteps); EnqueueGroup("evento_reves", new DialogueContext { Player = player.Name, Steps = _pendingBackSteps }, true); } else if (_pendingAmount > 0) { player.Money = Math.Max(0, player.Money - _pendingAmount); EnqueueGroup("evento_reves", new DialogueContext { Player = player.Name, Amount = _pendingAmount }, true); } break; } await GameRepo.SaveGameAsync(GameId, _game); _pendingActionKind = PendingActionKind.None; _pendingAmount = 0; _pendingBackSteps = 0; AdvanceDialogueIfIdle(); }
+    { if (_game is null || _modalPlayer is null || _pendingActionKind == PendingActionKind.None) return; var player = _modalPlayer; var landed = _game.Board.FirstOrDefault(b => b.Position == player.CurrentPosition); switch (_pendingActionKind) { case PendingActionKind.Tax: player.Money = Math.Max(0, player.Money - _pendingAmount); if (landed is not null) landed.Rent = _pendingAmount; EnqueueGroup("evento_tax", new DialogueContext { Player = player.Name, Amount = _pendingAmount }, true); break; case PendingActionKind.Chance: player.Money += _pendingAmount; EnqueueGroup("evento_chance", new DialogueContext { Player = player.Name, Amount = _pendingAmount }, true); break; case PendingActionKind.Reves: if (_pendingBackSteps > 0) { await AnimateBackwardAsync(GetPlayerIndex(player.Id), _pendingBackSteps); EnqueueGroup("evento_reves", new DialogueContext { Player = player.Name, Steps = _pendingBackSteps }, true); } else if (_pendingAmount > 0) { player.Money = Math.Max(0, player.Money - _pendingAmount); EnqueueGroup("evento_reves", new DialogueContext { Player = player.Name, Amount = _pendingAmount }, true); } break; } await GameRepo.SaveGameAsync(GameId, _game); ResetPendingSpecial(); AdvanceDialogueIfIdle(); }
 
-    // ===== Ações de propriedade =====
     private async Task OnBuyPropertyAsync() { if (_modalBlock is null || _modalPlayer is null) return; if (_game!.TryBuyProperty(_modalPlayer, _modalBlock)) { await GameRepo.SaveGameAsync(GameId, _game); EnqueueGroup("acao_compra", new DialogueContext { Player = _modalPlayer.Name, Block = _modalBlock.Name }, true); SyncOwnersToBoardSpaces(); } StateHasChanged(); AdvanceDialogueIfIdle(); }
     private async Task OnUpgradeAsync() { if (_modalBlock is PropertyBlock pb && _modalPlayer is not null && CanUpgradeAllowed(pb)) { if (pb.Upgrade(_modalPlayer)) { if (pb.BuildingType != BuildingType.None && pb.BuildingLevel > 0) { var evo = BuildingEvolutionDescriptions.Get(pb.BuildingType, Math.Clamp(pb.BuildingLevel,1,4)); pb.Name = evo.Name; } _modalPlayer.LastBuildTurn = _game!.RoundCount; await GameRepo.SaveGameAsync(GameId, _game); SyncOwnersToBoardSpaces(); StateHasChanged(); EnqueueGroup("acao_upgrade", new DialogueContext { Player = _modalPlayer.Name, Block = pb.Name, Amount = pb.BuildingLevel }, true); } StateHasChanged(); AdvanceDialogueIfIdle(); } }
     private async Task OnSellPropertyAsync() { if (_modalBlock is PropertyBlock pb && pb.Owner is not null) { var owner = pb.Owner; owner.Money += pb.Price / 2; owner.OwnedProperties.Remove(pb); pb.Owner = null; pb.IsMortgaged = false; await GameRepo.SaveGameAsync(GameId, _game!); EnqueueGroup("acao_venda", new DialogueContext { Player = owner.Name, Block = pb.Name }, true); StateHasChanged(); AdvanceDialogueIfIdle(); } }
     private bool CanUpgradeAllowed(PropertyBlock pb) { if (_game is null || _modalPlayer is null) return false; if (pb.Owner != _modalPlayer) return false; if (_modalPlayer.CurrentPosition != pb.Position) return false; if (_modalPlayer.LastPurchaseTurn >= 0 && _game.RoundCount <= _modalPlayer.LastPurchaseTurn) return false; if (_modalPlayer.LastBuildTurn == _game.RoundCount) return false; if (pb.BuildingType == BuildingType.None) return false; if (!pb.CanUpgrade()) return false; var nextCost = pb.BuildingPrices[pb.BuildingLevel]; if (_modalPlayer.Money < nextCost) return false; return true; }
     private int GetNextUpgradeCost(PropertyBlock pb) => pb.CanUpgrade() ? pb.BuildingPrices[pb.BuildingLevel] : 0;
 
-    // ===== Perda / vitória =====
     private async Task RegisterLoserAsync(Player player)
     { if (_game is null) return; player.IsBankrupt = true; foreach (var prop in player.OwnedProperties) { prop.Owner = null; prop.IsMortgaged = false; } player.OwnedProperties.Clear(); _loserName = player.Name; var ativos = _game.Players.Count(p => !p.IsBankrupt); if (ativos == 1) { var winner = _game.Players.First(p => !p.IsBankrupt); _winnerName = winner.Name; _showWinnerModal = true; _showLoserModal = false; _game.Finish(); EnqueueGroup("vitoria", new DialogueContext { Player = winner.Name }, true); } else { _showLoserModal = true; _showWinnerModal = false; _game.NextTurn(); HasRolledThisTurn = false; EnqueueGroup("eliminacao", new DialogueContext { Player = player.Name }, true); } await GameRepo.SaveGameAsync(GameId, _game); StateHasChanged(); AdvanceDialogueIfIdle(); }
     private void CloseLoserModal() { _showLoserModal = false; StateHasChanged(); _ = TryAutoRollForBotAsync(); }
     private void CloseWinnerModal() { _showWinnerModal = false; StateHasChanged(); }
 
-    // ===== Animações peão / dados =====
     private async Task ShowDiceAnimationAsync(int finalDie1, int finalDie2)
-    {
-        try
-        {
-            var gifIndex = _rand.Next(1, 13);
-            _rollingGifUrl = $"{Navigation.BaseUri}images/diceAnim/dice-rolling-{gifIndex}.gif";
-            _showDiceOverlay = true;
-            StateHasChanged();
+    { try { var gifIndex = _rand.Next(1, 13); _rollingGifUrl = $"{Navigation.BaseUri}images/diceAnim/dice-rolling-{gifIndex}.gif"; _showDiceOverlay = true; StateHasChanged(); var totalMs = _rand.Next(2000, 3001); var frameMs = 80; var elapsed = 0; while (elapsed < totalMs) { _diceFace1 = _rand.Next(1, 7); _diceFace2 = _rand.Next(1, 7); StateHasChanged(); var delay = Math.Min(frameMs, totalMs - elapsed); try { await Task.Delay(delay); } catch { break; } elapsed += delay; } _diceFace1 = Math.Clamp(finalDie1, 1, 6); _diceFace2 = Math.Clamp(finalDie2, 1, 6); StateHasChanged(); } finally { _showDiceOverlay = false; _rollingGifUrl = string.Empty; StateHasChanged(); } }
 
-            // Duração aleatória entre 2 e 3 segundos
-            var totalMs = _rand.Next(2000, 3001);
-            var frameMs = 80;
-            var elapsed = 0;
-            while (elapsed < totalMs)
-            {
-                _diceFace1 = _rand.Next(1, 7);
-                _diceFace2 = _rand.Next(1, 7);
-                StateHasChanged();
-                var delay = Math.Min(frameMs, totalMs - elapsed);
-                try { await Task.Delay(delay); } catch { break; }
-                elapsed += delay;
-            }
-
-            _diceFace1 = Math.Clamp(finalDie1, 1, 6);
-            _diceFace2 = Math.Clamp(finalDie2, 1, 6);
-            StateHasChanged();
-        }
-        finally
-        {
-            _showDiceOverlay = false;
-            _rollingGifUrl = string.Empty;
-            StateHasChanged();
-        }
-    }
-
-    // Retorna o tamanho efetivo da trilha (evita inconsistências entre Perimeter e Board)
     private int GetTrackLength() => Math.Min(Perimeter.Count, _game?.Board.Count ?? int.MaxValue);
-
     private async Task AnimateForwardAsync(int steps)
-    {
-        if (_game is null) return;
-        var currentPlayer = _game.Players[_game.CurrentPlayerIndex];
-        var pos = currentPlayer.CurrentPosition;
-        var track = GetTrackLength();
-        if (track <= 0) return;
-        for (int i = 0; i < steps; i++)
-        {
-            pos = (pos + 1) % track;
-            _pawnAnimPosition = pos;
-            StateHasChanged();
-            try { await Task.Delay(_animStepMs); } catch { }
-        }
-    }
-
+    { if (_game is null) return; var currentPlayer = _game.Players[_game.CurrentPlayerIndex]; var pos = currentPlayer.CurrentPosition; var track = GetTrackLength(); if (track <= 0) return; for (int i = 0; i < steps; i++) { pos = (pos + 1) % track; _pawnAnimPosition = pos; StateHasChanged(); try { await Task.Delay(_animStepMs); } catch { } } }
     private async Task AnimateBackwardAsync(int playerIndex, int steps)
-    {
-        if (_game is null || playerIndex < 0 || playerIndex >= _game.Players.Count) return;
-        var prev = _isAnimating; _isAnimating = true;
-        var player = _game.Players[playerIndex];
-        var pos = player.CurrentPosition;
-        var track = GetTrackLength();
-        if (track <= 0) { _isAnimating = prev; return; }
-        for (int i = 0; i < steps; i++)
-        {
-            pos = (pos - 1 + track) % track;
-            _pawnAnimPosition = pos;
-            StateHasChanged();
-            try { await Task.Delay(_animStepMs); } catch { }
-        }
-        player.CurrentPosition = pos;
-        _pawnAnimPosition = -1;
-        _isAnimating = prev;
-    }
+    { if (_game is null || playerIndex < 0 || playerIndex >= _game.Players.Count) return; var prev = _isAnimating; _isAnimating = true; var player = _game.Players[playerIndex]; var pos = player.CurrentPosition; var track = GetTrackLength(); if (track <= 0) { _isAnimating = prev; return; } for (int i = 0; i < steps; i++) { pos = (pos - 1 + track) % track; _pawnAnimPosition = pos; StateHasChanged(); try { await Task.Delay(_animStepMs); } catch { } } player.CurrentPosition = pos; _pawnAnimPosition = -1; _isAnimating = prev; }
 
-    // ===== Eventos do tabuleiro =====
     private async Task HandleClick(BoardSpaceDto space)
     { if (_game is null || space is null || _showBlockModal) return; var parts = (space.Id ?? string.Empty).Split('-', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries); if (parts.Length < 2) return; if (!int.TryParse(parts[1], out var pos)) return; var block = _game.Board.FirstOrDefault(b => b.Position == pos); if (block is null) return; _modalFromMove = false; _modalBlock = block; _modalPlayer = _game.Players.ElementAtOrDefault(_game.CurrentPlayerIndex); _preMovePlayerMoney = _modalPlayer?.Money ?? 0; _modalTemplateEntity = _templatesByPosition.TryGetValue(pos, out var tmpl) ? tmpl : null; _showBlockModal = true; AddDialogueTemplate("{PLAYER} abriu {BLOCK}.", new DialogueContext { Player = _modalPlayer?.Name, Block = _modalBlock?.Name }); StateHasChanged(); await Task.CompletedTask; }
 
-    // ===== Utilitários =====
     private int GetHumanPlayersCount() { if (HumanCountQuery.HasValue) return Math.Max(0, HumanCountQuery.Value); try { var uri = Navigation.ToAbsoluteUri(Navigation.Uri); var q = QueryHelpers.ParseQuery(uri.Query); if (q.TryGetValue("humanCount", out var hv) && int.TryParse(hv.ToString(), out var parsed)) return Math.Max(0, parsed); } catch { } return 1; }
     private int GetPlayerIndex(Guid playerId) { if (_game is null) return -1; for (int i = 0; i < _game.Players.Count; i++) if (_game.Players[i].Id == playerId) return i; return -1; }
     private static List<(int r, int c)> BuildPerimeterClockwise(int rows, int cols) { var list = new List<(int r, int c)>(Math.Max(0, 2 * rows + 2 * cols - 4)); if (rows < 2 || cols < 2) return list; int bottom = rows - 1, top = 0, left = 0, right = cols - 1; for (int c = right; c >= left; c--) list.Add((bottom, c)); for (int r = bottom - 1; r >= top; r--) list.Add((r, left)); for (int c = left + 1; c <= right; c++) list.Add((top, c)); for (int r = top + 1; r <= bottom - 1; r++) list.Add((r, right)); return list; }
-    private static string GetImageForType(BlockType? type) => type switch { BlockType.Go => "/images/blocks/property_basic.svg", BlockType.Property => "/images/blocks/property_basic.svg", BlockType.Company => "/images/blocks/property_predio.svg", BlockType.Jail => "/images/blocks/visitar_prisao.svg", BlockType.GoToJail => "/images/blocks/go_to_jail.svg", BlockType.Tax => "/images/blocks/volte-casas.svg", _ => "/images/blocks/property_basic.svg" };
+    private static string GetImageForType(BlockType? type) => type switch { BlockType.Go => "/images/blocks/property_basic.svg", BlockType.Property => "/images/blocks/property_basic.svg", BlockType.Company => "/images/blocks/property_predio.svg", BlockType.Jail => "/images/blocks/visitar_prisao.svg", BlockType.GoToJail => "/images/blocks/go_to_jail.svg", BlockType.Tax => "/images/blocks/volte-casas.svg", BlockType.Chance => "/images/blocks/sorte.png", BlockType.Reves => "/images/blocks/reves.png", _ => "/images/blocks/property_basic.svg" };
     private Func<int, string> _pawnUrlResolver => i => i < _pawnsForPlayers.Count ? $"{Navigation.BaseUri}images/pawns/PawnsB{_pawnsForPlayers[i]}.png" : PawnUrl;
     private void ParsePawnsQuery() { _pawnsForPlayers.Clear(); if (string.IsNullOrWhiteSpace(pawns)) return; foreach (var p in pawns.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)) if (int.TryParse(p, out var v)) _pawnsForPlayers.Add(Math.Clamp(v, 1, 6)); }
 
-    // Anuncia/Provoca quando a vez é do humano
-    private void AnnounceHumanTurnIfNeeded()
-    {
-        if (_game is null) return;
-        if (IsCurrentPlayerHuman())
-        {
-            var playerName = _game.Players[_game.CurrentPlayerIndex].Name;
-            var line = _humanTurnTaunts[_rand.Next(_humanTurnTaunts.Length)];
-            AddDialogueTemplate(line, new DialogueContext { Player = playerName });
-        }
-    }
+    private void AnnounceHumanTurnIfNeeded() { if (_game is null) return; if (!_initialIntroDone) return; if (IsCurrentPlayerHuman()) { var playerName = _game.Players[_game.CurrentPlayerIndex].Name; var line = _humanTurnTaunts[_rand.Next(_humanTurnTaunts.Length)]; AddDialogueTemplate(line, new DialogueContext { Player = playerName }); } }
 
-    // ===== Tipos apoio =====
     private class DialogueData { public Dictionary<string, List<DialogueLine>> Groups { get; set; } = new(); }
     private class DialogueLine { public string Id { get; set; } = string.Empty; public string Text { get; set; } = string.Empty; }
     private class DialogueContext { public string? Player { get; set; } public string? Block { get; set; } public int? Amount { get; set; } public int? Steps { get; set; } public int? Days { get; set; } }

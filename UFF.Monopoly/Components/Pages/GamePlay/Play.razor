@@ -86,7 +86,7 @@
                 </BlockModal>
                 <SimpleModal Show="@_showLoserModal" Title="Derrota" Message="@($"O jogador {_loserName} foi eliminado.")" BaseZ="22000" OnClose="CloseLoserModal" />
                 <SimpleModal Show="@_showWinnerModal" Title="Vencedor" Message="@($"Parabéns! {_winnerName} venceu o jogo.")" BaseZ="23000" OnClose="CloseWinnerModal" />
-                @if (_game is not null && !_showDiceOverlay)
+                @if (_game is not null && !_showDiceOverlay && _initialIntroDone)
                 {
                     <PlayersPanel Players="@_game.Players"
                                   CurrentPlayerIndex="@_game.CurrentPlayerIndex"

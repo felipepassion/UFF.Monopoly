@@ -6,4 +6,5 @@ public enum PendingActionKind
     Tax,
     Chance,
     Reves
+    // ...existing code...
 }
