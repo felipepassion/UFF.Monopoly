@@ -17,7 +17,8 @@ public class Block
     {
         switch (Type)
         {
-            case BlockType.Go: break;
+            case BlockType.Go:
+                break;
             case BlockType.Property:
             case BlockType.Company:
                 if (Owner != null && Owner != player && !IsMortgaged)
@@ -25,18 +26,23 @@ public class Block
                     game.Transfer(player, Owner, Rent);
                 }
                 break;
-            case BlockType.Tax: game.PayBank(player, Rent); break;
-            case BlockType.GoToJail: game.SendToJail(player); break;
-            case BlockType.Jail: break;
+            case BlockType.Tax:
+                // Taxa será aplicada via lógica pendente no modal (Tax usa cálculo percentual dinâmico).
+                // Aqui não paga para evitar efeitos duplicados.
+                break;
+            case BlockType.GoToJail:
+                game.SendToJail(player);
+                break;
+            case BlockType.Jail:
+                break;
             case BlockType.Chance:
-                var rng = new Random(); var delta = rng.Next(-200, 301);
-                if (delta >= 0) player.Money += delta; else game.PayBank(player, -delta);
+                // Chance é tratada pela UI (pendente) para mostrar mensagem antes de aplicar.
                 break;
             case BlockType.Reves:
-                var rng2 = new Random(); var delta2 = rng2.Next(-100, 201);
-                if (delta2 >= 0) player.Money += delta2; else game.PayBank(player, -delta2);
+                // Revés agora tratado somente pela lógica pendente (voltar casas ou perder dinheiro).
                 break;
-            case BlockType.FreeParking: break;
+            case BlockType.FreeParking:
+                break;
         }
         return Task.CompletedTask;
     }

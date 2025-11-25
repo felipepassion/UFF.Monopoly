@@ -28,7 +28,8 @@
                 }
                 <div class="round-badge">Rodada: @_game.RoundCount</div>
                 <div class="turn-badge">Vez: @_game.Players.ElementAtOrDefault(_game.CurrentPlayerIndex)?.Name</div>
-                @if (!(_showDiceOverlay || _pawnAnimPosition != -1))
+                @* Exibir chat sempre que não houver overlay de dados (removida checagem de _pawnAnimPosition) *@
+                @if (!_showDiceOverlay)
                 {
                     <img src="@_mouthImageUrl" style="@_centerCharStyle" alt="personagem" />
                     <div style="@_chatContainerStyle" @onclick="OnChatClicked">
@@ -86,7 +87,7 @@
                 </BlockModal>
                 <SimpleModal Show="@_showLoserModal" Title="Derrota" Message="@($"O jogador {_loserName} foi eliminado.")" BaseZ="22000" OnClose="CloseLoserModal" />
                 <SimpleModal Show="@_showWinnerModal" Title="Vencedor" Message="@($"Parabéns! {_winnerName} venceu o jogo.")" BaseZ="23000" OnClose="CloseWinnerModal" />
-                @if (_game is not null && !_showDiceOverlay)
+                @if (_game is not null && !_showDiceOverlay && _initialIntroDone)
                 {
                     <PlayersPanel Players="@_game.Players"
                                   CurrentPlayerIndex="@_game.CurrentPlayerIndex"

@@ -6,7 +6,8 @@ public class Game
 {
     public int BoardSize => _board.Count;
     public const int GoSalary = 200;
-    public int CurrentPlayerIndex { get; private set; } = 0;
+    // Allow restoring persisted index
+    public int CurrentPlayerIndex { get; set; } = 0;
     public bool IsFinished { get; private set; } = false;
 
     // number of completed rounds (incremented when we wrap back to player 0)
