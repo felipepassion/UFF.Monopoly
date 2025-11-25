@@ -17,7 +17,7 @@
         }
         else if (_game is null)
         {
-            <div class="p-4">Jogo n�o encontrado.</div>
+            <div class="p-4">Jogo não encontrado.</div>
         }
         else
         {
@@ -85,7 +85,7 @@
                     }
                 </BlockModal>
                 <SimpleModal Show="@_showLoserModal" Title="Derrota" Message="@($"O jogador {_loserName} foi eliminado.")" BaseZ="22000" OnClose="CloseLoserModal" />
-                <SimpleModal Show="@_showWinnerModal" Title="Vencedor" Message="@($"Parab�ns! {_winnerName} venceu o jogo.")" BaseZ="23000" OnClose="CloseWinnerModal" />
+                <SimpleModal Show="@_showWinnerModal" Title="Vencedor" Message="@($"Parabéns! {_winnerName} venceu o jogo.")" BaseZ="23000" OnClose="CloseWinnerModal" />
                 @if (_game is not null && !_showDiceOverlay)
                 {
                     <PlayersPanel Players="@_game.Players"

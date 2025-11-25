@@ -9,7 +9,7 @@
     border-radius: 8px;
     padding: 4px;
     box-sizing: border-box;
-    /* dimensionamento dinâmico igual ao builder */
+    /* dimensionamento dinï¿½mico igual ao builder */
     --cell-size: var(--cell-size, 60px);
     --infobar-h: clamp(18px, calc(var(--cell-size) / 4.2), 42px);
 }

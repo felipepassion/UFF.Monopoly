@@ -26,7 +26,7 @@
                         </div>
                         <div class="property-info">
                             <div class="prop-line name">@Block.Name</div>
-                            <div class="prop-line price">PreÁo: R$ @Block.Price</div>
+                            <div class="prop-line price">Pre√ßo: R$ @Block.Price</div>
                             <div class="prop-line rent">Aluguel: R$ @Block.Rent</div>
                         </div>
                     </div>
@@ -43,7 +43,7 @@
                     }
                     @if (IsBotTurn)
                     {
-                        <div class="text-muted small">Bot est· jogando...</div>
+                        <div class="text-muted small">Bot est√° jogando...</div>
                     }
                 </div>
             </div>
@@ -60,7 +60,7 @@
     [Parameter] public EventCallback OnClose { get; set; }
     [Parameter] public EventCallback OnBuy { get; set; }
     [Parameter] public RenderFragment? ChildContent { get; set; }
-    [CascadingParameter] public bool IsBotTurn { get; set; } // injetado a partir da p·gina
+    [CascadingParameter] public bool IsBotTurn { get; set; } // injetado a partir da p√°gina
 
     private string GetIconForBlock(Block b)
     {

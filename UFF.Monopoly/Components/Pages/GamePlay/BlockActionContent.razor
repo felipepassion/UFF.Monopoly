@@ -23,28 +23,28 @@
             currentInfo = BuildingEvolutionDescriptions.Get(statePb.BuildingType, Math.Clamp(currentLevel, 1, 4));
         }
         <div><strong>@(Block.Type == BlockType.Company ? "Companhia:" : "Propriedade:")</strong> @displayName</div>
-        <div><strong>Preço:</strong> R$ @Block.Price</div>
+        <div><strong>PreÃ§o:</strong> R$ @Block.Price</div>
         @if (statePb is not null && statePb.BuildingType != BuildingType.None)
         {
             <div class="level-line d-flex align-items-center gap-1 mt-1">
-                <strong>Nível:</strong>
+                <strong>NÃ­vel:</strong>
                 <span class="badge bg-dark">@currentLevel</span>
                 @if (nextInfo is not null && currentLevel < maxLevel)
                 {
-                    <span class="mx-1">?</span>
-                    <span class="badge bg-primary" title="Próximo nível">@nextLevel</span>
+                    <span class="mx-1">â†’</span>
+                    <span class="badge bg-primary" title="PrÃ³ximo nÃ­vel">@nextLevel</span>
                 }
                 <span class="text-muted small">/@maxLevel</span>
             </div>
-            <div><strong>Tipo construção:</strong> @statePb.BuildingType</div>
+            <div><strong>Tipo construÃ§Ã£o:</strong> @statePb.BuildingType</div>
             <div><strong>Aluguel atual:</strong> R$ @statePb.CalculateRent()</div>
             @if (currentInfo is not null)
             {
-                <div class="evo-desc small text-muted">Atual: <em>@currentInfo.Name</em> – @currentInfo.Description</div>
+                <div class="evo-desc small text-muted">Atual: <em>@currentInfo.Name</em> - @currentInfo.Description</div>
             }
             @if (nextInfo is not null)
             {
-                <div class="evo-next small">Próximo: <em>@nextInfo.Name</em> – @nextInfo.Description</div>
+                <div class="evo-next small">PrÃ³ximo: <em>@nextInfo.Name</em> - @nextInfo.Description</div>
             }
         }
         else
@@ -58,12 +58,12 @@
             }
             else if (statePb?.Owner == Player && !IsBotTurn)
             {
-                <button id="btnUpgrade" class="btn btn-primary me-2" @onclick="OnUpgrade" disabled="@(!(statePb is not null && CanUpgradeAllowed))">Evoluir nível @nextLevel (R$ @NextUpgradeCost)</button>
+                <button id="btnUpgrade" class="btn btn-primary me-2" @onclick="OnUpgrade" disabled="@(!(statePb is not null && CanUpgradeAllowed))">Evoluir nÃ­vel @nextLevel (R$ @NextUpgradeCost)</button>
                 <button class="btn btn-outline-danger" @onclick="OnSell">Vender propriedade (50%)</button>
             }
             else if (IsBotTurn)
             {
-                <div class="text-muted small">Bot está jogando...</div>
+                <div class="text-muted small">Bot estÃ¡ jogando...</div>
             }
             else
             {
