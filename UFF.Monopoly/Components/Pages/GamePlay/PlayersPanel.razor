@@ -1,20 +1,41 @@
 @using UFF.Monopoly.Entities
 @inherits ComponentBase
 
-<div class="players-panel">
-    <div class="fw-bold">Jogadores</div>
-    <ul class="list-unstyled mb-0">
+<div class="players-hud players-hud-center">
+    <div class="players-hud-header">Jogadores</div>
+    <div class="players-hud-list players-hud-grid">
         @if (Players is not null)
         {
             @for (int i = 0; i < Players.Count; i++)
             {
                 var p = Players[i];
-                <li class="small">@p.Name = @p.Money</li>
+                var isCurrent = (i == CurrentPlayerIndex);
+                var bankrupt = p.IsBankrupt;
+                var pawnUrl = GetPawnUrl(p);
+                <div class="player-card @(isCurrent ? "current" : string.Empty) @(bankrupt ? "bankrupt" : string.Empty)">
+                    <div class="player-card-row">
+                        <img src="@pawnUrl" alt="pawn" class="pawn-icon" />
+                        <div class="player-name">@p.Name</div>
+                        @if (isCurrent)
+                        {
+                            <div class="turn-indicator">Sua vez</div>
+                        }
+                    </div>
+                    <div class="player-card-row values-row">
+                        <div class="money" title="Dinheiro">$ @p.Money</div>
+                        <div class="asset" title="Patrimônio total">Patrimônio: @p.AssetScore</div>
+                    </div>
+                </div>
             }
         }
-    </ul>
+    </div>
 </div>
 
 @code {
     [Parameter] public IReadOnlyList<Player>? Players { get; set; }
+    [Parameter] public int CurrentPlayerIndex { get; set; } = -1;
+    [Parameter] public Func<int,string>? PawnUrlResolver { get; set; }
+
+    private string GetPawnUrl(Player p)
+        => PawnUrlResolver?.Invoke(p.PawnIndex) ?? $"images/pawns/PawnsB{p.PawnIndex}.png";
 }

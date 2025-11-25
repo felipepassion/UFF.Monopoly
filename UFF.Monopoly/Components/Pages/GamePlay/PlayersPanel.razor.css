@@ -1,1 +1,27 @@
 .players-panel{ }
+.players-hud { position: fixed; bottom: 84px; left: 12px; width: 260px; max-height: 45vh; overflow-y: auto; background: rgba(0,0,0,0.35); backdrop-filter: blur(4px); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 10px 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.4); font-size: 13px; }
+.players-hud-center { left: 50%; transform: translateX(-50%); width: clamp(280px, 70vw, 860px); max-width: 90vw; }
+.players-hud-header { font-weight: 600; font-size: 14px; margin-bottom: 6px; letter-spacing: .5px; text-align: center; }
+.players-hud-list { display: flex; flex-direction: column; gap: 6px; }
+.players-hud-grid { flex-direction: row; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.player-card { background: linear-gradient(145deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02)); border: 1px solid rgba(255,255,255,0.05); border-radius: 8px; padding: 6px 8px; display: flex; flex-direction: column; gap: 4px; transition: border-color .2s, box-shadow .2s, background .2s; min-width: 220px; max-width: 280px; flex: 1 1 240px; }
+.player-card.current { border-color: var(--accent, #4caf50); box-shadow: 0 0 0 2px rgba(76,175,80,0.25); background: linear-gradient(145deg, rgba(76,175,80,0.25), rgba(0,0,0,0.15)); }
+.player-card.bankrupt { opacity: .55; filter: grayscale(0.7); }
+.player-card-row { display: flex; align-items: center; gap: 6px; }
+.values-row { justify-content: space-between; }
+.player-name { font-weight: 500; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.turn-indicator { font-size: 11px; font-weight: 600; padding: 2px 6px; background: var(--accent, #4caf50); color: #fff; border-radius: 12px; }
+.pawn-icon { width: 22px; height: 22px; object-fit: contain; border-radius: 4px; background: rgba(0,0,0,0.3); padding: 2px; }
+.money { font-weight: 700; font-size: 15px; }
+.asset { font-size: 11px; font-weight: 500; opacity: .85; }
+
+@media (max-width: 640px) {
+  .players-hud { bottom: 96px; font-size: 12px; }
+  .player-card { min-width: 180px; flex: 1 1 180px; }
+  .money { font-size: 14px; }
+}
+
+.players-hud::-webkit-scrollbar { width: 8px; }
+.players-hud::-webkit-scrollbar-track { background: transparent; }
+.players-hud::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 4px; }
+.players-hud::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.25); }

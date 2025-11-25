@@ -14,6 +14,9 @@ public class BoardDefinitionEntity
     public int Cols { get; set; } = 5;
     public int CellSizePx { get; set; } = 64;
 
+    // Image rendered in the board center (inner area)
+    public string? CenterImageUrl { get; set; }
+
     public ICollection<BlockTemplateEntity> Blocks { get; set; } = new List<BlockTemplateEntity>();
 }
 

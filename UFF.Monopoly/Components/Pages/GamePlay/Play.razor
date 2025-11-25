@@ -22,22 +22,35 @@
         else
         {
             <GameBoard BoardWidthCss="@_boardWidthCss" BoardHeightCss="@_boardHeightCss">
+                @* Imagem de fundo interna do board *@
+                @if (!string.IsNullOrWhiteSpace(_boardCenterImageUrl))
+                {
+                    <div class="board-center-bg"><img src="@_boardCenterImageUrl" alt="bg" /></div>
+                }
                 <div class="round-badge">Rodada: @_game.RoundCount</div>
                 <div class="turn-badge">Vez: @_game.Players.ElementAtOrDefault(_game.CurrentPlayerIndex)?.Name</div>
+
+                @* Imagem central (animação de boca) *@
+                <img src="@_mouthImageUrl" style="@_centerCharStyle" alt="personagem" />
+
+                @* Chat container (clique para avançar) *@
+                <div style="@_chatContainerStyle" @onclick="OnChatClicked">
+                    <div style="@_chatTextStyle">@_chatMessage</div>
+                </div>
 
                 @foreach (var space in BoardSpaces)
                 {
                     <BoardSpace Space="space" OnClick="HandleClick" />
                 }
 
-                <BoardPawnLayer Game="_game"
+                <BoardPawnLayer Game="@_game"
                                 PawnAnimPosition="@_pawnAnimPosition"
                                 CellSize="@CellSize"
                                 BoardScale="@_boardScale"
                                 Perimeter="@Perimeter"
                                 PawnIndexes="@_pawnsForPlayers"
                                 DefaultPawnUrl="@PawnUrl"
-                                PawnUrlResolver="@GetPawnUrlForPlayer" />
+                                PawnUrlResolver="@_pawnUrlResolver" />
 
                 @if (_showDiceOverlay)
                 {
@@ -47,7 +60,7 @@
                     var diceOffsetPx = (int)(CellSize * 0.8 * _boardScale);
                     var gifOffset = gifOffsetPx + "px";
                     var diceOffset = diceOffsetPx + "px";
-                    <DiceOverlay Show="_showDiceOverlay"
+                    <DiceOverlay Show="@_showDiceOverlay"
                                  Die1Url="@($"{Navigation.BaseUri}images/dice/diceGreen{_diceFace1}.png")"
                                  Die2Url="@($"{Navigation.BaseUri}images/dice/diceGreen{_diceFace2}.png")"
                                  RollingGifUrl="@_rollingGifUrl"
@@ -82,19 +95,26 @@
                 <SimpleModal Show="@_showWinnerModal" Title="Vencedor" Message="@($"Parabéns! {_winnerName} venceu o jogo.")" BaseZ="23000" OnClose="CloseWinnerModal" />
             </GameBoard>
 
-            <div class="d-flex justify-content-between align-items-center mt-3">
-                <PlayersPanel Players="@_game.Players" />
-                <div>
-                    <button id="btnEnd" class="btn btn-secondary me-2" @onclick="() => EndGame()">Encerrar</button>
-                    <button id="btnRoll" class="btn btn-primary" @onclick="async () => await RollForCurrentPlayer()" disabled="@(!CanRollForCurrent)">Rolar</button>
-                </div>
-                @if (_showBotActionToast)
+            @* Painel de jogadores fixo já adicionado em HUD *@
+            <PlayersPanel Players="@_game.Players" CurrentPlayerIndex="@_game.CurrentPlayerIndex" PawnUrlResolver="@_pawnUrlResolver" />
+
+            @* Container de ações de turno centralizado *@
+            <div class="turn-actions-container">
+                @if (IsPlayerTurn && !HasRolledThisTurn && CanRollDice)
                 {
-                    <div class="mt-2">
-                        <BotToast Show="@_showBotActionToast" Message="@_botActionMessage" />
-                    </div>
+                    <button class="btn btn-primary turn-btn roll-btn" @onclick="RollForCurrentPlayer">Rolar Dados</button>
                 }
             </div>
+
+            @if (_showBotActionToast)
+            {
+                <div class="bot-toast-wrapper">
+                    <BotToast Show="@_showBotActionToast" Message="@_botActionMessage" />
+                </div>
+            }
         }
     </div>
 </div>
+
+@code {
+}

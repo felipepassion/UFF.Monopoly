@@ -18,3 +18,6 @@
 .evo-tooltip-price,.evo-tooltip-rent{font-size:11px;font-weight:600;color:var(--primary);margin-bottom:2px}
 .evo-tooltip-desc{font-size:11px;line-height:15px;color:var(--text-muted)}
 @keyframes tipFade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+/* Overlay de dono */
+.space-inner{position:relative;width:100%;height:100%}
+.owner-overlay{position:absolute;inset:0;border-radius:8px;mix-blend-mode:color;opacity:.55;pointer-events:none}

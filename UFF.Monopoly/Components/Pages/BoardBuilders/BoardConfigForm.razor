@@ -1,6 +1,7 @@
 @using System.ComponentModel.DataAnnotations
 @using UFF.Monopoly.Models
 @inherits ComponentBase
+
 <EditForm Model="Form" OnValidSubmit="HandleSave">
     <DataAnnotationsValidator />
     <ValidationSummary />
@@ -26,18 +27,36 @@
             <ValidationMessage For="@(()=>Form.CellSize)" />
         </div>
     </div>
+    <div class="mb-2">
+        <label class="form-label mb-1">Imagem central (URL)</label>
+        <InputText class="form-control form-control-sm" @bind-Value="Form.CenterImageUrl" />
+    </div>
     <div class="d-grid gap-1">
-        <button type="button" class="btn btn-primary btn-sm" @onclick="(()=>OnGenerateGrid?.Invoke())">Gerar tabuleiro</button>
-        <button type="button" class="btn btn-secondary btn-sm" @onclick="(()=>OnGenerateRandom?.Invoke())">Gerar aleatório</button>
-        <button type="submit" class="btn btn-success btn-sm" disabled="@(BlocksCount<=0)">Salvar</button>
+        <button type="button" class="btn btn-primary btn-sm" @onclick="@(() => OnGenerateGrid?.Invoke())">Gerar tabuleiro</button>
+        <button type="button" class="btn btn-secondary btn-sm" @onclick="@(() => OnGenerateRandom?.Invoke())">Gerar aleatório</button>
+        <button type="submit" class="btn btn-success btn-sm" disabled="@(BlocksCount <= 0)">Salvar</button>
+        <button type="button" class="btn btn-info btn-sm" @onclick="@(() => OnPlay?.Invoke())" disabled="@(BlocksCount <= 0)">Jogar</button>
     </div>
 </EditForm>
 
 @code {
-    [Parameter] public BoardFormModel Form { get; set; } = new();
-    [Parameter] public int BlocksCount { get; set; }
-    [Parameter] public Action? OnGenerateGrid { get; set; }
-    [Parameter] public Action? OnGenerateRandom { get; set; }
-    [Parameter] public Func<Task>? OnSave { get; set; }
+    [Parameter]
+    public BoardFormModel Form { get; set; } = new();
+
+    [Parameter]
+    public int BlocksCount { get; set; }
+
+    [Parameter]
+    public Action? OnGenerateGrid { get; set; }
+
+    [Parameter]
+    public Action? OnGenerateRandom { get; set; }
+
+    [Parameter]
+    public Func<Task>? OnSave { get; set; }
+
+    [Parameter]
+    public Action? OnPlay { get; set; }
+
     private Task HandleSave() => OnSave is null ? Task.CompletedTask : OnSave();
 }
