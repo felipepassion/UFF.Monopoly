@@ -28,7 +28,8 @@
                 }
                 <div class="round-badge">Rodada: @_game.RoundCount</div>
                 <div class="turn-badge">Vez: @_game.Players.ElementAtOrDefault(_game.CurrentPlayerIndex)?.Name</div>
-                @if (!(_showDiceOverlay || _pawnAnimPosition != -1))
+                @* Exibir chat sempre que não houver overlay de dados (removida checagem de _pawnAnimPosition) *@
+                @if (!_showDiceOverlay)
                 {
                     <img src="@_mouthImageUrl" style="@_centerCharStyle" alt="personagem" />
                     <div style="@_chatContainerStyle" @onclick="OnChatClicked">

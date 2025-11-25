@@ -170,19 +170,7 @@ public class EfGameRepository : IGameRepository
                 PawnIndex = p.PawnIndex
             }).ToList();
 
-        // Ensure a stable order with humans first, then bots. This matches how the local game is created
-        // (humans first, then bots) and prevents the UI from thinking it's the human turn but showing a bot name.
-        // We keep relative order within each group by ordering by Name, which is stable for default names
-        // (e.g., "Player 1", "Player 2" and "Bot 1", "Bot 2").
-        var humans = players
-            .Where(p => !p.Name.StartsWith("Bot ", StringComparison.OrdinalIgnoreCase))
-            .OrderBy(p => p.Name)
-            .ToList();
-        var bots = players
-            .Where(p => p.Name.StartsWith("Bot ", StringComparison.OrdinalIgnoreCase))
-            .OrderBy(p => p.Name)
-            .ToList();
-        players = humans.Concat(bots).ToList();
+        // Preserve original order from DB (creation order) to maintain correct turn indices.
 
         var idMap = players.ToDictionary(p => p.Id, p => p);
 
@@ -255,7 +243,10 @@ public class EfGameRepository : IGameRepository
                 }
             }).ToList();
 
-        var game = new Game(players, blocks);
+        var game = new Game(players, blocks)
+        {
+            CurrentPlayerIndex = gameEntity.CurrentPlayerIndex
+        };
         return game;
     }
 

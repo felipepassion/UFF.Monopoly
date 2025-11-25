@@ -296,7 +296,14 @@ public partial class Play : ComponentBase, IAsyncDisposable
     // Chamado quando termino de digitar uma fala completa
     private void OnChatFinished()
     {
-        // Libera HUD após término completo da intro (todas as mensagens "inicio" + provocação consumidas)
+        // Se ainda há falas restantes da intro, avança automaticamente para a próxima
+        if (!_initialIntroDone && _dialogueInitialized && _dialogueQueue.Count > 0)
+        {
+            // inicia próxima fala imediatamente
+            AdvanceDialogueIfIdle();
+            return; // aguarda finalizar próxima antes de liberar HUD
+        }
+        // Libera HUD após término completo da intro (todas as mensagens consumidas)
         if (!_initialIntroDone && _dialogueInitialized && _dialogueQueue.Count == 0)
         {
             _initialIntroDone = true; // agora HUD pode aparecer
