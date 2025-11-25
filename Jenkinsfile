@@ -13,14 +13,14 @@ pipeline {
             steps {
                 script {
                     echo "Attempting to connect to ${SSH_USER}@${SSH_HOST}..."
-                    sshagent(['db7901a1-3027-4fa8-b14e-df77df2fbf81']) {
+                    sshagent(['a43db6b7-3ece-498c-b200-8a0c8be24bcf']) {
                         sh '''
                         # Test SSH connection first
                         ssh -o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST} 'echo "SSH connection successful"' || {
                             echo "ERROR: Cannot establish SSH connection to ${SSH_USER}@${SSH_HOST}"
                             echo "Please verify:"
                             echo "1. The SSH key is added to ~/.ssh/authorized_keys on the remote server"
-                            echo "2. The Jenkins credential 'db7901a1-3027-4fa8-b14e-df77df2fbf81' contains the correct private key"
+                            echo "2. The Jenkins credential 'a43db6b7-3ece-498c-b200-8a0c8be24bcf' contains the correct private key"
                             echo "3. The remote server is accessible from Jenkins"
                             exit 1
                         }
@@ -51,7 +51,7 @@ REMOTE_EOF'''
         stage('Restore Dependencies') {
             steps {
                 script {
-                    sshagent(['db7901a1-3027-4fa8-b14e-df77df2fbf81']) {
+                    sshagent(['a43db6b7-3ece-498c-b200-8a0c8be24bcf']) {
                         sh '''ssh -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST} bash -s <<'REMOTE_EOF'
 set -e
 cd ~/UFF.Monopoly
@@ -67,7 +67,7 @@ REMOTE_EOF'''
         stage('Build Environment') {
             steps {
                 script {
-                    sshagent(['db7901a1-3027-4fa8-b14e-df77df2fbf81']) {
+                    sshagent(['a43db6b7-3ece-498c-b200-8a0c8be24bcf']) {
                         sh '''ssh -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST} bash -s <<'REMOTE_EOF'
 set -e
 echo "Cleaning deployment directory..."
@@ -86,7 +86,7 @@ REMOTE_EOF'''
         stage('Deploy via Portainer') {
             steps {
                 script {
-                    sshagent(['db7901a1-3027-4fa8-b14e-df77df2fbf81']) {
+                    sshagent(['a43db6b7-3ece-498c-b200-8a0c8be24bcf']) {
                         sh '''ssh -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST} bash -s <<'REMOTE_EOF'
 set -e
 echo "Stopping and removing existing container..."
