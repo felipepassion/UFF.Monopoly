@@ -9,7 +9,7 @@
         <div class="modal-dialog modal-lg">
             <div class="modal-content p-2 category-modal-surface">
                 <div class="modal-header">
-                    <h6 class="modal-title">Escolha a categoria <span class="shortcut-hint">(Use números 1–4 para nível, Alt+Nº)</span></h6>
+                    <h6 class="modal-title">Escolha a categoria <span class="shortcut-hint">(Use nÃºmeros 1â€“4 para nÃ­vel, Alt+NÂº)</span></h6>
                     <button type="button" class="btn-close btn-close-white" aria-label="Close" @onclick="OnClose"></button>
                 </div>
                 <div class="modal-body p-2 category-modal" @onkeydown="HandleKey" tabindex="0" @ref="_focusRef">
@@ -22,7 +22,7 @@
                             <div class="d-flex flex-wrap gap-2 align-items-stretch">
                                 @for (int lvl = 1; lvl <= 4; lvl++)
                                 {
-                                    var level = lvl; // variável estável para evitar captura incorreta
+                                    var level = lvl; // variÃ¡vel estÃ¡vel para evitar captura incorreta
                                     var evo = BuildingEvolutionDescriptions.Get(cat, level);
                                     if (!_customPrices.ContainsKey((cat, level))) _customPrices[(cat, level)] = prices[level - 1];
                                     if (!_editing.ContainsKey((cat, level))) _editing[(cat, level)] = false;
@@ -31,16 +31,16 @@
                                     var priceVal = _customPrices[(cat, level)];
                                     <div class="level-card p-2 rounded-3 d-flex flex-column gap-1" style="width:150px;border:1px solid rgba(255,255,255,.18);background:var(--surface-secondary);">
                                         <div class="text-center">
-                                            <img src="@img" alt="@GetCategoryName(cat) nível @level" class="img-fluid" style="max-height:56px;cursor:pointer;" title="@evo.Name ($ @priceVal)"
+                                            <img src="@img" alt="@GetCategoryName(cat) nÃ­vel @level" class="img-fluid" style="max-height:56px;cursor:pointer;" title="@evo.Name ($ @priceVal)"
                                                  @onclick="(() => ApplyLevel(cat, level))"
                                                  @onmouseover="(e => ShowTip(e, BuildingEvolutionDescriptions.Get(cat, level).Name, BuildingEvolutionDescriptions.Get(cat, level).Description, img, catName, level, priceVal))" @onmousemove="MoveTip" @onmouseout="HideTip" />
                                         </div>
                                         <div class="small text-center fw-semibold">@evo.Name</div>
-                                        <div class="small text-center">Nível @level</div>
+                                        <div class="small text-center">NÃ­vel @level</div>
                                         @if (!_editing[(cat, level)])
                                         {
                                             <div class="d-flex justify-content-center align-items-center gap-1 small">
-                                                <span>Preço: $ @priceVal</span>
+                                                <span>PreÃ§o: $ @priceVal</span>
                                                 <button type="button" class="btn btn-link btn-sm p-0" @onclick="(() => ToggleEdit(cat, level, true))">Editar</button>
                                             </div>
                                         }
@@ -70,7 +70,7 @@
                                 <img src="@_tipImage" alt="img" class="evo-tooltip-img" />
                                 <div class="evo-tooltip-title fw-semibold">@_tipTitle</div>
                             </div>
-                            <div class="evo-tooltip-price">Preço: $ @_tipPrice</div>
+                            <div class="evo-tooltip-price">PreÃ§o: $ @_tipPrice</div>
                             <div class="evo-tooltip-desc">@_tipDesc</div>
                         </div>
                     }
@@ -108,7 +108,7 @@
 
     private void ShowTip(MouseEventArgs e, string name, string description, string image, string categoryName, int level, int price)
     {
-        _tipTitle = $"{name} – Nível {level} ({categoryName})";
+        _tipTitle = $"{name} â€“ NÃ­vel {level} ({categoryName})";
         _tipDesc = description;
         _tipPrice = price;
         _tipImage = image;
