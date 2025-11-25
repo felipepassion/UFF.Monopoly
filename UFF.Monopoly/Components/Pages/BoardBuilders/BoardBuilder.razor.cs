@@ -27,7 +27,7 @@ public partial class BoardBuilder : ComponentBase
     internal (bool Show, int Index, BlockType? Type) _specialModal = (false, -1, null);
     internal bool ShowToast; internal string ToastMessage = string.Empty;
 
-    // Cache de preÁos editados em memÛria atÈ F5
+    // Cache de pre√ßos editados em mem√≥ria at√© F5
     private readonly Dictionary<(Guid blockId, BuildingType cat, int level), int> _priceCache = new();
 
     internal int GetCachedPrice(BlockTemplateEntity? block, BuildingType cat, int level)
@@ -50,7 +50,7 @@ public partial class BoardBuilder : ComponentBase
         if (block is null) return;
         price = Math.Max(0, price);
         _priceCache[(block.Id, cat, level)] = price;
-        // Atualiza CSV somente desta inst‚ncia, mantendo persistÍncia ao salvar manualmente
+        // Atualiza CSV somente desta inst√¢ncia, mantendo persist√™ncia ao salvar manualmente
         int[] prices;
         if (!string.IsNullOrWhiteSpace(block.BuildingPricesCsv))
             prices = block.BuildingPricesCsv.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(p => int.TryParse(p, out var v) ? v : 0).ToArray();
@@ -124,8 +124,8 @@ public partial class BoardBuilder : ComponentBase
             Blocks[idx].ImageUrl = GetDefaultImageForType(Blocks[idx].Type);
             if (Blocks[idx].Type == BlockType.Tax) Blocks[idx].Name = "Taxa";
             else if (Blocks[idx].Type == BlockType.Chance) Blocks[idx].Name = "Sorte";
-            else if (Blocks[idx].Type == BlockType.Reves) Blocks[idx].Name = "RevÈs";
-            else if (Blocks[idx].Type == BlockType.GoToJail) Blocks[idx].Name = "V· para Pris„o";
+            else if (Blocks[idx].Type == BlockType.Reves) Blocks[idx].Name = "Rev√©s";
+            else if (Blocks[idx].Type == BlockType.GoToJail) Blocks[idx].Name = "V√° para Pris√£o";
         }
         _specialModal = (false, -1, null); StateHasChanged();
     }
@@ -144,7 +144,7 @@ public partial class BoardBuilder : ComponentBase
         block.BuildingPricesCsv = string.Join(',', prices);
         var evo = BuildingEvolutionDescriptions.Get(cat, level);
         block.Name = evo.Name;
-        // Atualiza preÁo conforme nÌvel escolhido (usa custo incremental daquele nÌvel)
+        // Atualiza pre√ßo conforme n√≠vel escolhido (usa custo incremental daquele n√≠vel)
         if (level >= 1 && level <= prices.Length)
         {
             block.Price = prices[level - 1];
@@ -153,7 +153,7 @@ public partial class BoardBuilder : ComponentBase
         }
         var wasGeneric = string.IsNullOrWhiteSpace(block.Description) || block.Description.StartsWith("Bloco", StringComparison.OrdinalIgnoreCase) || block.Description.Equals(block.Name, StringComparison.OrdinalIgnoreCase);
         if (wasGeneric) { block.Description = evo.Description; }
-        else if (!block.Description.Contains(evo.Name, StringComparison.OrdinalIgnoreCase)) { block.Description += $" (NÌvel: {evo.Name})"; }
+        else if (!block.Description.Contains(evo.Name, StringComparison.OrdinalIgnoreCase)) { block.Description += $" (N√≠vel: {evo.Name})"; }
         CloseCategoryModal(); StateHasChanged();
     }
 
@@ -173,18 +173,18 @@ public partial class BoardBuilder : ComponentBase
         block.Rent = (int)Math.Max(1, Math.Round(block.Price * 0.08));
         var wasGeneric = string.IsNullOrWhiteSpace(block.Description) || block.Description.StartsWith("Bloco", StringComparison.OrdinalIgnoreCase) || block.Description.Equals(block.Name, StringComparison.OrdinalIgnoreCase);
         if (wasGeneric) { block.Description = evo.Description; }
-        else if (!block.Description.Contains(evo.Name, StringComparison.OrdinalIgnoreCase)) { block.Description += $" (NÌvel: {evo.Name})"; }
+        else if (!block.Description.Contains(evo.Name, StringComparison.OrdinalIgnoreCase)) { block.Description += $" (N√≠vel: {evo.Name})"; }
         CloseCategoryModal(); StateHasChanged();
     }
 
-    // SeleÁ„o r·pida acionada pelos atalhos ou clique direto de nÌvel no popup
+    // Sele√ß√£o r√°pida acionada pelos atalhos ou clique direto de n√≠vel no popup
     internal void QuickPropertySelect(BuildingType cat, int level)
     {
         var idx = Popup.Index;
         if (idx < 0 || idx >= Blocks.Count) { Popup.Visible = false; return; }
         var b = Blocks[idx];
 
-        // Reconstroi lista de preÁos considerando cache e CSV existente
+        // Reconstroi lista de pre√ßos considerando cache e CSV existente
         int[] defaultPrices = GetDefaultPricesForCategory(cat);
         int[] existingPrices = (!string.IsNullOrWhiteSpace(b.BuildingPricesCsv)) ?
             b.BuildingPricesCsv.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(p => int.TryParse(p, out var v) ? v : 0).ToArray() :
@@ -207,7 +207,7 @@ public partial class BoardBuilder : ComponentBase
         b.ImageUrl = GetBuildingImage(cat, level);
         b.Name = evo.Name;
 
-        // Usa preÁo da posiÁ„o escolhida considerando cache
+        // Usa pre√ßo da posi√ß√£o escolhida considerando cache
         b.Price = finalPrices[Math.Clamp(level - 1, 0, finalPrices.Length - 1)];
         b.Rent = (int)Math.Max(1, Math.Round(b.Price * (cat == BuildingType.Company ? 0.10 : 0.08)));
 
@@ -217,7 +217,7 @@ public partial class BoardBuilder : ComponentBase
         Popup.Visible = false; StateHasChanged();
     }
 
-    // Abre modal completo de categoria a partir do bot„o "Ver detalhes" no popup
+    // Abre modal completo de categoria a partir do bot√£o "Ver detalhes" no popup
     internal void ShowDetailsFromPopup()
     { CategoryModal = (true, Popup.Index); Popup.Visible = false; StateHasChanged(); }
 
@@ -227,7 +227,7 @@ public partial class BoardBuilder : ComponentBase
 
     internal string GetDefaultImageForType(BlockType t) => t switch { BlockType.Property => "/images/board/buildings/house1.png", BlockType.Company => "/images/board/buildings/company1.png", BlockType.GoToJail => "/images/blocks/go_to_jail.svg", BlockType.Jail => "/images/blocks/visitar_prisao.svg", BlockType.Tax => "/images/blocks/taxa.png", BlockType.Go => "/images/blocks/volte-casas.svg", BlockType.Chance => "/images/blocks/sorte.png", BlockType.Reves => "/images/blocks/reves.png", BlockType.FreeParking => "/images/board/blocks/freeparking.png", _ => "/images/board/buildings/house1.png" };
 
-    internal string GetCategoryName(BuildingType cat) => cat switch { BuildingType.House => "Casas", BuildingType.Hotel => "HotÈis", BuildingType.Company => "Empresas", BuildingType.Special => "PrÈdios Especiais", _ => cat.ToString() };
+    internal string GetCategoryName(BuildingType cat) => cat switch { BuildingType.House => "Casas", BuildingType.Hotel => "Hot√©is", BuildingType.Company => "Empresas", BuildingType.Special => "Pr√©dios Especiais", _ => cat.ToString() };
     internal string GetCategoryColor(BuildingType cat) => cat switch { BuildingType.House => GetTypeColor(BlockType.Property), BuildingType.Hotel => GetTypeColor(BlockType.Property), BuildingType.Company => GetTypeColor(BlockType.Company), BuildingType.Special => GetTypeColor(BlockType.FreeParking), _ => "#95a5a6" };
     internal static int[] GetDefaultPricesForCategory(BuildingType cat) => cat switch { BuildingType.House => new[] { 100, 200, 350, 500 }, BuildingType.Hotel => new[] { 300, 600, 1000, 1500 }, BuildingType.Company => new[] { 400, 800, 1300, 1900 }, BuildingType.Special => new[] { 500, 1000, 1600, 2300 }, _ => new[] { 0, 0, 0, 0 } };
     internal static string GetBuildingImage(BuildingType cat, int level) => cat switch { BuildingType.House => $"/images/board/buildings/house{Math.Clamp(level, 1, 4)}.png", BuildingType.Hotel => $"/images/board/buildings/hotel{Math.Clamp(level, 1, 4)}.png", BuildingType.Company => $"/images/board/buildings/company{Math.Clamp(level, 1, 4)}.png", BuildingType.Special => Math.Clamp(level, 1, 4) switch { 1 => "/images/board/buildings/special_circus.png", 2 => "/images/board/buildings/special_shopping.png", 3 => "/images/board/buildings/special_stadium.png", _ => "/images/board/buildings/special_airport.png" }, _ => "/images/board/buildings/house1.png" };
@@ -320,18 +320,18 @@ public partial class BoardBuilder : ComponentBase
         Nav.NavigateTo($"/play/{CurrentBoardId}");
     }
 
-    internal string TranslateBlockType(BlockType t) => t switch { BlockType.Go => "InÌcio", BlockType.Property => "Propriedade", BlockType.Company => "Companhia", BlockType.Tax => "Taxa", BlockType.Jail => "Visitar Pris„o", BlockType.GoToJail => "V· para Pris„o", BlockType.Chance => "Sorte", BlockType.Reves => "RevÈs", BlockType.FreeParking => "Parada Livre", _ => t.ToString() };
+    internal string TranslateBlockType(BlockType t) => t switch { BlockType.Go => "In√≠cio", BlockType.Property => "Propriedade", BlockType.Company => "Companhia", BlockType.Tax => "Taxa", BlockType.Jail => "Visitar Pris√£o", BlockType.GoToJail => "V√° para Pris√£o", BlockType.Chance => "Sorte", BlockType.Reves => "Rev√©s", BlockType.FreeParking => "Parada Livre", _ => t.ToString() };
 
     // === Random board generation with basic balance rules ===
     internal void GenerateRandomBoard()
     {
-        // N„o alterar o tamanho do board; apenas garantir mÌnimos.
+        // N√£o alterar o tamanho do board; apenas garantir m√≠nimos.
         var rng = Random.Shared;
         if (Form.Rows < 3) Form.Rows = 3;
         if (Form.Cols < 3) Form.Cols = 3;
         if (Form.CellSize <= 0) Form.CellSize = 56;
 
-        // MantÈm o tamanho existente sem aplicar lÛgica de widescreen ou randomizaÁ„o.
+        // Mant√©m o tamanho existente sem aplicar l√≥gica de widescreen ou randomiza√ß√£o.
         RebuildPerimeterMap();
         var total = CellToIndex.Count; // perimeter cells count
         if (total < 8) { GenerateGrid(); return; }
@@ -372,10 +372,10 @@ public partial class BoardBuilder : ComponentBase
             b.Price = 0; b.Rent = defaultValue; b.BuildingPricesCsv = null; b.Level = null;
         }
 
-        SetBlock(corners[0], BlockType.Go, "InÌcio");
-        SetBlock(corners[1], BlockType.Jail, "Visitar Pris„o", 0);
+        SetBlock(corners[0], BlockType.Go, "In√≠cio");
+        SetBlock(corners[1], BlockType.Jail, "Visitar Pris√£o", 0);
         SetBlock(corners[2], BlockType.FreeParking, "Parada Livre", 0);
-        SetBlock(corners[3], BlockType.GoToJail, "V· para Pris„o", 3); // default turns
+        SetBlock(corners[3], BlockType.GoToJail, "V√° para Pris√£o", 3); // default turns
 
         int specialsBudget(int min, int max) => Math.Clamp((int)Math.Round(total * 0.08), min, max);
         int chanceCount = specialsBudget(2, 4);
@@ -412,9 +412,9 @@ public partial class BoardBuilder : ComponentBase
         }
 
         PlaceMany(BlockType.Chance, chanceCount, "Sorte", 2); // default positive move/value
-        PlaceMany(BlockType.Reves, revesCount, "RevÈs", 2); // default backward steps
+        PlaceMany(BlockType.Reves, revesCount, "Rev√©s", 2); // default backward steps
         PlaceMany(BlockType.Tax, taxCount, "Taxa", 150); // default tax value
-        if (goToJailExtra > 0) PlaceMany(BlockType.GoToJail, goToJailExtra, "V· para Pris„o", 3);
+        if (goToJailExtra > 0) PlaceMany(BlockType.GoToJail, goToJailExtra, "V√° para Pris√£o", 3);
 
         void PlaceCompanies(int count)
         {

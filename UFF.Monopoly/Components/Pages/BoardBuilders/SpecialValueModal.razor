@@ -29,8 +29,8 @@
     [Parameter] public EventCallback<BlockTemplateEntity> OnApply { get; set; }
 
     private int _value; // taxa / valor sorte
-    private int _steps; // revÈs casas
-    private int _turns; // pris„o turnos
+    private int _steps; // rev√©s casas
+    private int _turns; // pris√£o turnos
 
     protected override void OnParametersSet()
     {
@@ -44,7 +44,7 @@
                 BlockType.GoToJail => 3,
                 _ => 0
             };
-            if (Block.Rent <= 0) Block.Rent = def; // aplica default se n„o tiver valor
+            if (Block.Rent <= 0) Block.Rent = def; // aplica default se n√£o tiver valor
             _value = Block.Rent;
             _steps = Block.Rent;
             _turns = Block.Rent;
@@ -92,15 +92,15 @@
                 builder.OpenElement(idx++, "input"); builder.AddAttribute(idx++, "type", "number"); builder.AddAttribute(idx++, "class", "form-control form-control-sm"); builder.AddAttribute(idx++, "value", BindConverter.FormatValue(_steps)); builder.AddAttribute(idx++, "onchange", EventCallback.Factory.CreateBinder<int>(this, v => _steps = v, _steps)); builder.CloseElement();
                 break;
             case BlockType.GoToJail:
-                builder.OpenElement(idx++, "label"); builder.AddAttribute(idx++, "class", "form-label small mb-1"); builder.AddContent(idx++, "Turnos na pris„o"); builder.CloseElement();
+                builder.OpenElement(idx++, "label"); builder.AddAttribute(idx++, "class", "form-label small mb-1"); builder.AddContent(idx++, "Turnos na pris√£o"); builder.CloseElement();
                 builder.OpenElement(idx++, "input"); builder.AddAttribute(idx++, "type", "number"); builder.AddAttribute(idx++, "class", "form-control form-control-sm"); builder.AddAttribute(idx++, "value", BindConverter.FormatValue(_turns)); builder.AddAttribute(idx++, "onchange", EventCallback.Factory.CreateBinder<int>(this, v => _turns = v, _turns)); builder.CloseElement();
                 break;
             default:
-                builder.AddContent(idx++, "Tipo n„o suportado.");
+                builder.AddContent(idx++, "Tipo n√£o suportado.");
                 break;
         }
     };
 
     private string Translate(BlockType t) => t switch
-    { BlockType.Tax => "Taxa", BlockType.Chance => "Sorte", BlockType.Reves => "RevÈs", BlockType.GoToJail => "V· para Pris„o", _ => t.ToString() };
+    { BlockType.Tax => "Taxa", BlockType.Chance => "Sorte", BlockType.Reves => "Rev√©s", BlockType.GoToJail => "V√° para Pris√£o", _ => t.ToString() };
 }

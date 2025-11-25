@@ -22,7 +22,7 @@
             <ValidationMessage For="@(()=>Form.Cols)" />
         </div>
         <div class="col-4 mb-2">
-            <label class="form-label mb-1">Célula (px)</label>
+            <label class="form-label mb-1">CÃ©lula (px)</label>
             <InputNumber class="form-control form-control-sm" @bind-Value="Form.CellSize" />
             <ValidationMessage For="@(()=>Form.CellSize)" />
         </div>
@@ -33,7 +33,7 @@
     </div>
     <div class="d-grid gap-1">
         <button type="button" class="btn btn-primary btn-sm" @onclick="@(() => OnGenerateGrid?.Invoke())">Gerar tabuleiro</button>
-        <button type="button" class="btn btn-secondary btn-sm" @onclick="@(() => OnGenerateRandom?.Invoke())">Gerar aleatório</button>
+        <button type="button" class="btn btn-secondary btn-sm" @onclick="@(() => OnGenerateRandom?.Invoke())">Gerar aleatÃ³rio</button>
         <button type="submit" class="btn btn-success btn-sm" disabled="@(BlocksCount <= 0)">Salvar</button>
         <button type="button" class="btn btn-info btn-sm" @onclick="@(() => OnPlay?.Invoke())" disabled="@(BlocksCount <= 0)">Jogar</button>
     </div>
