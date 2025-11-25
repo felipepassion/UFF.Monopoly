@@ -1,58 +1,109 @@
 pipeline {
-  agent any
+    agent any
 
-  parameters {
-    string(name: 'IMAGE_NAME', defaultValue: 'uffmonopoly', description: 'Nome da imagem Docker')
-    string(name: 'IMAGE_TAG', defaultValue: 'latest', description: 'Tag da imagem Docker')
-    string(name: 'SERVER_HOST', defaultValue: '', description: 'Host do servidor destino (ex: 1.2.3.4)')
-    string(name: 'SSH_CREDENTIALS', defaultValue: 'ssh-key-id', description: 'ID da credencial SSH no Jenkins (tipo SSH Username with private key)')
-  }
-
-  environment {
-    PROJECT_DIR = 'UFF.Monopoly'
-  }
-
-  stages {
-    stage('Checkout') {
-      steps {
-        checkout scm
-      }
+    environment {
+        SSH_HOST = '72.60.5.211'
+        SSH_USER = 'devinfomarca'
+        REMOTE_REPO_PATH = '~/UFF.Monopoly'
+        DEPLOY_PATH = '/UFFMonopoly/volumes/WebApp'
     }
 
-    stage('Build .NET') {
-      steps {
-        dir("${env.PROJECT_DIR}") {
-          sh 'dotnet restore'
-          sh 'dotnet build --configuration Release --no-restore'
-          sh 'dotnet publish -c Release -o publish --no-build'
+    stages {
+        stage('Prepare Environment') {
+            steps {
+                script {
+                    echo "Attempting to connect to ${SSH_USER}@${SSH_HOST}..."
+                    sshagent(['db7901a1-3027-4fa8-b14e-df77df2fbf81']) {
+                        sh '''
+                        # Test SSH connection first
+                        ssh -o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST} 'echo "SSH connection successful"' || {
+                            echo "ERROR: Cannot establish SSH connection to ${SSH_USER}@${SSH_HOST}"
+                            echo "Please verify:"
+                            echo "1. The SSH key is added to ~/.ssh/authorized_keys on the remote server"
+                            echo "2. The Jenkins credential 'db7901a1-3027-4fa8-b14e-df77df2fbf81' contains the correct private key"
+                            echo "3. The remote server is accessible from Jenkins"
+                            exit 1
+                        }
+                        
+                        ssh -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST} bash -s <<'REMOTE_EOF'
+set -e  # Exit on any error
+echo "Cleaning up old repository..."
+sudo rm -rf ~/UFF.Monopoly || true
+
+echo "Cloning repository..."
+git clone git@github.com:felipepassion/UFF.Monopoly.git ~/UFF.Monopoly
+
+echo "Setting permissions..."
+sudo chown -R ${SSH_USER}:${SSH_USER} ~/UFF.Monopoly
+sudo chmod -R 755 ~/UFF.Monopoly
+
+echo "Updating repository..."
+cd ~/UFF.Monopoly
+git pull origin master --force
+
+echo "Repository prepared successfully"
+REMOTE_EOF'''
+                    }
+                }
+            }
         }
-      }
-    }
 
-    stage('Docker Build') {
-      steps {
-        dir("${env.PROJECT_DIR}") {
-          sh "docker build -t ${params.IMAGE_NAME}:${params.IMAGE_TAG} ."
-          sh "docker save ${params.IMAGE_NAME}:${params.IMAGE_TAG} -o ${params.IMAGE_NAME}_${params.IMAGE_TAG}.tar"
+        stage('Restore Dependencies') {
+            steps {
+                script {
+                    sshagent(['db7901a1-3027-4fa8-b14e-df77df2fbf81']) {
+                        sh '''ssh -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST} bash -s <<'REMOTE_EOF'
+set -e
+cd ~/UFF.Monopoly
+echo "Restoring .NET dependencies..."
+sudo ~/dotnet/dotnet restore
+echo "Dependencies restored successfully"
+REMOTE_EOF'''
+                    }
+                }
+            }
         }
-      }
-    }
 
-    stage('Transfer and load on server') {
-      steps {
-        withCredentials([sshUserPrivateKey(credentialsId: "${params.SSH_CREDENTIALS}", keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER')]) {
-          sh """
-            scp -o StrictHostKeyChecking=no -i \"$SSH_KEY\" ${env.PROJECT_DIR}/${params.IMAGE_NAME}_${params.IMAGE_TAG}.tar ${SSH_USER}@${params.SERVER_HOST}:~/UFF.Monopoly/
-            ssh -o StrictHostKeyChecking=no -i \"$SSH_KEY\" ${SSH_USER}@${params.SERVER_HOST} \"mkdir -p ~/UFF.Monopoly && docker load -i ~/UFF.Monopoly/${params.IMAGE_NAME}_${params.IMAGE_TAG}.tar && rm ~/UFF.Monopoly/${params.IMAGE_NAME}_${params.IMAGE_TAG}.tar\"
-          """
+        stage('Build Environment') {
+            steps {
+                script {
+                    sshagent(['db7901a1-3027-4fa8-b14e-df77df2fbf81']) {
+                        sh '''ssh -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST} bash -s <<'REMOTE_EOF'
+set -e
+echo "Cleaning deployment directory..."
+sudo rm -rf /taxifort/volumes/WebApp/* || true
+
+echo "Building and publishing application..."
+cd ~/UFF.Monopoly
+sudo ~/dotnet/dotnet publish --os linux --arch x64 -p:PublishTrimmed=false -o /taxifort/volumes/WebApp
+echo "Build completed successfully"
+REMOTE_EOF'''
+                    }
+                }
+            }
         }
-      }
-    }
-  }
 
-  post {
-    always {
-      cleanWs()
+        stage('Deploy via Portainer') {
+            steps {
+                script {
+                    sshagent(['db7901a1-3027-4fa8-b14e-df77df2fbf81']) {
+                        sh '''ssh -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST} bash -s <<'REMOTE_EOF'
+set -e
+echo "Stopping and removing existing container..."
+sudo docker stop taxifort-webapp || true
+sudo docker rm taxifort-webapp || true
+
+echo "Deploying with docker-compose..."
+cd ~/taxifort-ansible-deploy
+sudo docker-compose up -d --build
+
+echo "Verifying deployment..."
+sudo docker ps -a | grep taxifort-webapp
+echo "Deployment completed successfully"
+REMOTE_EOF'''
+                    }
+                }
+            }
+        }
     }
-  }
 }
