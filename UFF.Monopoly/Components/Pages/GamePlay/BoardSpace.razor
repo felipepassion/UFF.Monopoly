@@ -30,6 +30,8 @@
         style.Append($"left:{Space.Style.Left};");
         style.Append($"width:{Space.Style.Width};");
         style.Append($"height:{Space.Style.Height};");
+        // expor variável para dimensionamento interno
+        style.Append($"--cell-size:{Space.Style.Width};");
         if (!string.IsNullOrWhiteSpace(Space.Style.Transform))
         {
             style.Append($"transform:{Space.Style.Transform};");

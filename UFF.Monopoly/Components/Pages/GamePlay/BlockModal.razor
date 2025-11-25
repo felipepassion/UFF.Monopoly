@@ -10,7 +10,10 @@
             <div class="modal-content p-2 modal-surface property-modal">
                 <div class="modal-header border-bottom">
                     <h5 class="modal-title">@Block.Name</h5>
-                    <button type="button" class="btn-close btn-close-white" aria-label="Fechar" @onclick="OnClose"></button>
+                    @if (!IsBotTurn)
+                    {
+                        <button type="button" class="btn-close btn-close-white" aria-label="Fechar" @onclick="OnClose"></button>
+                    }
                 </div>
                 <div class="modal-body">
                     <div class="property-modal-body">
@@ -34,7 +37,14 @@
                     {
                         <button class="btn btn-success" @onclick="OnBuy" disabled="@(Player.Money < Block.Price)">Comprar (R$ @Block.Price)</button>
                     }
-                    <button class="btn btn-secondary" @onclick="OnClose">Fechar</button>
+                    @if (!IsBotTurn)
+                    {
+                        <button class="btn btn-secondary" @onclick="OnClose">Fechar</button>
+                    }
+                    @if (IsBotTurn)
+                    {
+                        <div class="text-muted small">Bot está jogando...</div>
+                    }
                 </div>
             </div>
         </div>
