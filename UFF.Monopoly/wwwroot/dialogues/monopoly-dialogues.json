@@ -1,0 +1,192 @@
+﻿{
+  "groups": {
+    "inicio": [
+      {
+        "id": "intro1",
+        "text": "Bem-vindo ao Grande Tabuleiro! Prepare suas estratégias."
+      },
+      {
+        "id": "intro2",
+        "text": "Aqui começa a jornada dos investimentos audaciosos."
+      },
+      {
+        "id": "intro3",
+        "text": "Role os dados quando estiver pronto para dominar as propriedades."
+      }
+    ],
+    "rolagem": [
+      {
+        "id": "roll1",
+        "text": "{PLAYER} sacode os dados..."
+      },
+      {
+        "id": "roll2",
+        "text": "Vamos ver até onde {PLAYER} avança desta vez."
+      },
+      {
+        "id": "roll3",
+        "text": "Que a sorte esteja ao seu lado, {PLAYER}."
+      }
+    ],
+    "pos_rolagem": [
+      {
+        "id": "moved1",
+        "text": "{PLAYER} avança {STEPS} casas."
+      },
+      {
+        "id": "moved2",
+        "text": "Passos firmes: {PLAYER} segue {STEPS} espaços à frente."
+      }
+    ],
+    "acao_compra": [
+      {
+        "id": "buy1",
+        "text": "{PLAYER} compra {BLOCK}. Excelente aquisição!"
+      },
+      {
+        "id": "buy2",
+        "text": "Investimento feito: {BLOCK} agora pertence a {PLAYER}."
+      },
+      {
+        "id": "buy3",
+        "text": "{PLAYER} amplia o portfólio com {BLOCK}."
+      }
+    ],
+    "acao_upgrade": [
+      {
+        "id": "up1",
+        "text": "{PLAYER} evolui {BLOCK} para o nível {AMOUNT}. Valor em ascensão."
+      },
+      {
+        "id": "up2",
+        "text": "Estrutura reforçada: {BLOCK} atinge o nível {AMOUNT}."
+      },
+      {
+        "id": "up3",
+        "text": "{PLAYER} investe e {BLOCK} sobe para o nível {AMOUNT}."
+      }
+    ],
+    "acao_venda": [
+      {
+        "id": "sell1",
+        "text": "{PLAYER} vende {BLOCK}. Liquidez imediata."
+      },
+      {
+        "id": "sell2",
+        "text": "{BLOCK} retorna ao mercado. {PLAYER} recolhe fundos."
+      }
+    ],
+    "evento_tax": [
+      {
+        "id": "tax1",
+        "text": "Taxa aplicada: {PLAYER} paga {AMOUNT}."
+      },
+      {
+        "id": "tax2",
+        "text": "Os cofres públicos recebem {AMOUNT} de {PLAYER}."
+      }
+    ],
+    "evento_chance": [
+      {
+        "id": "chance1",
+        "text": "A sorte visita {PLAYER}: +{AMOUNT}."
+      },
+      {
+        "id": "chance2",
+        "text": "Bônus inesperado para {PLAYER}: {AMOUNT}."
+      }
+    ],
+    "evento_reves": [
+      {
+        "id": "reves_money1",
+        "text": "Revés financeiro: {PLAYER} perde {AMOUNT}."
+      },
+      {
+        "id": "reves_money2",
+        "text": "Contratempo! {PLAYER} desembolsa {AMOUNT}."
+      },
+      {
+        "id": "reves_back1",
+        "text": "Volte {STEPS} casas, {PLAYER}."
+      },
+      {
+        "id": "reves_back2",
+        "text": "Fracasso momentâneo: {PLAYER} retorna {STEPS} espaços."
+      }
+    ],
+    "evento_jail": [
+      {
+        "id": "jail1",
+        "text": "Oh não! {PLAYER} ficará {DAYS} turnos na prisão."
+      },
+      {
+        "id": "jail2",
+        "text": "{PLAYER} é enviado para a prisão por {DAYS} rodadas."
+      }
+    ],
+    "bot_pensando": [
+      {
+        "id": "think1",
+        "text": "(Pensando...) Esta propriedade {BLOCK} parece promissora?"
+      },
+      {
+        "id": "think2",
+        "text": "(Pensando...) Se eu evoluir {BLOCK}, o retorno pode disparar."
+      },
+      {
+        "id": "think3",
+        "text": "(Pensando...) Comprar agora ou guardar capital?"
+      }
+    ],
+    "bot_acao_compra": [
+      {
+        "id": "bot_buy1",
+        "text": "Decidido! Vou comprar {BLOCK}."
+      },
+      {
+        "id": "bot_buy2",
+        "text": "Estratégia definida: {BLOCK} agora será meu."
+      }
+    ],
+    "bot_acao_upgrade": [
+      {
+        "id": "bot_up1",
+        "text": "Hora de evoluir {BLOCK}."
+      },
+      {
+        "id": "bot_up2",
+        "text": "Investindo em melhorias: {BLOCK} sobe de nível."
+      }
+    ],
+    "eliminacao": [
+      {
+        "id": "lose1",
+        "text": "{PLAYER} declarou falência. Fim da linha."
+      },
+      {
+        "id": "lose2",
+        "text": "As finanças de {PLAYER} chegaram ao limite."
+      }
+    ],
+    "vitoria": [
+      {
+        "id": "win1",
+        "text": "Vitória de {PLAYER}! Domínio completo do tabuleiro."
+      },
+      {
+        "id": "win2",
+        "text": "{PLAYER} triunfa sobre todos os concorrentes."
+      }
+    ],
+    "transicao_turno": [
+      {
+        "id": "turn1",
+        "text": "Agora é a vez de {PLAYER}."
+      },
+      {
+        "id": "turn2",
+        "text": "{PLAYER} assume o turno."
+      }
+    ]
+  }
+}

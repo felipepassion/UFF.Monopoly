@@ -1,13 +1,97 @@
-.board-wrapper{user-select:none;animation:fadeIn .3s ease}
-.board-grid{display:grid;gap:6px}
-.grid-cell{display:flex;align-items:center;justify-content:center;border:1px solid var(--cell-border,#e5e7eb);border-radius:6px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.05);position:relative;overflow:hidden}
-.grid-cell.empty{background:#f9fafb}
-.grid-cell.perimeter{cursor:pointer}
-.grid-cell.perimeter.changed::after{content:"";position:absolute;inset:0;background:rgba(255,255,255,.35);animation:flashCell .6s ease forwards;pointer-events:none}
-.cell-type{font-weight:600;font-size:12px;line-height:1}
-.cell-index{font-size:10px;opacity:.75}
-.type-popup{position:fixed;z-index:1000;background:#fff;border:1px solid #e5e7eb;border-radius:8px;box-shadow:0 10px 25px rgba(0,0,0,.15);padding:8px}
-.type-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
-.type-option{border:none;padding:8px 10px;border-radius:6px;font-weight:600;cursor:pointer}
-@keyframes fadeIn{from{opacity:0}to{opacity:1}}
-@keyframes flashCell{0%{opacity:0}20%{opacity:1}100%{opacity:0}}
+.board-wrapper {
+    user-select: none;
+    animation: fadeIn .3s ease
+}
+
+.board-grid {
+    display: grid;
+    gap: 6px
+}
+
+.grid-cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--cell-border,#e5e7eb);
+    border-radius: 6px;
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,.05);
+    position: relative;
+    overflow: hidden
+}
+
+    .grid-cell.empty {
+        background: #f9fafb;
+        border:none;        
+    }
+
+    .grid-cell.perimeter {
+        cursor: pointer
+    }
+
+        .grid-cell.perimeter.changed::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: rgba(255,255,255,.35);
+            animation: flashCell .6s ease forwards;
+            pointer-events: none
+        }
+
+.cell-type {
+    font-weight: 600;
+    font-size: 12px;
+    line-height: 1
+}
+
+.cell-index {
+    font-size: 10px;
+    opacity: .75
+}
+
+.type-popup {
+    position: fixed;
+    z-index: 1000;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    box-shadow: 0 10px 25px rgba(0,0,0,.15);
+    padding: 8px
+}
+
+.type-list {
+    display: grid;
+    grid-template-columns: repeat(2,minmax(0,1fr));
+    gap: 6px
+}
+
+.type-option {
+    border: none;
+    padding: 8px 10px;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0
+    }
+
+    to {
+        opacity: 1
+    }
+}
+
+@keyframes flashCell {
+    0% {
+        opacity: 0
+    }
+
+    20% {
+        opacity: 1
+    }
+
+    100% {
+        opacity: 0
+    }
+}

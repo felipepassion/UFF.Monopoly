@@ -11,12 +11,13 @@
 <div class="row gx-2 gy-2 align-items-start">
     <div class="col-12 col-xl-3 d-flex flex-column">
         <BoardList Boards="@ExistingBoards" OnEditBoard="EditBoard" OnNewBoard="NewBoard" />
-        <BoardConfigForm Form="@Form" BlocksCount="@Blocks.Count" OnGenerateGrid="GenerateGrid" OnGenerateRandom="GenerateRandomBoard" OnSave="SaveAsync" />
+        <BoardConfigForm Form="@Form" BlocksCount="@Blocks.Count" OnGenerateGrid="GenerateGrid" OnGenerateRandom="GenerateRandomBoard" OnSave="SaveAsync" OnPlay="PlayBoard" />
     </div>
     <div class="col-12 col-xl-9">
         @if (Form.Rows > 0 && Form.Cols > 0)
         {
-            <div class="board-wrapper position-relative" @onclick="ClosePopup">
+            <div class="board-wrapper position-relative" @onclick="ClosePopup" style="position:relative;">
+                <BoardCenterImage Rows="@Form.Rows" Cols="@Form.Cols" CellSize="@Form.CellSize" ImageUrl="@Form.CenterImageUrl" />
                 <BoardGrid Rows="@Form.Rows"
                            Cols="@Form.Cols"
                            CellSize="@Form.CellSize"

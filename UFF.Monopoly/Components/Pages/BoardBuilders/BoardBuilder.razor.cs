@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Components;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore; // corrigido namespace EF Core
 using Microsoft.AspNetCore.Components.Web;
 using UFF.Monopoly.Data;
 using UFF.Monopoly.Data.Entities;
@@ -75,7 +75,7 @@ public partial class BoardBuilder : ComponentBase
     { await using var db = await DbFactory.CreateDbContextAsync(); ExistingBoards = await db.Boards.AsNoTracking().OrderByDescending(b => b.CreatedAt).ToListAsync(); }
 
     private async Task LoadBoardAsync(Guid id)
-    { await using var db = await DbFactory.CreateDbContextAsync(); var board = await db.Boards.Include(b => b.Blocks).FirstOrDefaultAsync(b => b.Id == id); if (board is null) return; CurrentBoardId = id; Form.Name = board.Name; Form.Rows = board.Rows; Form.Cols = board.Cols; Form.CellSize = board.CellSizePx; Blocks = board.Blocks.OrderBy(b => b.Position).ToList(); RebuildPerimeterMap(); StateHasChanged(); }
+    { await using var db = await DbFactory.CreateDbContextAsync(); var board = await db.Boards.Include(b => b.Blocks).FirstOrDefaultAsync(b => b.Id == id); if (board is null) return; CurrentBoardId = id; Form.Name = board.Name; Form.Rows = board.Rows; Form.Cols = board.Cols; Form.CellSize = board.CellSizePx; Form.CenterImageUrl = board.CenterImageUrl ?? Form.CenterImageUrl; Blocks = board.Blocks.OrderBy(b => b.Position).ToList(); RebuildPerimeterMap(); StateHasChanged(); }
 
     internal void NewBoard() { CurrentBoardId = Guid.Empty; Form = new BoardFormModel(); Blocks = new(); CellToIndex.Clear(); StateHasChanged(); }
     internal void EditBoard(Guid id) => Nav.NavigateTo($"/board-builder/{id}");
@@ -234,9 +234,89 @@ public partial class BoardBuilder : ComponentBase
     internal static string GetBuildingName(BuildingType cat, int level) => BuildingEvolutionDescriptions.Get(cat, level).Name;
 
     internal async Task SaveAsync()
-    { await using var db = await DbFactory.CreateDbContextAsync(); var isNew = CurrentBoardId == Guid.Empty; if (isNew) { var newBoard = new BoardDefinitionEntity { Id = Guid.NewGuid(), Name = string.IsNullOrWhiteSpace(Form.Name) ? $"Board {DateTime.UtcNow:yyyyMMddHHmmss}" : Form.Name.Trim(), Rows = Form.Rows, Cols = Form.Cols, CellSizePx = Form.CellSize }; db.Boards.Add(newBoard); await db.SaveChangesAsync(); CurrentBoardId = newBoard.Id; } else { var boardOnly = new BoardDefinitionEntity { Id = CurrentBoardId }; db.Attach(boardOnly); db.Entry(boardOnly).Property(x => x.Name).CurrentValue = Form.Name.Trim(); db.Entry(boardOnly).Property(x => x.Rows).CurrentValue = Form.Rows; db.Entry(boardOnly).Property(x => x.Cols).CurrentValue = Form.Cols; db.Entry(boardOnly).Property(x => x.CellSizePx).CurrentValue = Form.CellSize; db.Entry(boardOnly).Property(x => x.Name).IsModified = true; db.Entry(boardOnly).Property(x => x.Rows).IsModified = true; db.Entry(boardOnly).Property(x => x.Cols).IsModified = true; db.Entry(boardOnly).Property(x => x.CellSizePx).IsModified = true; await db.SaveChangesAsync(); var existing = await db.BlockTemplates.Where(x => x.BoardDefinitionId == CurrentBoardId).ToListAsync(); if (existing.Count > 0) { db.BlockTemplates.RemoveRange(existing); await db.SaveChangesAsync(); } } var toInsert = new List<BlockTemplateEntity>(Blocks.Count); for (var i = 0; i < Blocks.Count; i++) { var b = Blocks[i]; toInsert.Add(new BlockTemplateEntity { Id = Guid.NewGuid(), Position = i, Name = b.Name, Description = b.Description, ImageUrl = b.ImageUrl, Color = b.Color, Price = b.Price, Rent = b.Rent, Type = b.Type, Level = b.Level, HousePrice = b.HousePrice, HotelPrice = b.HotelPrice, RentsCsv = b.RentsCsv, BuildingType = b.BuildingType, BuildingPricesCsv = b.BuildingPricesCsv, BoardDefinitionId = CurrentBoardId }); } db.BlockTemplates.AddRange(toInsert); await db.SaveChangesAsync(); await LoadBoardsListAsync(); if (isNew) { Nav.NavigateTo($"/board-builder/{CurrentBoardId}?saved=true"); } else { await ShowSuccessToast("Salvo com sucesso!"); } StateHasChanged(); }
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var isNew = CurrentBoardId == Guid.Empty;
+        if (isNew)
+        {
+            var newBoard = new BoardDefinitionEntity {
+                Id = Guid.NewGuid(),
+                Name = string.IsNullOrWhiteSpace(Form.Name) ? $"Board {DateTime.UtcNow:yyyyMMddHHmmss}" : Form.Name.Trim(),
+                Rows = Form.Rows,
+                Cols = Form.Cols,
+                CellSizePx = Form.CellSize,
+                CenterImageUrl = Form.CenterImageUrl
+            };
+            db.Boards.Add(newBoard);
+            await db.SaveChangesAsync();
+            CurrentBoardId = newBoard.Id;
+        }
+        else
+        {
+            var boardOnly = new BoardDefinitionEntity { Id = CurrentBoardId };
+            db.Attach(boardOnly);
+            db.Entry(boardOnly).Property(x => x.Name).CurrentValue = Form.Name.Trim();
+            db.Entry(boardOnly).Property(x => x.Rows).CurrentValue = Form.Rows;
+            db.Entry(boardOnly).Property(x => x.Cols).CurrentValue = Form.Cols;
+            db.Entry(boardOnly).Property(x => x.CellSizePx).CurrentValue = Form.CellSize;
+            db.Entry(boardOnly).Property(x => x.CenterImageUrl).CurrentValue = Form.CenterImageUrl;
+            db.Entry(boardOnly).Property(x => x.Name).IsModified = true;
+            db.Entry(boardOnly).Property(x => x.Rows).IsModified = true;
+            db.Entry(boardOnly).Property(x => x.Cols).IsModified = true;
+            db.Entry(boardOnly).Property(x => x.CellSizePx).IsModified = true;
+            db.Entry(boardOnly).Property(x => x.CenterImageUrl).IsModified = true;
+            await db.SaveChangesAsync();
+
+            var existing = await db.BlockTemplates.Where(x => x.BoardDefinitionId == CurrentBoardId).ToListAsync();
+            if (existing.Count > 0)
+            {
+                db.BlockTemplates.RemoveRange(existing);
+                await db.SaveChangesAsync();
+            }
+        }
+
+        var toInsert = new List<BlockTemplateEntity>(Blocks.Count);
+        for (var i = 0; i < Blocks.Count; i++)
+        {
+            var b = Blocks[i];
+            toInsert.Add(new BlockTemplateEntity {
+                Id = Guid.NewGuid(),
+                Position = i,
+                Name = b.Name,
+                Description = b.Description,
+                ImageUrl = b.ImageUrl,
+                Color = b.Color,
+                Price = b.Price,
+                Rent = b.Rent,
+                Type = b.Type,
+                Level = b.Level,
+                HousePrice = b.HousePrice,
+                HotelPrice = b.HotelPrice,
+                RentsCsv = b.RentsCsv,
+                BuildingType = b.BuildingType,
+                BuildingPricesCsv = b.BuildingPricesCsv,
+                BoardDefinitionId = CurrentBoardId
+            });
+        }
+        db.BlockTemplates.AddRange(toInsert);
+        await db.SaveChangesAsync();
+        await LoadBoardsListAsync();
+        if (isNew) { Nav.NavigateTo($"/board-builder/{CurrentBoardId}?saved=true"); }
+        else { await ShowSuccessToast("Salvo com sucesso!"); }
+        StateHasChanged();
+    }
 
     internal async Task ShowSuccessToast(string message) { ToastMessage = message; ShowToast = true; StateHasChanged(); try { await Task.Delay(2000); } catch { } ShowToast = false; StateHasChanged(); }
+
+    internal void PlayBoard()
+    {
+        if (CurrentBoardId == Guid.Empty)
+        {
+            _ = ShowSuccessToast("Salve o tabuleiro antes de jogar!");
+            return;
+        }
+        Nav.NavigateTo($"/play/{CurrentBoardId}");
+    }
 
     internal string TranslateBlockType(BlockType t) => t switch { BlockType.Go => "Início", BlockType.Property => "Propriedade", BlockType.Company => "Companhia", BlockType.Tax => "Taxa", BlockType.Jail => "Visitar Prisão", BlockType.GoToJail => "Vá para Prisão", BlockType.Chance => "Sorte", BlockType.Reves => "Revés", BlockType.FreeParking => "Parada Livre", _ => t.ToString() };
 
@@ -256,13 +336,23 @@ public partial class BoardBuilder : ComponentBase
             if (rng.NextDouble() < 0.35)
             {
                 Form.Rows = Math.Clamp(Form.Rows + rng.Next(-1, 2), 5, 10);
-                Form.Cols = Math.Clamp(Form.Cols + rng.Next(-1, 2), 5, 10);
+                Form.Cols = Math.Clamp(Form.Cols + rng.Next(-1, 2), 5, 12);
             }
         }
 
         Form.Rows = Math.Max(3, Form.Rows);
         Form.Cols = Math.Max(3, Form.Cols);
         if (Form.CellSize <= 0) Form.CellSize = 56;
+
+        // Forçar widescreen: largura > altura e razão mínima ~1.4 (aprox 16:9)
+        double ratio = (double)Form.Cols / Form.Rows;
+        if (ratio < 1.4)
+        {
+            int targetCols = (int)Math.Round(Form.Rows * 16.0 / 9.0);
+            targetCols = Math.Max(Form.Rows + 2, targetCols); // garantir diferença perceptível
+            targetCols = Math.Clamp(targetCols, Form.Rows + 2, 14); // limite superior razoável
+            Form.Cols = targetCols;
+        }
 
         RebuildPerimeterMap();
         var total = CellToIndex.Count; // perimeter cells count

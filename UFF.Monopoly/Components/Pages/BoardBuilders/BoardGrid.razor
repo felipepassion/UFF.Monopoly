@@ -1,7 +1,9 @@
 @using UFF.Monopoly.Data.Entities
 @using UFF.Monopoly.Entities
 @using UFF.Monopoly.Components.Shared
+
 @inherits ComponentBase
+
 <div class="board-grid" style="grid-template-columns: repeat(@Cols, @(CellSize + "px")); grid-auto-rows: @(CellSize + "px");">
     @for (var r = 0; r < Rows; r++)
     {
@@ -16,7 +18,7 @@
                 }
                 else
                 {
-                    <div class="grid-cell perimeter position-relative" style="background:@GetCellBackground(b); color:@GetTextColor(GetCellBackground(b));" title="@($"{TranslateBlockType(b.Type)} - {b.Name}")">
+                    <div class="grid-cell perimeter position-relative" title="@($"{TranslateBlockType(b.Type)} - {b.Name}")">
                         <BlockIcon ImageUrl="@b.ImageUrl"
                                    Name="@b.Name"
                                    Description="@b.Description"
@@ -36,6 +38,7 @@
         }
     }
 </div>
+
 @code {
     [Parameter] public int Rows { get; set; }
     [Parameter] public int Cols { get; set; }
@@ -45,5 +48,4 @@
     [Parameter] public Func<BlockTemplateEntity, string> GetCellBackground { get; set; } = default!; 
     [Parameter] public Func<BlockType, string> TranslateBlockType { get; set; } = default!; 
     [Parameter] public Action<int, Microsoft.AspNetCore.Components.Web.MouseEventArgs>? OnCellClick { get; set; }
-    private string GetTextColor(string? bg) { if (string.IsNullOrWhiteSpace(bg)) return "#111827"; try { if (bg.StartsWith("#") && bg.Length == 7) { var r = Convert.ToInt32(bg.Substring(1, 2), 16); var g = Convert.ToInt32(bg.Substring(3, 2), 16); var b = Convert.ToInt32(bg.Substring(5, 2), 16); var yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000; return yiq >= 128 ? "#111827" : "#ffffff"; } } catch { } return "#111827"; }
 }

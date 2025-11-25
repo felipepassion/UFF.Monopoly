@@ -1,10 +1,24 @@
 @using UFF.Monopoly.Data.Entities
+
 @inherits ComponentBase
+
 <div class="card h-100 mb-2">
-  <div class="card-body p-2">
-    <div class="fw-semibold mb-2">Boards existentes</div>
-    @if (Boards.Count==0){<div class="text-muted small">Nenhum board salvo ainda.</div>}else{<ul class="list-group list-group-flush">@foreach(var b in Boards.OrderByDescending(b=>b.CreatedAt)){<li class="list-group-item py-2 px-2 d-flex justify-content-between align-items-center"><button class="btn btn-link p-0 text-start" @onclick="(()=>OnEditBoard?.Invoke(b.Id))">@b.Name</button><small class="text-muted">@b.Rows x @b.Cols</small></li>}</ul>}
-    <div class="mt-2"><button class="btn btn-sm btn-outline-secondary w-100" @onclick="(()=>OnNewBoard?.Invoke())">Novo board</button></div>
-  </div>
+    <div class="card-body p-2">
+        <div class="fw-semibold mb-2">Boards existentes</div>
+        @if (Boards.Count == 0)
+        {
+            <div class="text-muted small">Nenhum board salvo ainda.</div>
+        }
+        else
+        {
+            <ul class="list-group list-group-flush">
+                @foreach (var b in Boards.OrderByDescending(b => b.CreatedAt))
+                {
+                    <li class="list-group-item py-2 px-2 d-flex justify-content-between align-items-center"><button class="btn btn-link p-0 text-start" @onclick="(() => OnEditBoard?.Invoke(b.Id))">@b.Name</button><small class="text-muted">@b.Rows x @b.Cols</small></li>
+                }
+            </ul>
+        }
+        <div class="mt-2"><button class="btn btn-sm btn-outline-secondary w-100" @onclick="(() => OnNewBoard?.Invoke())">Novo board</button></div>
+    </div>
 </div>
-@code{[Parameter]public List<BoardDefinitionEntity> Boards{get;set;}=new();[Parameter]public Action<Guid>? OnEditBoard{get;set;}[Parameter]public Action? OnNewBoard{get;set;}}
+@code {[Parameter]public List<BoardDefinitionEntity> Boards{get;set;}=new();[Parameter]public Action<Guid>? OnEditBoard{get;set;}[Parameter]public Action? OnNewBoard{get;set;}}

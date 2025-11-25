@@ -25,19 +25,27 @@
                 <div class="round-badge">Rodada: @_game.RoundCount</div>
                 <div class="turn-badge">Vez: @_game.Players.ElementAtOrDefault(_game.CurrentPlayerIndex)?.Name</div>
 
+                @* Imagem central (animação de boca) *@
+                <img src="@_mouthImageUrl" style="@_centerCharStyle" alt="personagem" />
+
+                @* Chat container (clique para avançar) *@
+                <div style="@_chatContainerStyle" @onclick="OnChatClicked">
+                    <div style="@_chatTextStyle">@_chatMessage</div>
+                </div>
+
                 @foreach (var space in BoardSpaces)
                 {
                     <BoardSpace Space="space" OnClick="HandleClick" />
                 }
 
-                <BoardPawnLayer Game="_game"
+                <BoardPawnLayer Game="@_game"
                                 PawnAnimPosition="@_pawnAnimPosition"
                                 CellSize="@CellSize"
                                 BoardScale="@_boardScale"
                                 Perimeter="@Perimeter"
                                 PawnIndexes="@_pawnsForPlayers"
                                 DefaultPawnUrl="@PawnUrl"
-                                PawnUrlResolver="@GetPawnUrlForPlayer" />
+                                PawnUrlResolver="@_pawnUrlResolver" />
 
                 @if (_showDiceOverlay)
                 {
@@ -47,7 +55,7 @@
                     var diceOffsetPx = (int)(CellSize * 0.8 * _boardScale);
                     var gifOffset = gifOffsetPx + "px";
                     var diceOffset = diceOffsetPx + "px";
-                    <DiceOverlay Show="_showDiceOverlay"
+                    <DiceOverlay Show="@_showDiceOverlay"
                                  Die1Url="@($"{Navigation.BaseUri}images/dice/diceGreen{_diceFace1}.png")"
                                  Die2Url="@($"{Navigation.BaseUri}images/dice/diceGreen{_diceFace2}.png")"
                                  RollingGifUrl="@_rollingGifUrl"
@@ -98,3 +106,6 @@
         }
     </div>
 </div>
+
+@code {
+}

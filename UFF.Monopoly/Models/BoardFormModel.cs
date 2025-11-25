@@ -16,4 +16,7 @@ public class BoardFormModel
 
     [Range(20, 200, ErrorMessage = "Tamanho da célula deve estar entre 20 e 200")]
     public int CellSize { get; set; } = 64;
+
+    // Center image url stored with the board
+    public string? CenterImageUrl { get; set; } = "/images/mr_monopoly/mr_monopoly_with_chat_and_scenario.png";
 }
