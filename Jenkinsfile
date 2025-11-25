@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         SSH_HOST = '72.60.5.211'
-        SSH_USER = 'devinfomarca'
+        SSH_USER = 'devinfomarcas'
         REMOTE_REPO_PATH = '~/UFF.Monopoly'
         DEPLOY_PATH = '/UFFMonopoly/volumes/WebApp'
     }
