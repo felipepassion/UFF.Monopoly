@@ -56,7 +56,7 @@ REMOTE_EOF'''
 set -e
 cd ~/UFF.Monopoly
 echo "Restoring .NET dependencies..."
-sudo ~/dotnet/dotnet restore
+sudo ~/dotnet10/dotnet restore
 echo "Dependencies restored successfully"
 REMOTE_EOF'''
                     }
@@ -75,7 +75,7 @@ sudo rm -rf /UFFMonopoly/volumes/WebApp/* || true
 
 echo "Building and publishing application..."
 cd ~/UFF.Monopoly
-sudo ~/dotnet/dotnet publish --os linux --arch x64 -p:PublishTrimmed=false -o /UFFMonopoly/volumes/WebApp
+sudo ~/dotnet10/dotnet publish --os linux --arch x64 -p:PublishTrimmed=false -o /UFFMonopoly/volumes/WebApp
 echo "Build completed successfully"
 REMOTE_EOF'''
                     }
