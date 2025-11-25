@@ -13,7 +13,8 @@ public class BoardSpaceDto
     public BlockType Type { get; set; } = BlockType.Property;
     public BuildingType BuildingType { get; set; } = BuildingType.None;
     public int BuildingLevel { get; set; } = 0; // 0..4
-    // Overlay removido em favor de ícone/tag
+    // Novo: índice do jogador dono (para overlay de cor). Null se sem dono.
+    public int? OwnerPlayerIndex { get; set; }
 }
 
 public class BoardSpaceStyle

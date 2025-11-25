@@ -25,4 +25,26 @@ public class Player
 
     // Turn number when player last built something (to restrict to 1 build per turn)
     public int LastBuildTurn { get; set; } = -1;
+
+    // Pontuação de patrimônio (dinheiro + valor base dos imóveis + custo investido em construções)
+    // Não persistido em banco; calculado sob demanda.
+    public int AssetScore
+    {
+        get
+        {
+            int propertiesValue = 0;
+            foreach (var b in OwnedProperties)
+            {
+                propertiesValue += b.Price;
+                if (b is PropertyBlock pb && pb.BuildingLevel > 0 && pb.BuildingPrices is not null)
+                {
+                    for (int i = 0; i < pb.BuildingLevel && i < pb.BuildingPrices.Length; i++)
+                    {
+                        propertiesValue += pb.BuildingPrices[i];
+                    }
+                }
+            }
+            return Money + propertiesValue;
+        }
+    }
 }

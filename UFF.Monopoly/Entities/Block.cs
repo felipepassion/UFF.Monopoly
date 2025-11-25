@@ -17,8 +17,7 @@ public class Block
     {
         switch (Type)
         {
-            case BlockType.Go:
-                break;
+            case BlockType.Go: break;
             case BlockType.Property:
             case BlockType.Company:
                 if (Owner != null && Owner != player && !IsMortgaged)
@@ -26,26 +25,18 @@ public class Block
                     game.Transfer(player, Owner, Rent);
                 }
                 break;
-            case BlockType.Tax:
-                game.PayBank(player, Rent);
-                break;
-            case BlockType.GoToJail:
-                game.SendToJail(player);
-                break;
-            case BlockType.Jail:
-                break;
+            case BlockType.Tax: game.PayBank(player, Rent); break;
+            case BlockType.GoToJail: game.SendToJail(player); break;
+            case BlockType.Jail: break;
             case BlockType.Chance:
-                var rng = new Random();
-                var delta = rng.Next(-200, 301);
+                var rng = new Random(); var delta = rng.Next(-200, 301);
                 if (delta >= 0) player.Money += delta; else game.PayBank(player, -delta);
                 break;
             case BlockType.Reves:
-                var rng2 = new Random();
-                var delta2 = rng2.Next(-100, 201);
+                var rng2 = new Random(); var delta2 = rng2.Next(-100, 201);
                 if (delta2 >= 0) player.Money += delta2; else game.PayBank(player, -delta2);
                 break;
-            case BlockType.FreeParking:
-                break;
+            case BlockType.FreeParking: break;
         }
         return Task.CompletedTask;
     }
@@ -64,18 +55,19 @@ public class CompanyBlock : Block
 public class PropertyBlock : Block
 {
     public PropertyLevel Level { get; set; } = PropertyLevel.Barata; // mantém classificação econômica
-
-    // Sistema simplificado: apenas tipo e nível (0..4)
     public BuildingType BuildingType { get; set; } = BuildingType.None;
     public int BuildingLevel { get; set; } = 0; // 0 = sem construção
     public int[] BuildingPrices { get; set; } = new int[4]; // custo incremental para níveis 1..4
-
     public Guid? GroupId { get; set; }
 
-    public PropertyBlock()
+    private static string GetBaseName(BuildingType type) => type switch
     {
-        Type = BlockType.Property;
-    }
+        BuildingType.House => "Terreno",
+        BuildingType.Hotel => "Terreno",
+        BuildingType.Company => "Terreno",
+        BuildingType.Special => "Circo",
+        _ => "Terreno"
+    };
 
     public override Task Action(Game game, Player player)
     {
@@ -91,13 +83,9 @@ public class PropertyBlock : Block
     {
         if (BuildingType == BuildingType.None || BuildingLevel == 0)
             return Rent; // base
-
-        // Curva simples e compreensível: níveis adicionam +60%, +140%, +230%, +340% sobre o base
         var increments = new[] { 0.60m, 1.40m, 2.30m, 3.40m };
         var baseRent = Rent;
         var total = baseRent + (int)(baseRent * increments[BuildingLevel - 1]);
-
-        // Ajustes pequenos por tipo (mantém simplicidade): Company +10%, Special +15%
         if (BuildingType == BuildingType.Company) total = (int)(total * 1.10m);
         if (BuildingType == BuildingType.Special) total = (int)(total * 1.15m);
         return total;
@@ -108,7 +96,7 @@ public class PropertyBlock : Block
     public bool Upgrade(Player player)
     {
         if (!CanUpgrade()) return false;
-        var cost = BuildingPrices[BuildingLevel]; // índice 0 = custo para nível 1
+        var cost = BuildingPrices[BuildingLevel];
         if (player.Money < cost) return false;
         player.Money -= cost;
         BuildingLevel++;
@@ -127,6 +115,11 @@ public class PropertyBlock : Block
             },
             _ => ImageUrl
         };
+        if (BuildingType != BuildingType.None)
+        {
+            var evo = UFF.Monopoly.Components.Pages.BoardBuilders.BuildingEvolutionDescriptions.Get(BuildingType, Math.Clamp(BuildingLevel, 1, 4));
+            Name = evo.Name;
+        }
         return true;
     }
 
@@ -142,5 +135,9 @@ public class PropertyBlock : Block
             BuildingType.Special => "/images/board/buildings/special_circus.png",
             _ => ImageUrl
         };
+        if (BuildingType != BuildingType.None)
+        {
+            Name = GetBaseName(BuildingType);
+        }
     }
 }

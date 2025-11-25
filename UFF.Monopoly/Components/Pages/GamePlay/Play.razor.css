@@ -2,3 +2,21 @@
 .board-shell{ background:var(--surface); border:1px solid rgba(255,255,255,0.03); border-radius:10px; padding:10px; }
 .round-badge{ position:absolute; top:8px; left:8px; z-index:2500; background:rgba(0,0,0,0.35); padding:6px 8px; border-radius:6px; color:white; font-weight:600; transform:rotate(-12deg); }
 .turn-badge{ position:absolute; top:8px; right:8px; z-index:2500; background:rgba(0,0,0,0.35); padding:6px 8px; border-radius:6px; color:white; font-weight:600; transform:rotate(12deg); }
+
+/* Turn action buttons container */
+.turn-actions-container { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; z-index: 4000; }
+.turn-btn { min-width: 220px; padding: 14px 26px; font-size: 18px; font-weight: 600; border-radius: 12px; box-shadow: 0 6px 14px rgba(0,0,0,0.4); transition: transform .18s ease, box-shadow .18s ease, opacity .18s; }
+.turn-btn:active { transform: translateY(2px); box-shadow: 0 3px 8px rgba(0,0,0,0.4); }
+.roll-btn { animation: fadeScaleIn .35s ease; }
+.end-btn { animation: fadeScaleIn .35s ease; }
+.turn-btn[disabled] { opacity: .55; cursor: not-allowed; }
+@keyframes fadeScaleIn { from { opacity:0; transform:translateX(-50%) scale(.85); } to { opacity:1; transform:translateX(-50%) scale(1); } }
+
+.bot-toast-wrapper { position: fixed; right: 28px; bottom: 28px; z-index: 4500; }
+
+.modal-backdrop.show { z-index: 50000 !important; }
+.modal.d-block { z-index: 50010 !important; }
+
+/* Centro imagem background dentro do board */
+.board-center-bg{ position:absolute; inset:0; z-index:500; opacity:.35; filter:grayscale(.2) contrast(1.1); pointer-events:none; }
+.board-center-bg img{ width:100%; height:100%; object-fit:cover; }

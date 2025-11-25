@@ -1,5 +1,6 @@
 @using UFF.Monopoly.Entities
 @using UFF.Monopoly.Data.Entities
+@using UFF.Monopoly.Components.Pages.BoardBuilders
 @inherits ComponentBase
 
 @if (Block is not null && Player is not null)
@@ -8,27 +9,61 @@
     {
         var statePb = Block as PropertyBlock;
         var displayName = TemplateEntity?.Name ?? Block.Name;
+        var currentLevel = statePb?.BuildingLevel ?? 0;
+        var nextLevel = currentLevel + 1;
+        var maxLevel = 4;
+        BuildingEvolutionDescriptions.EvolutionInfo? nextInfo = null;
+        if (statePb is not null && statePb.BuildingType != BuildingType.None && nextLevel >= 1 && nextLevel <= maxLevel)
+        {
+            nextInfo = BuildingEvolutionDescriptions.Get(statePb.BuildingType, Math.Clamp(nextLevel, 1, 4));
+        }
+        BuildingEvolutionDescriptions.EvolutionInfo? currentInfo = null;
+        if (statePb is not null && statePb.BuildingType != BuildingType.None && currentLevel >= 1 && currentLevel <= maxLevel)
+        {
+            currentInfo = BuildingEvolutionDescriptions.Get(statePb.BuildingType, Math.Clamp(currentLevel, 1, 4));
+        }
         <div><strong>@(Block.Type == BlockType.Company ? "Companhia:" : "Propriedade:")</strong> @displayName</div>
         <div><strong>Preço:</strong> R$ @Block.Price</div>
-        @if (Block.Type == BlockType.Property && statePb is not null)
+        @if (statePb is not null && statePb.BuildingType != BuildingType.None)
         {
-            <div><strong>Nível de construção:</strong> @statePb.BuildingLevel / 4</div>
+            <div class="level-line d-flex align-items-center gap-1 mt-1">
+                <strong>Nível:</strong>
+                <span class="badge bg-dark">@currentLevel</span>
+                @if (nextInfo is not null && currentLevel < maxLevel)
+                {
+                    <span class="mx-1">?</span>
+                    <span class="badge bg-primary" title="Próximo nível">@nextLevel</span>
+                }
+                <span class="text-muted small">/@maxLevel</span>
+            </div>
             <div><strong>Tipo construção:</strong> @statePb.BuildingType</div>
             <div><strong>Aluguel atual:</strong> R$ @statePb.CalculateRent()</div>
+            @if (currentInfo is not null)
+            {
+                <div class="evo-desc small text-muted">Atual: <em>@currentInfo.Name</em> – @currentInfo.Description</div>
+            }
+            @if (nextInfo is not null)
+            {
+                <div class="evo-next small">Próximo: <em>@nextInfo.Name</em> – @nextInfo.Description</div>
+            }
         }
         else
         {
             <div><strong>Aluguel fixo:</strong> R$ @Block.Rent</div>
         }
         <div class="mt-3">
-            @if ((Block.Owner) is null)
+            @if ((Block.Owner) is null && !IsBotTurn)
             {
                 <button id="btnBuy" class="btn btn-success me-2" @onclick="OnBuy" disabled="@(Player.Money < Block.Price)">Comprar (R$ @Block.Price)</button>
             }
-            else if (statePb?.Owner == Player)
+            else if (statePb?.Owner == Player && !IsBotTurn)
             {
-                <button id="btnUpgrade" class="btn btn-primary me-2" @onclick="OnUpgrade" disabled="@(!(statePb is not null && CanUpgradeAllowed))">UpLevel (R$ @NextUpgradeCost)</button>
+                <button id="btnUpgrade" class="btn btn-primary me-2" @onclick="OnUpgrade" disabled="@(!(statePb is not null && CanUpgradeAllowed))">Evoluir nível @nextLevel (R$ @NextUpgradeCost)</button>
                 <button class="btn btn-outline-danger" @onclick="OnSell">Vender propriedade (50%)</button>
+            }
+            else if (IsBotTurn)
+            {
+                <div class="text-muted small">Bot está jogando...</div>
             }
             else
             {
@@ -52,4 +87,5 @@
     [Parameter] public EventCallback OnUpgrade { get; set; }
     [Parameter] public EventCallback OnSell { get; set; }
     [Parameter] public RenderFragment? ChildContent { get; set; }
+    [CascadingParameter] public bool IsBotTurn { get; set; }
 }

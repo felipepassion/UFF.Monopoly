@@ -4,7 +4,13 @@
 @inherits ComponentBase
 
 <div id="@Space.Id" class="board-space" style="@BuildStyle()" @onclick="() => OnClick.InvokeAsync(Space)">
-    <BlockIcon ImageUrl="@Space.ImageUrl" Name="@Space.Name" Description="" Price="@Space.Price" Rent="@Space.Rent" Type="@Space.Type" BuildingType="@Space.BuildingType" BuildingLevel="@Space.BuildingLevel" ShowRentTag="true" />
+    <div class="space-inner">
+        <BlockIcon ImageUrl="@Space.ImageUrl" Name="@Space.Name" Description="" Price="@Space.Price" Rent="@Space.Rent" Type="@Space.Type" BuildingType="@Space.BuildingType" BuildingLevel="@Space.BuildingLevel" ShowRentTag="true" />
+        @if (Space.OwnerPlayerIndex.HasValue)
+        {
+            <div class="owner-overlay" style="background:@GetOwnerColor(Space.OwnerPlayerIndex.Value);"></div>
+        }
+    </div>
 </div>
 
 @code {
@@ -13,6 +19,8 @@
 
     [Parameter]
     public EventCallback<BoardSpaceDto> OnClick { get; set; }
+
+    [CascadingParameter] public string[]? OwnerColors { get; set; }
 
     private string BuildStyle()
     {
@@ -27,5 +35,11 @@
             style.Append($"transform:{Space.Style.Transform};");
         }
         return style.ToString();
+    }
+
+    private string GetOwnerColor(int index)
+    {
+        if (OwnerColors is null || OwnerColors.Length == 0) return "rgba(255,255,255,0.25)";
+        return index < OwnerColors.Length ? OwnerColors[index] + "99" : "rgba(255,255,255,0.25)"; // adicionar translucência
     }
 }
