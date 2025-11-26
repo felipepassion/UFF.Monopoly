@@ -107,6 +107,12 @@ public partial class Play : ComponentBase, IAsyncDisposable
         "Vai lá, {PLAYER}. Quanto mais você anda, mais você me deve." 
     };
 
+    // pausa entre falas
+    private CancellationTokenSource? _chatPauseCts;
+
+    // estilo botão acelerar
+    private string _speedBtnStyle = string.Empty;
+
     protected override async Task OnParametersSetAsync() => await InitializeAsync();
 
     private async Task InitializeAsync()
@@ -221,6 +227,13 @@ public partial class Play : ComponentBase, IAsyncDisposable
         var rightColLeft = (Cols - 1) * cellScaled; var marginChar = (int)(cellScaled * 0.15);
         var left = rightColLeft - estimatedWidth - marginChar; if (left < marginChar) left = marginChar;
         _centerCharStyle = $"position:absolute;top:{top}px;left:{left}px;height:{imgHeight}px;z-index:1500;pointer-events:none;filter:drop-shadow(0 12px 24px rgba(0,0,0,0.6));";
+        // posiciona botão '>>' ancorado ao bottom do personagem, levemente ao lado direito
+        var btnSize = Math.Max(24, (int)(cellScaled * 0.4));
+        var btnTop = (top + imgHeight - btnSize) - 15;
+        // mover mais para a esquerda: antes + (cellScaled * 0.08); agora - (cellScaled * 0.15)
+        var btnLeft = left + estimatedWidth - (int)(cellScaled * 1.8);
+        _speedBtnStyle = $"position:absolute;top:{btnTop}px;left:{btnLeft}px;width:{btnSize}px;height:{btnSize}px;z-index:1550;pointer-events:auto;display:flex;align-items:center;justify-content:center;background:#1f1f1fbb;color:#fff;border:1px solid #4ad2a0;border-radius:8px;box-shadow:0 6px 12px rgba(0,0,0,0.5);font-weight:700;";
+
         if (Rows >= 3 && Cols >= 3)
         {
             var interiorLeft = cellScaled; var interiorTop = cellScaled; var interiorWidth = (Cols - 2) * cellScaled; var interiorHeight = (Rows - 2) * cellScaled; var margin = (int)(cellScaled * 0.2);
@@ -293,42 +306,74 @@ public partial class Play : ComponentBase, IAsyncDisposable
             AdvanceDialogueIfIdle();
             return;
         }
-        // Interrupção imediata: corta fala atual e mostra esta agora.
         if (_isTypingChat)
         {
             try { _typingCts?.Cancel(); } catch { }
             _isTypingChat = false;
         }
-        // Limpa fila antiga para não exibir mensagens atrasadas (ex: "avança X casas" após upgrade).
+        try { _chatPauseCts?.Cancel(); } catch { }
         _dialogueQueue.Clear();
         _chatFull = raw;
-        _chatDisplay = raw; // mostra inteira sem digitação
+        _chatDisplay = raw; // mostra inteira
         _mouthFrameIndex = 0; _mouthImageUrl = _mouthFrames[_mouthFrameIndex];
         StateHasChanged();
-        OnChatFinished();
+        _ = StartChatPauseAsync();
     }
     private void AdvanceDialogueIfIdle() { if (_isTypingChat) return; if (_dialogueQueue.Count == 0) return; _chatMessage = _dialogueQueue.Dequeue(); }
     private async Task StartTypingAsync(string text)
-    { _typingCts?.Cancel(); _typingCts = new CancellationTokenSource(); var token = _typingCts.Token; _isTypingChat = true; _chatFull = text ?? string.Empty; _chatDisplay = string.Empty; StateHasChanged(); _ = AnimateMouthAsync(token); for (int i = 1; i <= _chatFull.Length; i++) { if (token.IsCancellationRequested) return; _chatDisplay = _chatFull[..i]; StateHasChanged(); try { await Task.Delay(_typingDelayMs, token); } catch { return; } } _isTypingChat = false; _mouthFrameIndex = 0; _mouthImageUrl = _mouthFrames[_mouthFrameIndex]; StateHasChanged(); OnChatFinished(); }
-    // Método de animação da boca (reintroduzido)
+    {
+        _typingCts?.Cancel(); _typingCts = new CancellationTokenSource(); var token = _typingCts.Token;
+        _isTypingChat = true; _chatFull = text ?? string.Empty; _chatDisplay = string.Empty; StateHasChanged();
+        _ = AnimateMouthAsync(token);
+        for (int i = 1; i <= _chatFull.Length; i++)
+        {
+            if (token.IsCancellationRequested) return;
+            _chatDisplay = _chatFull[..i]; StateHasChanged();
+            try { await Task.Delay(_typingDelayMs, token); } catch { return; }
+        }
+        _isTypingChat = false; _mouthFrameIndex = 0; _mouthImageUrl = _mouthFrames[_mouthFrameIndex]; StateHasChanged();
+        _ = StartChatPauseAsync();
+    }
+    private async Task StartChatPauseAsync()
+    {
+        _chatPauseCts?.Cancel();
+        _chatPauseCts = new CancellationTokenSource();
+        var pauseToken = _chatPauseCts.Token;
+        try { await Task.Delay(500, pauseToken); } catch { return; }
+        if (pauseToken.IsCancellationRequested) return;
+        OnChatFinished();
+    }
     private async Task AnimateMouthAsync(CancellationToken token)
     { while (_isTypingChat && !token.IsCancellationRequested) { _mouthFrameIndex = (_mouthFrameIndex + 1) % _mouthFrames.Length; _mouthImageUrl = _mouthFrames[_mouthFrameIndex]; StateHasChanged(); try { await Task.Delay(Math.Max(90, _typingDelayMs * 3), token); } catch { break; } } _mouthFrameIndex = 0; _mouthImageUrl = _mouthFrames[_mouthFrameIndex]; StateHasChanged(); }
-    // Clique no chat (reintroduzido) agora dispara OnChatFinished se interromper
-    private async Task OnChatClicked() { if (_isTypingChat) { _typingCts?.Cancel(); _isTypingChat = false; _chatDisplay = _chatFull; _mouthFrameIndex = 0; _mouthImageUrl = _mouthFrames[_mouthFrameIndex]; StateHasChanged(); OnChatFinished(); return; } AdvanceDialogueIfIdle(); await Task.CompletedTask; }
+    private async Task OnChatClicked() 
+    { 
+        // Cancelar qualquer pausa em execução
+        try { _chatPauseCts?.Cancel(); } catch { }
+        if (_isTypingChat) 
+        { 
+            // Termina a frase atual e mantém na mesma fala até novo clique
+            try { _typingCts?.Cancel(); } catch { } 
+            _isTypingChat = false; _chatDisplay = _chatFull; _mouthFrameIndex = 0; _mouthImageUrl = _mouthFrames[_mouthFrameIndex]; 
+            StateHasChanged(); 
+            return; 
+        } 
+        // Não está digitando: finalizar lógica da fala atual (inclui avanço se houver próximas)
+        OnChatFinished();
+        await Task.CompletedTask; 
+    }
     // Chamado quando termino de digitar uma fala completa
     private void OnChatFinished()
     {
         // Se ainda há falas restantes da intro, avança automaticamente para a próxima
         if (!_initialIntroDone && _dialogueInitialized && _dialogueQueue.Count > 0)
         {
-            // inicia próxima fala imediatamente
             AdvanceDialogueIfIdle();
             return; // aguarda finalizar próxima antes de liberar HUD
         }
         // Libera HUD após término completo da intro (todas as mensagens consumidas)
         if (!_initialIntroDone && _dialogueInitialized && _dialogueQueue.Count == 0)
         {
-            _initialIntroDone = true; // agora HUD pode aparecer
+            _initialIntroDone = true; // agora HUD pode aparecer (após pausa já aplicada)
             StateHasChanged();
         }
         // Se houver rolagem humana pendente
@@ -426,18 +471,15 @@ public partial class Play : ComponentBase, IAsyncDisposable
 
     private async Task ShowDiceAnimationAsync(int finalDie1, int finalDie2)
     { try { var gifIndex = _rand.Next(1, 13); _rollingGifUrl = $"{Navigation.BaseUri}images/diceAnim/dice-rolling-{gifIndex}.gif"; _showDiceOverlay = true; StateHasChanged(); var totalMs = _rand.Next(2000, 3001); var frameMs = 80; var elapsed = 0; while (elapsed < totalMs) { _diceFace1 = _rand.Next(1, 7); _diceFace2 = _rand.Next(1, 7); StateHasChanged(); var delay = Math.Min(frameMs, totalMs - elapsed); try { await Task.Delay(delay); } catch { break; } elapsed += delay; } _diceFace1 = Math.Clamp(finalDie1, 1, 6); _diceFace2 = Math.Clamp(finalDie2, 1, 6); StateHasChanged(); } finally { _showDiceOverlay = false; _rollingGifUrl = string.Empty; StateHasChanged(); } }
-
-    private int GetTrackLength() => Math.Min(Perimeter.Count, _game?.Board.Count ?? int.MaxValue);
     private async Task AnimateForwardAsync(int steps)
     { if (_game is null) return; var currentPlayer = _game.Players[_game.CurrentPlayerIndex]; var pos = currentPlayer.CurrentPosition; var track = GetTrackLength(); if (track <= 0) return; for (int i = 0; i < steps; i++) { pos = (pos + 1) % track; _pawnAnimPosition = pos; StateHasChanged(); try { await Task.Delay(_animStepMs); } catch { } } }
     private async Task AnimateBackwardAsync(int playerIndex, int steps)
     { if (_game is null || playerIndex < 0 || playerIndex >= _game.Players.Count) return; var prev = _isAnimating; _isAnimating = true; var player = _game.Players[playerIndex]; var pos = player.CurrentPosition; var track = GetTrackLength(); if (track <= 0) { _isAnimating = prev; return; } for (int i = 0; i < steps; i++) { pos = (pos - 1 + track) % track; _pawnAnimPosition = pos; StateHasChanged(); try { await Task.Delay(_animStepMs); } catch { } } player.CurrentPosition = pos; _pawnAnimPosition = -1; _isAnimating = prev; }
-
     private async Task HandleClick(BoardSpaceDto space)
     { if (_game is null || space is null || _showBlockModal) return; var parts = (space.Id ?? string.Empty).Split('-', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries); if (parts.Length < 2) return; if (!int.TryParse(parts[1], out var pos)) return; var block = _game.Board.FirstOrDefault(b => b.Position == pos); if (block is null) return; _modalFromMove = false; _modalBlock = block; _modalPlayer = _game.Players.ElementAtOrDefault(_game.CurrentPlayerIndex); _preMovePlayerMoney = _modalPlayer?.Money ?? 0; _modalTemplateEntity = _templatesByPosition.TryGetValue(pos, out var tmpl) ? tmpl : null; _showBlockModal = true; AddDialogueTemplate("{PLAYER} abriu {BLOCK}.", new DialogueContext { Player = _modalPlayer?.Name, Block = _modalBlock?.Name }, immediate: true); StateHasChanged(); await Task.CompletedTask; }
-
     private int GetHumanPlayersCount() { if (HumanCountQuery.HasValue) return Math.Max(0, HumanCountQuery.Value); try { var uri = Navigation.ToAbsoluteUri(Navigation.Uri); var q = QueryHelpers.ParseQuery(uri.Query); if (q.TryGetValue("humanCount", out var hv) && int.TryParse(hv.ToString(), out var parsed)) return Math.Max(0, parsed); } catch { } return 1; }
     private int GetPlayerIndex(Guid playerId) { if (_game is null) return -1; for (int i = 0; i < _game.Players.Count; i++) if (_game.Players[i].Id == playerId) return i; return -1; }
+    private int GetTrackLength() => Math.Min(Perimeter.Count, _game?.Board.Count ?? int.MaxValue);
     private static List<(int r, int c)> BuildPerimeterClockwise(int rows, int cols) { var list = new List<(int r, int c)>(Math.Max(0, 2 * rows + 2 * cols - 4)); if (rows < 2 || cols < 2) return list; int bottom = rows - 1, top = 0, left = 0, right = cols - 1; for (int c = right; c >= left; c--) list.Add((bottom, c)); for (int r = bottom - 1; r >= top; r--) list.Add((r, left)); for (int c = left + 1; c <= right; c++) list.Add((top, c)); for (int r = top + 1; r <= bottom - 1; r++) list.Add((r, right)); return list; }
     private static string GetImageForType(BlockType? type) => type switch { BlockType.Go => "/images/blocks/property_basic.svg", BlockType.Property => "/images/blocks/property_basic.svg", BlockType.Company => "/images/blocks/property_predio.svg", BlockType.Jail => "/images/blocks/visitar_prisao.svg", BlockType.GoToJail => "/images/blocks/go_to_jail.svg", BlockType.Tax => "/images/blocks/volte-casas.svg", BlockType.Chance => "/images/blocks/sorte.png", BlockType.Reves => "/images/blocks/reves.png", _ => "/images/blocks/property_basic.svg" };
     private Func<int, string> _pawnUrlResolver => i => i < _pawnsForPlayers.Count ? $"{Navigation.BaseUri}images/pawns/PawnsB{_pawnsForPlayers[i]}.png" : PawnUrl;
@@ -449,5 +491,5 @@ public partial class Play : ComponentBase, IAsyncDisposable
     private class DialogueLine { public string Id { get; set; } = string.Empty; public string Text { get; set; } = string.Empty; }
     private class DialogueContext { public string? Player { get; set; } public string? Block { get; set; } public int? Amount { get; set; } public int? Steps { get; set; } public int? Days { get; set; } }
 
-    public async ValueTask DisposeAsync() { try { _typingCts?.Cancel(); } catch { } await Task.CompletedTask; }
+    public async ValueTask DisposeAsync() { try { _typingCts?.Cancel(); } catch { } try { _chatPauseCts?.Cancel(); } catch { } await Task.CompletedTask; }
 }

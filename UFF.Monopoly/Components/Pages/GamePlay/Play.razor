@@ -1,4 +1,4 @@
-﻿@page "/play/{GameId:guid}"
+@page "/play/{GameId:guid}"
 
 @using Microsoft.EntityFrameworkCore
 @using UFF.Monopoly.Data
@@ -28,17 +28,18 @@
                 }
                 <div class="round-badge">Rodada: @_game.RoundCount</div>
                 <div class="turn-badge">Vez: @_game.Players.ElementAtOrDefault(_game.CurrentPlayerIndex)?.Name</div>
-                @* Exibir chat sempre que não houver overlay de dados (removida checagem de _pawnAnimPosition) *@
+                @* Exibir chat sempre que não houver overlay de dados *@
                 @if (!_showDiceOverlay)
                 {
                     <img src="@_mouthImageUrl" style="@_centerCharStyle" alt="personagem" />
+                    <button style="@_speedBtnStyle" @onclick="OnChatClicked" title="Apressar texto">&gt;&gt;</button>
                     <div style="@_chatContainerStyle" @onclick="OnChatClicked">
                         <div style="@_chatTextStyle">@_chatMessage</div>
                     </div>
                 }
                 @foreach (var space in BoardSpaces)
                 {
-                    <BoardSpace Space="space" OnClick="HandleClick" />
+                    <BoardSpace Space="space" OnClick="@(EventCallback.Factory.Create<BoardSpaceDto>(this, s => HandleClick(s)))" />
                 }
                 <BoardPawnLayer Game="@_game"
                                 PawnAnimPosition="@_pawnAnimPosition"
@@ -85,8 +86,8 @@
                         </BlockActionContent>
                     }
                 </BlockModal>
-                <SimpleModal Show="@_showLoserModal" Title="Derrota" Message="@($"O jogador {_loserName} foi eliminado.")" BaseZ="22000" OnClose="CloseLoserModal" />
-                <SimpleModal Show="@_showWinnerModal" Title="Vencedor" Message="@($"Parabéns! {_winnerName} venceu o jogo.")" BaseZ="23000" OnClose="CloseWinnerModal" />
+                <SimpleModal Show="@_showLoserModal" Title="Derrota" Message="@($"O jogador {_loserName} foi eliminado.")" BaseZ="22000" OnClose="@(EventCallback.Factory.Create(this, () => CloseLoserModal()))" />
+                <SimpleModal Show="@_showWinnerModal" Title="Vencedor" Message="@($"Parabéns! {_winnerName} venceu o jogo.")" BaseZ="23000" OnClose="@(EventCallback.Factory.Create(this, () => CloseWinnerModal()))" />
                 @if (_game is not null && !_showDiceOverlay && _initialIntroDone)
                 {
                     <PlayersPanel Players="@_game.Players"

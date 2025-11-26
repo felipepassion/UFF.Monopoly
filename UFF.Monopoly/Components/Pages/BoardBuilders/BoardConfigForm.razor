@@ -87,7 +87,18 @@
     [Parameter]
     public List<string> BackgroundOptions { get; set; } = new();
 
-    private void SelectCenter(string url) => Form.CenterImageUrl = url;
+    // Novo callback para avisar o parent e forçar re-render do tabuleiro
+    [Parameter]
+    public EventCallback<string> OnCenterImageChanged { get; set; }
+
+    private async Task SelectCenter(string url)
+    {
+        Form.CenterImageUrl = url;
+        if (OnCenterImageChanged.HasDelegate)
+            await OnCenterImageChanged.InvokeAsync(url);
+        StateHasChanged();
+    }
+
     private static string GetFileName(string url)
     {
         if (string.IsNullOrWhiteSpace(url)) return string.Empty;
