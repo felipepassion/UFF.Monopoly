@@ -2,9 +2,32 @@
 @using UFF.Monopoly.Components.Pages.BoardBuilders
 @using UFF.Monopoly.Components.Shared
 
-<div class="block-icon-wrapper" @onmouseover="ShowTip" @onmousemove="MoveTip" @onmouseout="HideTip" @onclick:stopPropagation="true" @onclick="OnClickInternal">
+@if (_showTip)
+{
+    <div class="evo-tooltip evo-tooltip-center">
+        <div class="evo-tooltip-header d-flex align-items-center gap-3">
+            <img src="@(ImageUrl.Replace(".png", "_detalhada.png"))" alt="img" class="evo-tooltip-img" />
+        </div>
+        @if (IsPropertyCard())
+        {
+            <div class="evo-tooltip-sub">Categoria: @BuildingType</div>
+            <div class="evo-tooltip-price">Preço de compra: $ @Price</div>
+            <div class="evo-tooltip-desc">@GetEvolutionDescription()</div>
+        }
+        else
+        {
+            <div class="evo-tooltip-rent">@GetSecondaryTooltipText()</div>
+        }
+        @if (!string.IsNullOrWhiteSpace(Description))
+        {
+            <div class="evo-tooltip-desc">@Description</div>
+        }
+    </div>
+}
+
+<div class="block-icon-wrapper" @onmouseover="ShowTip" @onmouseout="HideTip" @onclick:stopPropagation="true" @onclick="OnClickInternal">
     <img src="@ImageUrl" alt="@AltText" class="block-icon-img @( _animateImageChange ? "img-change" : string.Empty)" />
-    <div class="icon-info-bar @PriceThresholds.GetPriceClass(Price)" title="@GetTitleText()">
+    @*     <div class="icon-info-bar @PriceThresholds.GetPriceClass(Price)" title="@GetTitleText()">
         @if (ShouldShowSecondaryTag())
         {
             <span class="info-rent">@GetSecondaryTagLabel(): @FormatSecondaryValue()</span>
@@ -12,39 +35,109 @@
         else if (IsPropertyCard())
         {
             <span class="info-price">@Price</span>
-            <span class="info-name text-truncate">@Name</span>
         }
         else
         {
-            <span class="info-name text-truncate">@Name</span>
         }
-    </div>
-    @if (_showTip)
-    {
-        <div class="evo-tooltip" style="left:@(_tipX)px; top:@(_tipY)px;">
-            <div class="evo-tooltip-header d-flex align-items-center gap-2">
-                <img src="@ImageUrl" alt="img" class="evo-tooltip-img" />
-                <div class="evo-tooltip-title fw-semibold">@Name</div>
-            </div>
-            @if (IsPropertyCard())
-            {
-                <div class="evo-tooltip-sub">Categoria: @BuildingType</div>
-                <div class="evo-tooltip-price">Preço de compra: $ @Price</div>
-                <div class="evo-tooltip-desc">@GetEvolutionDescription()</div>
-            }
-            else 
-            {
-                <div class="evo-tooltip-rent">@GetSecondaryTooltipText()</div>
-            }
-            @if (!string.IsNullOrWhiteSpace(Description))
-            {
-                <div class="evo-tooltip-desc">@Description</div>
-            }
-        </div>
-    }
+    </div> *@
+
 </div>
 
 <style>
+    /* 3D floating card effect */
+    .block-icon-wrapper {
+        position: relative;
+        perspective: 1100px;
+        overflow: unset !important; /* garante que a imagem possa "pular" para fora sem ser cortada */
+        transform-style: preserve-3d;
+    }
+
+        .block-icon-wrapper::after { /* soft shadow behind card */
+            content: "";
+            position: absolute;
+            left: 8%;
+            top: 70%;
+            width: 84%;
+            height: 18%;
+            background: radial-gradient(ellipse at center, rgba(0,0,0,.55) 0%, rgba(0,0,0,0) 70%);
+            filter: blur(4px);
+            transform: translateZ(-60px) scale(0.9);
+            opacity: 0;
+            transition: opacity .5s ease;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+    .block-icon-img {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        object-fit: contain; /* evita corte bruto mantendo proporção */
+        transform-origin: center center;
+        transform-style: preserve-3d;
+        transition: transform .65s cubic-bezier(.19,1,.22,1), filter .55s ease, box-shadow .55s ease;
+        will-change: transform, filter;
+        animation: floatCard 7s ease-in-out infinite;
+        z-index: 2;
+        filter: drop-shadow(0 2px 4px rgba(0,0,0,.55));
+    }
+
+    /* animação de "flutuar" suave */
+    @@keyframes floatCard {
+        0% {
+            transform: translateY(0) translateZ(0) rotateX(0) rotateY(0);
+        }
+
+        25% {
+            transform: translateY(-4px) translateZ(18px) rotateX(2deg) rotateY(-2deg);
+        }
+
+        50% {
+            transform: translateY(-1px) translateZ(10px) rotateX(-1deg) rotateY(1deg);
+        }
+
+        75% {
+            transform: translateY(-6px) translateZ(22px) rotateX(3deg) rotateY(-1deg);
+        }
+
+        100% {
+            transform: translateY(0) translateZ(0) rotateX(0) rotateY(0);
+        }
+    }
+
+    /* efeito de "saltar" ao hover */
+    .block-icon-wrapper:hover .block-icon-img {
+        animation-play-state: paused;
+        transform: translateY(-8px) translateZ(60px) scale(1.08) rotateX(7deg) rotateY(-6deg);
+        filter: drop-shadow(0 14px 18px rgba(0,0,0,.55)) brightness(1.08) saturate(1.1);
+    }
+
+    .block-icon-wrapper:hover::after {
+        opacity: 1;
+    }
+
+    /* animação quando a imagem muda (já existia a flag .img-change) */
+    .block-icon-img.img-change {
+        animation: imageSwap .45s ease both;
+    }
+
+    @@keyframes imageSwap {
+        0% {
+            opacity: 0;
+            transform: translateZ(-40px) scale(.85) rotateX(-8deg);
+            filter: blur(6px);
+        }
+
+        60% {
+            opacity: 1;
+            filter: blur(0);
+        }
+
+        100% {
+            opacity: 1;
+            transform: translateZ(0) scale(1) rotateX(0);
+        }
+    }
 
 </style>
 @code {
@@ -59,7 +152,7 @@
     [Parameter] public EventCallback<Microsoft.AspNetCore.Components.Web.MouseEventArgs> OnClick { get; set; }
     [Parameter] public bool ShowRentTag { get; set; } = true;
 
-    private bool _showTip; private double _tipX; private double _tipY;
+    private bool _showTip;
     private string AltText => string.IsNullOrWhiteSpace(Name) ? "Bloco" : Name;
     private string? _lastImageUrl; private bool _animateImageChange;
 
@@ -77,9 +170,8 @@
     }
 
     private void OnClickInternal(Microsoft.AspNetCore.Components.Web.MouseEventArgs e) => OnClick.InvokeAsync(e);
-    private void ShowTip(Microsoft.AspNetCore.Components.Web.MouseEventArgs e) { _showTip = true; MoveTip(e); }
-    private void MoveTip(Microsoft.AspNetCore.Components.Web.MouseEventArgs e) { if (!_showTip) return; _tipX = e.ClientX + 14; _tipY = e.ClientY + 14; StateHasChanged(); }
-    private void HideTip() { _showTip = false; StateHasChanged(); }
+    private void ShowTip(Microsoft.AspNetCore.Components.Web.MouseEventArgs e) { _showTip = true; _ = InvokeAsync(StateHasChanged); }
+    private void HideTip() { _showTip = false; _ = InvokeAsync(StateHasChanged); }
 
     private string GetEvolutionDescription() { if (BuildingType == BuildingType.None || BuildingLevel < 1) return Description; var evo = BuildingEvolutionDescriptions.Get(BuildingType, Math.Clamp(BuildingLevel, 1, 4)); return $"{evo.Name}: {evo.Description}"; }
 
@@ -87,13 +179,15 @@
     private bool IsPropertyCard() => Type is BlockType.Property or BlockType.Company;
     private string GetTitleText() => IsPropertyCard() ? $"{Name} ($ {Price})" : Name;
     private string GetSecondaryTagLabel() => Type switch { BlockType.Tax => "Taxa", BlockType.Chance => "Sorte", BlockType.Reves => "Revés", _ => "" };
-    private string FormatSecondaryValue() => Type switch {
+    private string FormatSecondaryValue() => Type switch
+    {
         BlockType.Tax => $"$ {Rent}",
         BlockType.Chance => Rent >= 0 ? $"$ {Rent}" : $"-$ {Math.Abs(Rent)}",
         BlockType.Reves => $"{Rent} casas",
         _ => Rent.ToString()
     };
-    private string GetSecondaryTooltipText() => Type switch {
+    private string GetSecondaryTooltipText() => Type switch
+    {
         BlockType.Tax => $"Taxa fixa: $ {Rent}",
         BlockType.Chance => Rent >= 0 ? $"Valor sorte aplicado: $ {Rent}" : $"Valor sorte aplicado: -$ {Math.Abs(Rent)}",
         BlockType.Reves => $"Volta {Rent} casas ao cair aqui",

@@ -30,10 +30,6 @@
                 <div class="thumb">
                     @ChildContent
                 </div>
-                <div class="title-area">
-                    <div class="name h5 mb-1">@terrenoTitle</div>
-                    <div class="display-name h6 mb-0">@displayName</div>
-                </div>
             </div>
 
             <div class="info-grid mt-3">
@@ -145,7 +141,11 @@
 .popup-info .title-area .display-name { color: var(--bs-light); }
 
 .popup-info .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem 1rem; }
-.popup-info .label { color: var(--bs-secondary-color, #adb5bd); font-size: .9rem; }
+
+    .popup-info .label {
+        color: #adb5bd;
+        font-size: .9rem;
+    }
 .popup-info .value { font-weight: 600; }
 
 .popup-info .level-line .arrow { opacity: .7; }

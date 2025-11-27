@@ -1,5 +1,5 @@
 .play-container{ min-height: calc(100vh - 140px); }
-.board-shell{ background:var(--surface); border:1px solid rgba(255,255,255,0.03); border-radius:10px; padding:10px; }
+.board-shell{ background: transparent; border:1px solid rgba(255,255,255,0.03); border-radius:10px; padding:10px; }
 .round-badge{ position:absolute; top:8px; left:8px; z-index:2500; background:rgba(0,0,0,0.35); padding:6px 8px; border-radius:6px; color:white; font-weight:600; transform:rotate(-12deg); }
 .turn-badge{ position:absolute; top:8px; right:8px; z-index:2500; background:rgba(0,0,0,0.35); padding:6px 8px; border-radius:6px; color:white; font-weight:600; transform:rotate(12deg); }
 
@@ -17,6 +17,6 @@
 .modal-backdrop.show { z-index: 50000 !important; }
 .modal.d-block { z-index: 50010 !important; }
 
-/* Centro imagem background dentro do board */
-.board-center-bg{ position:absolute; inset:0; z-index:500; opacity:.35; filter:grayscale(.2) contrast(1.1); pointer-events:none; }
+/* Centro imagem background dentro do board - remover escurecimento e manter atrás do conteúdo */
+.board-center-bg{ position:absolute; inset:0; z-index:0; opacity:1; filter:none; pointer-events:none; }
 .board-center-bg img{ width:100%; height:100%; object-fit:cover; }

@@ -19,6 +19,9 @@
     overflow: hidden
 }
 
+/* permitir que o BlockIcon "salte" sem ser cortado no builder */
+.grid-cell.perimeter { overflow: unset; }
+
     .grid-cell.empty {
         background: #f9fafb;
         border:none;        

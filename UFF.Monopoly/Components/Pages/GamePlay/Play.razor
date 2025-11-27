@@ -26,8 +26,8 @@
                 {
                     <div class="board-center-bg"><img src="@_boardCenterImageUrl" alt="bg" /></div>
                 }
-                <div class="round-badge">Rodada: @_game.RoundCount</div>
-                <div class="turn-badge">Vez: @_game.Players.ElementAtOrDefault(_game.CurrentPlayerIndex)?.Name</div>
+@*                 <div class="round-badge">Rodada: @_game.RoundCount</div>
+ *@                <div class="turn-badge">Vez: @_game.Players.ElementAtOrDefault(_game.CurrentPlayerIndex)?.Name</div>
                 @if (!_showDiceOverlay)
                 {
                     <img src="@_mouthImageUrl" style="@_centerCharStyle" alt="personagem" />

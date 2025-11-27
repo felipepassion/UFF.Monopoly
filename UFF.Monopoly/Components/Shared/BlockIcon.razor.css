@@ -5,11 +5,11 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    overflow: hidden;
+    overflow: unset; /* permitir que a imagem saia do container */
     border-radius: 8px;
     padding: 4px;
     box-sizing: border-box;
-    /* dimensionamento din�mico igual ao builder */
+    /* dimensionamento dinâmico igual ao builder */
     --cell-size: var(--cell-size, 60px);
     --infobar-h: clamp(18px, calc(var(--cell-size) / 4.2), 42px);
 }
@@ -31,9 +31,20 @@
 }
 
 @keyframes imgFadeScale {
-    0% { opacity: 0; transform: scale(.7) }
-    50% { opacity: .6; transform: scale(1.08) }
-    100% { opacity: 1; transform: scale(1) }
+    0% {
+        opacity: 0;
+        transform: scale(.7)
+    }
+
+    50% {
+        opacity: .6;
+        transform: scale(1.08)
+    }
+
+    100% {
+        opacity: 1;
+        transform: scale(1)
+    }
 }
 
 .icon-info-bar {
@@ -57,32 +68,101 @@
     text-shadow: 0 1px 1px rgba(0,0,0,.6);
 }
 
-.icon-info-bar .info-price { white-space: nowrap }
-.icon-info-bar .info-name { flex: 1; max-width: calc(var(--cell-size) - 38px); overflow: hidden; text-overflow: ellipsis }
-.icon-info-bar .info-rent { white-space: nowrap; opacity: .9 }
-.icon-info-bar.price-green { background: linear-gradient(135deg,#065f46,#10b981) }
-.icon-info-bar.price-yellow { background: linear-gradient(135deg,#92400e,#f59e0b) }
-.icon-info-bar.price-red { background: linear-gradient(135deg,#7f1d1d,#dc2626) }
+    .icon-info-bar .info-price {
+        white-space: nowrap
+    }
 
+    .icon-info-bar .info-name {
+        flex: 1;
+        max-width: calc(var(--cell-size) - 38px);
+        overflow: hidden;
+        text-overflow: ellipsis
+    }
+
+    .icon-info-bar .info-rent {
+        white-space: nowrap;
+        opacity: .9
+    }
+
+    .icon-info-bar.price-green {
+        background: linear-gradient(135deg,#065f46,#10b981)
+    }
+
+    .icon-info-bar.price-yellow {
+        background: linear-gradient(135deg,#92400e,#f59e0b)
+    }
+
+    .icon-info-bar.price-red {
+        background: linear-gradient(135deg,#7f1d1d,#dc2626)
+    }
+
+/* Tooltip (fixed, centered) */
 .evo-tooltip {
     position: fixed;
-    z-index: 1500;
-    max-width: 240px;
+    z-index: 30000; /* acima do HUD e toasts */
+    max-width: 90vw;
+    width: fit-content;
     background: linear-gradient(145deg,#101b24,#182a35);
+    background-color:rgb(79, 62, 62, 0,55);
     border: 1px solid rgba(255,255,255,.12);
-    padding: 8px 10px;
-    border-radius: 10px;
-    box-shadow: 0 12px 28px -6px rgba(0,0,0,.65), 0 0 0 1px rgba(255,255,255,.05);
+    padding: 14px 16px;
+    border-radius: 14px;
+    box-shadow: 0 22px 48px -10px rgba(0,0,0,.75), 0 0 0 1px rgba(255,255,255,.05);
     animation: tipFade .18s ease;
     pointer-events: none;
     color: var(--text);
 }
 
-.evo-tooltip-header { margin-bottom: 4px }
-.evo-tooltip-img { width: 36px; height: 36px; object-fit: contain; filter: drop-shadow(0 2px 4px rgba(0,0,0,.45)) }
-.evo-tooltip-title { font-size: 14px; line-height: 16px }
-.evo-tooltip-sub { font-size: 11px; color: var(--text-muted); margin-bottom: 2px }
-.evo-tooltip-price, .evo-tooltip-rent { font-size: 11px; font-weight: 600; color: var(--primary); margin-bottom: 2px }
-.evo-tooltip-desc { font-size: 11px; line-height: 15px; color: var(--text-muted) }
+/* centered variant */
+.evo-tooltip-center {
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+}
 
-@keyframes tipFade { from { opacity:0; transform:translateY(4px) } to { opacity:1; transform:translateY(0) } }
+.evo-tooltip-header {
+    margin-bottom: 8px
+}
+
+.evo-tooltip-img {
+    width: 600px;
+    height: 450px;
+    object-fit: contain;
+    filter: drop-shadow(0 4px 8px rgba(0,0,0,.45))
+}
+
+.evo-tooltip-title {
+    font-size: 18px;
+    line-height: 22px
+}
+
+.evo-tooltip-sub {
+    font-size: 14px;
+    color: var(--text-muted);
+    margin-bottom: 6px
+}
+
+.evo-tooltip-price, .evo-tooltip-rent {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--primary);
+    margin-bottom: 6px
+}
+
+.evo-tooltip-desc {
+    font-size: 14px;
+    line-height: 20px;
+    color: var(--text-muted)
+}
+
+@keyframes tipFade {
+    from {
+        opacity: 0;
+        transform: translate(-50%,-44%);
+    }
+
+    to {
+        opacity: 1;
+        transform: translate(-50%,-50%);
+    }
+}
