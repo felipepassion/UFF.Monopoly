@@ -1,0 +1,20 @@
+/* Scoped styles for EvolutionStrip component with dark-friendly colors */
+:host { display: block; }
+.evo-strip { gap: .75rem; }
+.evo-card { display:flex; align-items:center; gap:.75rem; min-width: 220px; background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.14); border-radius: .6rem; padding: .5rem .75rem; box-shadow: 0 4px 14px rgba(0,0,0,.35); transition: transform .15s ease, box-shadow .2s ease, border-color .2s ease, background .2s ease; color: #e9ecef; }
+.evo-card:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,.45); border-color: rgba(0,123,255,.5); background: rgba(255,255,255,.06); }
+
+.evo-img-wrap { width: 56px; height: 56px; border-radius: .5rem; overflow: hidden; background: rgba(0,0,0,.35); display:flex; align-items:center; justify-content:center; }
+.evo-img { max-height: 56px; max-width: 56px; object-fit: contain; }
+.evo-placeholder { color: #adb5bd; font-size: .85rem; text-align:center; }
+
+.evo-title { display:flex; flex-direction:column; line-height:1.1; }
+.evo-level { font-size:.85rem; color:#cfd8dc; }
+.evo-name { font-weight:600; color:#f8f9fa; }
+
+.evo-arrow { opacity:.8; font-size:1.25rem; color:#cfd8dc; margin:0 .25rem; }
+.max { opacity:.6; }
+
+@media (max-width: 520px) {
+  .evo-card { min-width: 180px; }
+}

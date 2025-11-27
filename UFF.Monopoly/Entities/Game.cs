@@ -114,7 +114,6 @@ public class Game
         block.Owner = player;
         player.OwnedProperties.Add(block);
 
-        // record when the player purchased a property (current round)
         player.LastPurchaseTurn = RoundCount;
 
         return true;

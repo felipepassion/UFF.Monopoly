@@ -27,10 +27,28 @@
             <ValidationMessage For="@(()=>Form.CellSize)" />
         </div>
     </div>
+
     <div class="mb-2">
-        <label class="form-label mb-1">Imagem central (URL)</label>
-        <InputText class="form-control form-control-sm" @bind-Value="Form.CenterImageUrl" />
+        <label class="form-label mb-1">Imagem central</label>
+        @if (BackgroundOptions?.Count > 0)
+        {
+            <div class="bg-grid">
+                @foreach (var url in BackgroundOptions)
+                {
+                    var isSel = string.Equals(Form.CenterImageUrl, url, StringComparison.OrdinalIgnoreCase);
+                    <button type="button" class="bg-thumb @(isSel ? "selected" : null)" title="@GetFileName(url)" @onclick="(() => SelectCenter(url))">
+                        <img src="@url" alt="@GetFileName(url)" />
+                        <span class="bg-caption">@GetFileName(url)</span>
+                    </button>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="text-muted small">Nenhuma imagem encontrada em wwwroot.</div>
+        }
     </div>
+
     <div class="d-grid gap-1">
         <button type="button" class="btn btn-primary btn-sm" @onclick="@(() => OnGenerateGrid?.Invoke())">Gerar tabuleiro</button>
         <button type="button" class="btn btn-secondary btn-sm" @onclick="@(() => OnGenerateRandom?.Invoke())">Gerar aleatório</button>
@@ -38,6 +56,14 @@
         <button type="button" class="btn btn-info btn-sm" @onclick="@(() => OnPlay?.Invoke())" disabled="@(BlocksCount <= 0)">Jogar</button>
     </div>
 </EditForm>
+
+<style>
+    .bg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 6px; }
+    .bg-thumb { position: relative; border: 2px solid transparent; padding: 0; border-radius: 6px; overflow: hidden; cursor: pointer; background: #0b1a22; }
+    .bg-thumb.selected { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(255,255,255,.08) inset; }
+    .bg-thumb img { width: 100%; height: 64px; object-fit: cover; display: block; }
+    .bg-caption { position: absolute; left: 0; right: 0; bottom: 0; font-size: 10px; padding: 2px 4px; background: rgba(0,0,0,.45); color: #fff; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; }
+</style>
 
 @code {
     [Parameter]
@@ -57,6 +83,28 @@
 
     [Parameter]
     public Action? OnPlay { get; set; }
+
+    [Parameter]
+    public List<string> BackgroundOptions { get; set; } = new();
+
+    // Novo callback para avisar o parent e forçar re-render do tabuleiro
+    [Parameter]
+    public EventCallback<string> OnCenterImageChanged { get; set; }
+
+    private async Task SelectCenter(string url)
+    {
+        Form.CenterImageUrl = url;
+        if (OnCenterImageChanged.HasDelegate)
+            await OnCenterImageChanged.InvokeAsync(url);
+        StateHasChanged();
+    }
+
+    private static string GetFileName(string url)
+    {
+        if (string.IsNullOrWhiteSpace(url)) return string.Empty;
+        var idx = url.LastIndexOf('/') + 1;
+        return idx >= 0 && idx < url.Length ? Uri.UnescapeDataString(url.Substring(idx)) : url;
+    }
 
     private Task HandleSave() => OnSave is null ? Task.CompletedTask : OnSave();
 }

@@ -1,4 +1,4 @@
-﻿@page "/play/{GameId:guid}"
+@page "/play/{GameId:guid}"
 
 @using Microsoft.EntityFrameworkCore
 @using UFF.Monopoly.Data
@@ -6,6 +6,7 @@
 @using UFF.Monopoly.Models
 @using UFF.Monopoly.Repositories
 @using UFF.Monopoly.Entities
+@using UFF.Monopoly.Components.Pages.BoardBuilders
 
 <h3 class="mb-2">Partida local</h3>
 
@@ -28,17 +29,19 @@
                 }
                 <div class="round-badge">Rodada: @_game.RoundCount</div>
                 <div class="turn-badge">Vez: @_game.Players.ElementAtOrDefault(_game.CurrentPlayerIndex)?.Name</div>
-                @* Exibir chat sempre que não houver overlay de dados (removida checagem de _pawnAnimPosition) *@
+                @* Exibir chat sempre que não houver overlay de dados *@
                 @if (!_showDiceOverlay)
                 {
                     <img src="@_mouthImageUrl" style="@_centerCharStyle" alt="personagem" />
+                    @* Esconde botão de acelerar enquanto houver mensagens na fila ou texto sendo digitado *@
+                    <button style="@_speedBtnStyle" @onclick="OnChatClicked" title="Apressar texto">&gt;&gt;</button>
                     <div style="@_chatContainerStyle" @onclick="OnChatClicked">
                         <div style="@_chatTextStyle">@_chatMessage</div>
                     </div>
                 }
                 @foreach (var space in BoardSpaces)
                 {
-                    <BoardSpace Space="space" OnClick="HandleClick" />
+                    <BoardSpace Space="space" OnClick="@(EventCallback.Factory.Create<BoardSpaceDto>(this, s => HandleClick(s)))" />
                 }
                 <BoardPawnLayer Game="@_game"
                                 PawnAnimPosition="@_pawnAnimPosition"
@@ -70,30 +73,31 @@
                     @if (_modalBlock is not null && _modalPlayer is not null)
                     {
                         <BlockActionContent Block="@_modalBlock"
-                                             Player="@_modalPlayer"
-                                             TemplateEntity="@_modalTemplateEntity"
-                                             CanUpgradeAllowed="@(_modalBlock is PropertyBlock pb && CanUpgradeAllowed(pb))"
-                                             NextUpgradeCost="@(_modalBlock is PropertyBlock pb2 ? GetNextUpgradeCost(pb2) : 0)"
-                                             OnBuy="OnBuyPropertyAsync"
-                                             OnUpgrade="OnUpgradeAsync"
-                                             OnSell="OnSellPropertyAsync">
+                                            Player="@_modalPlayer"
+                                            TemplateEntity="@_modalTemplateEntity"
+                                            CanUpgradeAllowed="@(_modalBlock is PropertyBlock pb && CanUpgradeAllowed(pb))"
+                                            NextUpgradeCost="@(_modalBlock is PropertyBlock pb2 ? GetNextUpgradeCost(pb2) : 0)"
+                                            OnBuy="OnBuyPropertyAsync"
+                                            OnUpgrade="OnUpgradeAsync"
+                                            OnSell="OnSellPropertyAsync"
+                                            GetBuildingImage="@( (UFF.Monopoly.Entities.BuildingType cat, int level) => BoardBuilder.GetBuildingImage(cat, level) )">
                             <BlockEventContent Block="@_modalBlock"
-                                                PendingActionKind="@_pendingActionKind"
-                                                PendingAmount="@_pendingAmount"
-                                                PendingBackSteps="@_pendingBackSteps"
-                                                GoSalary="@Game.GoSalary" />
+                                               PendingActionKind="@_pendingActionKind"
+                                               PendingAmount="@_pendingAmount"
+                                               PendingBackSteps="@_pendingBackSteps"
+                                               GoSalary="@Game.GoSalary" />
                         </BlockActionContent>
                     }
                 </BlockModal>
-                <SimpleModal Show="@_showLoserModal" Title="Derrota" Message="@($"O jogador {_loserName} foi eliminado.")" BaseZ="22000" OnClose="CloseLoserModal" />
-                <SimpleModal Show="@_showWinnerModal" Title="Vencedor" Message="@($"Parabéns! {_winnerName} venceu o jogo.")" BaseZ="23000" OnClose="CloseWinnerModal" />
-                @if (_game is not null && !_showDiceOverlay && _initialIntroDone)
+                <SimpleModal Show="@_showLoserModal" Title="Derrota" Message="@($"O jogador {_loserName} foi eliminado.")" BaseZ="22000" OnClose="@(EventCallback.Factory.Create(this, () => CloseLoserModal()))" />
+                <SimpleModal Show="@_showWinnerModal" Title="Vencedor" Message="@($"Parabéns! {_winnerName} venceu o jogo.")" BaseZ="23000" OnClose="@(EventCallback.Factory.Create(this, () => CloseWinnerModal()))" />
+                @if (_game is not null && !_showDiceOverlay && _hudLocked)
                 {
                     <PlayersPanel Players="@_game.Players"
                                   CurrentPlayerIndex="@_game.CurrentPlayerIndex"
                                   PawnUrlResolver="@_pawnUrlResolver"
                                   HudStyle="@_playersHudStyle"
-                                  ShowRollButton="@(IsPlayerTurn && !HasRolledThisTurn && CanRollDice)"
+                                  ShowRollButton="@(IsPlayerTurn && !HasRolledThisTurn && CanRollDice && _dialogueQueue.Count == 0 && !_isTypingChat)"
                                   ShowEndTurnButton="@CanEndTurn"
                                   OnRollDice="EventCallback.Factory.Create(this, RollForCurrentPlayer)"
                                   OnEndTurn="EventCallback.Factory.Create(this, EndTurn)" />

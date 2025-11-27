@@ -1,0 +1,55 @@
+@using UFF.Monopoly.Entities
+@using UFF.Monopoly.Components.Pages.BoardBuilders
+
+@inherits ComponentBase
+
+<div class="evo-strip d-flex align-items-center justify-content-start">
+    <div class="evo-card" title="Atual: @(CurrentInfo?.Name ?? $"Nível {CurrentLevel}")">
+        <div class="evo-img-wrap">
+            @if (!string.IsNullOrWhiteSpace(CurrentImage))
+            {
+                <img src="@CurrentImage" alt="Atual" class="evo-img" />
+            }
+            else
+            {
+                <div class="evo-placeholder">Nível @CurrentLevel</div>
+            }
+        </div>
+        <div class="evo-title">
+            <div class="evo-level">Nível @CurrentLevel</div>
+            <div class="evo-name">@((CurrentInfo?.Name) ?? "Sem construção")</div>
+        </div>
+    </div>
+
+    <div class="evo-arrow" aria-hidden="true">→</div>
+
+    <div class="evo-card" title="Próximo: @(NextInfo?.Name ?? $"Nível {NextLevel}")">
+        <div class="evo-img-wrap">
+            @if (!string.IsNullOrWhiteSpace(NextImage))
+            {
+                <img src="@NextImage" alt="Próximo" class="evo-img" />
+            }
+            else
+            {
+                <div class="evo-placeholder">Nível @NextLevel</div>
+            }
+        </div>
+        <div class="evo-title">
+            <div class="evo-level">Nível @NextLevel</div>
+            <div class="evo-name">@((NextInfo?.Name) ?? "—")</div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public BuildingType BuildingType { get; set; }
+    [Parameter] public int CurrentLevel { get; set; }
+    [Parameter] public int NextLevel { get; set; }
+    [Parameter] public int MaxLevel { get; set; } = 4;
+    [Parameter] public BuildingEvolutionDescriptions.EvolutionInfo? CurrentInfo { get; set; }
+    [Parameter] public BuildingEvolutionDescriptions.EvolutionInfo? NextInfo { get; set; }
+    [Parameter] public Func<BuildingType, int, string>? GetBuildingImage { get; set; }
+
+    private string? CurrentImage => GetBuildingImage is null || CurrentLevel < 1 || CurrentLevel > MaxLevel ? null : GetBuildingImage(BuildingType, CurrentLevel);
+    private string? NextImage => GetBuildingImage is null || NextLevel < 1 || NextLevel > MaxLevel ? null : GetBuildingImage(BuildingType, NextLevel);
+}
