@@ -17,7 +17,8 @@ public static class BoardFactory
         list.Add(new Block { Position = 5, Name = "Light Blue 1", Type = BlockType.Property, Color = "#ADD8E6", Price = 100, Rent = 6 });
         list.Add(new Block { Position = 6, Name = "Light Blue 2", Type = BlockType.Property, Color = "#ADD8E6", Price = 100, Rent = 6 });
         list.Add(new Block { Position = 7, Name = "Light Blue 3", Type = BlockType.Property, Color = "#ADD8E6", Price = 120, Rent = 8 });
-        list.Add(new Block { Position = 8, Name = "Jail / Just Visiting", Type = BlockType.Jail });
+        // Replace Jail / Just Visiting with Free Parking
+        list.Add(new Block { Position = 8, Name = "Free Parking", Type = BlockType.FreeParking });
         list.Add(new Block { Position = 9, Name = "Pink 1", Type = BlockType.Property, Color = "#FFC0CB", Price = 140, Rent = 10 });
         list.Add(new Block { Position = 10, Name = "Utility A", Type = BlockType.Property, Color = "#888888", Price = 150, Rent = 10 });
         list.Add(new Block { Position = 11, Name = "Pink 2", Type = BlockType.Property, Color = "#FFC0CB", Price = 140, Rent = 10 });

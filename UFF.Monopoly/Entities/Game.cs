@@ -13,6 +13,9 @@ public class Game
     // number of completed rounds (incremented when we wrap back to player 0)
     public int RoundCount { get; private set; } = 0;
 
+    // Flag set true when the current player's movement passed the Go block
+    public bool PassedGoThisMove { get; private set; } = false;
+
     public IReadOnlyList<Block> Board => _board;
     public IReadOnlyList<Player> Players => _players;
 
@@ -35,6 +38,9 @@ public class Game
     public void NextTurn()
     {
         if (IsFinished) return;
+        // Reset pass-go flag at the start of the next player's turn
+        PassedGoThisMove = false;
+
         int attempts = 0;
         do
         {
@@ -71,9 +77,9 @@ public class Game
         var newPos = (oldPos + steps) % BoardSize;
 
         // Determine whether the player actually crosses a Go block during this move.
-        // We iterate each traversed position (exclusive of oldPos, inclusive of newPos) and
+        // Iterate each traversed position (exclusive of oldPos, inclusive of newPos) and
         // award GoSalary only if we encounter a block whose Type == BlockType.Go.
-        bool awardedGo = false;
+        PassedGoThisMove = false;
         for (int i = 1; i <= steps; i++)
         {
             var pos = (oldPos + i) % BoardSize;
@@ -81,7 +87,7 @@ public class Game
             if (traversed != null && traversed.Type == BlockType.Go)
             {
                 player.Money += GoSalary;
-                awardedGo = true;
+                PassedGoThisMove = true;
                 break; // award only once per move
             }
         }
@@ -134,12 +140,17 @@ public class Game
 
     public void SendToJail(Player player)
     {
+        // default to 1 turn if specific duration is not provided elsewhere
+        SendToJail(player, 1);
+    }
+
+    public void SendToJail(Player player, int turns)
+    {
+        // Simplified jail: no visiting space movement. Only mark status and skip turns.
         player.InJail = true;
         player.JailTurns = 0;
-        player.SkipTurns = 1; // skip next turn
-        // On reduced board, jail is first found block of type Jail
-        var jailPos = _board.First(b => b.Type == BlockType.Jail).Position;
-        player.CurrentPosition = jailPos;
+        player.SkipTurns = Math.Max(0, turns);
+        // Do not move the player to a dedicated jail block anymore.
     }
 
     public async Task HandleJailAsync(Player player, IRandomDice? dice = null)

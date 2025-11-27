@@ -6,9 +6,8 @@ public enum BlockType
     Property,
     Company, // Companhia
     Tax,
-    Jail,
     GoToJail,
     Chance, // Sorte
-    Reves,  // Revés
+    Reves,  // RevÃ©s
     FreeParking // Parada Livre
 }

@@ -133,5 +133,5 @@ public partial class Play : ComponentBase, IAsyncDisposable
         return list;
     }
 
-    private static string GetImageForType(BlockType? type) => type switch { BlockType.Go => "/images/blocks/property_basic.svg", BlockType.Property => "/images/blocks/property_basic.svg", BlockType.Company => "/images/blocks/property_predio.svg", BlockType.Jail => "/images/blocks/visitar_prisao.svg", BlockType.GoToJail => "/images/blocks/go_to_jail.svg", BlockType.Tax => "/images/blocks/volte-casas.svg", BlockType.Chance => "/images/blocks/sorte.png", BlockType.Reves => "/images/blocks/reves.png", _ => "/images/blocks/property_basic.svg" };
+    private static string GetImageForType(BlockType? type) => type switch { BlockType.Go => "/images/blocks/property_basic.svg", BlockType.Property => "/images/blocks/property_basic.svg", BlockType.Company => "/images/blocks/property_predio.svg", BlockType.GoToJail => "/images/blocks/go_to_jail.svg", BlockType.Tax => "/images/blocks/volte-casas.svg", BlockType.Chance => "/images/blocks/sorte.png", BlockType.Reves => "/images/blocks/reves.png", _ => "/images/blocks/property_basic.svg" };
 }
