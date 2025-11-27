@@ -1,5 +1,6 @@
 @using UFF.Monopoly.Entities
 @inherits ComponentBase
+@inject NavigationManager Navigation
 
 <div class="players-hud floating" style="@HudStyle">
     <div class="players-hud-header">Jogadores</div>
@@ -11,7 +12,7 @@
                 var p = Players[i];
                 var isCurrent = (i == CurrentPlayerIndex);
                 var bankrupt = p.IsBankrupt;
-                var pawnUrl = GetPawnUrl(p);
+                var pawnUrl = PawnUrlResolver?.Invoke(i) ?? (Navigation.BaseUri + $"images/pawns/PawnsB{p.PawnIndex}.png");
                 var moneyVal = GetDisplayedMoney(p);
                 var dir = GetChangeDir(p.Id);
                 var moneyClass = dir switch
@@ -119,9 +120,6 @@
 
     private int GetChangeDir(Guid id)
         => _moneyChangeDir.TryGetValue(id, out var d) ? d : 0;
-
-    private string GetPawnUrl(Player p)
-        => PawnUrlResolver?.Invoke(p.PawnIndex) ?? $"images/pawns/PawnsB{p.PawnIndex}.png";
 }
 
 <style>

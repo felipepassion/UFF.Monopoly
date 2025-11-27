@@ -8,6 +8,7 @@ using UFF.Monopoly.Data.Entities;
 using UFF.Monopoly.Infrastructure;
 using UFF.Monopoly.Repositories;
 using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage;
+using UFF.Monopoly.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -51,6 +52,9 @@ builder.Services.AddHttpClient();
 builder.Services.AddSingleton<IGameRepository, EfGameRepository>();
 builder.Services.AddScoped<IUserProfileService, UserProfileService>();
 
+// SignalR
+builder.Services.AddSignalR();
+
 var app = builder.Build();
 
 // Seeder
@@ -66,7 +70,6 @@ else
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
     app.UseHsts();
 }
-
 app.UseStatusCodePagesWithReExecute("/not-found");
 app.UseHttpsRedirection();
 
@@ -74,6 +77,30 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.UseAntiforgery();
+
+// Ensure responses that are text/*, application/javascript or application/json include charset=utf-8 when missing
+app.Use(async (context, next) =>
+{
+    await next();
+    try
+    {
+        var ct = context.Response.ContentType;
+        if (!string.IsNullOrWhiteSpace(ct))
+        {
+            // If content type already has a charset, do nothing
+            if (!ct.Contains("charset", StringComparison.OrdinalIgnoreCase))
+            {
+                if (ct.StartsWith("text/", StringComparison.OrdinalIgnoreCase)
+                    || ct.Contains("javascript", StringComparison.OrdinalIgnoreCase)
+                    || ct.Contains("json", StringComparison.OrdinalIgnoreCase))
+                {
+                    context.Response.ContentType = ct + "; charset=utf-8";
+                }
+            }
+        }
+    }
+    catch { }
+});
 
 app.MapGroup("/auth").MapGet("/quick", async (string name, string cid, UserManager<IdentityUser> userManager, SignInManager<IdentityUser> signInManager, ApplicationDbContext db) =>
 {
@@ -115,5 +142,8 @@ app.MapGroup("/auth").MapGet("/quick", async (string name, string cid, UserManag
 app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
+
+// Map SignalR hub
+app.MapHub<GameHub>("/gamehub");
 
 app.Run();
