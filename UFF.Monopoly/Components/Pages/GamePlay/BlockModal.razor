@@ -6,8 +6,8 @@
 {
     <div class="modal-backdrop show" style="z-index:@(BaseZ)"></div>
     <div class="modal d-block" tabindex="-1" style="z-index:@(BaseZ + 1)">
-        <div class="modal-dialog modal-md modal-center">
-            <div class="modal-content p-2 modal-surface property-modal">
+        <div class="modal-dialog modal-lg modal-center" style="min-width:600px;">
+            <div class="modal-content p-2 modal-surface property-modal animate-pop">
                 <div class="modal-header border-bottom">
                     <h5 class="modal-title">@Block.Name</h5>
                     @if (!IsBotTurn)
@@ -18,7 +18,7 @@
                 <div class="modal-body">
                     <div class="property-modal-body">
                         <div class="property-icon position-relative">
-                            <img src="@GetIconForBlock(Block)" alt="icon" />
+                            <img src="@GetIconForBlock(Block)" alt="icon" class="icon-img" />
                             @if (Block is PropertyBlock pb && pb.BuildingLevel > 0)
                             {
                                 <div class="evolution-flash lv-@pb.BuildingLevel"></div>
@@ -73,3 +73,15 @@
         return "/images/blocks/property_basic.svg";
     }
 }
+
+<style>
+/* Popup animation and layout tweaks */
+.animate-pop { animation: popFade .22s ease-out; }
+@@keyframes popFade { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: scale(1); } }
+
+.property-modal .property-modal-body { display:flex; gap:1rem; align-items:center; }
+.property-modal .icon-img { width:72px; height:72px; object-fit:contain; border-radius:.5rem; }
+
+/* Ensure footer buttons wrap nicely */
+.property-modal .modal-footer { flex-wrap: wrap; }
+</style>
