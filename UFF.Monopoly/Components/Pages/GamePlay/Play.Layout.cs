@@ -102,12 +102,12 @@ public partial class Play : ComponentBase, IAsyncDisposable
 
         _chatContainerStyle = $"position:absolute;left:{sideOffset}px;right:{sideOffset}px;top:{chatTop}px;height:{chatHeight}px;max-height:200px;background:url('/images/mr_monopoly/conversation-container.png') center/100% 100% no-repeat;z-index:1200;pointer-events:none;";
 
-        // Chat text paddings and font size based solely on cellScaled to keep consistent
-        var textPadLeft = (int)(cellScaled * 0.25) +10;
+        // Chat text paddings and font size adjustments (slightly smaller font, a bit more top/left padding)
+        var textPadLeft = (int)(cellScaled * 0.25) + 14; // +4 extra left padding
         var textPadRight = (int)(cellScaled * 1.8);
-        var textPadTop = (int)(cellScaled * 0.23) + 20;
+        var textPadTop = (int)(cellScaled * 0.23) + 24; // +4 extra top padding
         var textPadBottom = (int)(cellScaled * 0.2);
-        var fontSize = Math.Max(10, (int)(cellScaled * 0.18)) + 15;
+        var fontSize = Math.Max(10, (int)(cellScaled * 0.18)) + 12; // reduced a little from +15 to +12
         _chatTextStyle = $"position:absolute;left:{textPadLeft}px;top:{textPadTop}px;right:{textPadRight}px;bottom:{textPadBottom}px;font-size:{fontSize}px;line-height:1.18;color:#d4e9dc;font-family:'Segoe UI',sans-serif;font-weight:600;text-shadow:0 2px 4px rgba(0,0,0,0.7);overflow:hidden;display:flex;align-items:flex-start;word-wrap:break-word;";
 
         // HUD and actions position
