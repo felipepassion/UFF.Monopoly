@@ -1,7 +1,6 @@
 @using UFF.Monopoly.Entities
 @using UFF.Monopoly.Components.Pages.BoardBuilders
 @using UFF.Monopoly.Components.Shared
-@using Microsoft.AspNetCore.Components.Web
 
 <div class="block-icon-wrapper" @onmouseover="ShowTip" @onmousemove="MoveTip" @onmouseout="HideTip" @onclick:stopPropagation="true" @onclick="OnClickInternal">
     <img src="@ImageUrl" alt="@AltText" class="block-icon-img @( _animateImageChange ? "img-change" : string.Empty)" />
@@ -57,7 +56,7 @@
     [Parameter] public BlockType Type { get; set; }
     [Parameter] public BuildingType BuildingType { get; set; } = BuildingType.None;
     [Parameter] public int BuildingLevel { get; set; } = 0; // 0..4
-    [Parameter] public EventCallback<MouseEventArgs> OnClick { get; set; }
+    [Parameter] public EventCallback<Microsoft.AspNetCore.Components.Web.MouseEventArgs> OnClick { get; set; }
     [Parameter] public bool ShowRentTag { get; set; } = true;
 
     private bool _showTip; private double _tipX; private double _tipY;
@@ -77,9 +76,9 @@
         }
     }
 
-    private void OnClickInternal(MouseEventArgs e) => OnClick.InvokeAsync(e);
-    private void ShowTip(MouseEventArgs e) { _showTip = true; MoveTip(e); }
-    private void MoveTip(MouseEventArgs e) { if (!_showTip) return; _tipX = e.ClientX + 14; _tipY = e.ClientY + 14; StateHasChanged(); }
+    private void OnClickInternal(Microsoft.AspNetCore.Components.Web.MouseEventArgs e) => OnClick.InvokeAsync(e);
+    private void ShowTip(Microsoft.AspNetCore.Components.Web.MouseEventArgs e) { _showTip = true; MoveTip(e); }
+    private void MoveTip(Microsoft.AspNetCore.Components.Web.MouseEventArgs e) { if (!_showTip) return; _tipX = e.ClientX + 14; _tipY = e.ClientY + 14; StateHasChanged(); }
     private void HideTip() { _showTip = false; StateHasChanged(); }
 
     private string GetEvolutionDescription() { if (BuildingType == BuildingType.None || BuildingLevel < 1) return Description; var evo = BuildingEvolutionDescriptions.Get(BuildingType, Math.Clamp(BuildingLevel, 1, 4)); return $"{evo.Name}: {evo.Description}"; }
@@ -88,6 +87,16 @@
     private bool IsPropertyCard() => Type is BlockType.Property or BlockType.Company;
     private string GetTitleText() => IsPropertyCard() ? $"{Name} ($ {Price})" : Name;
     private string GetSecondaryTagLabel() => Type switch { BlockType.Tax => "Taxa", BlockType.Chance => "Sorte", BlockType.Reves => "Revés", _ => "" };
-    private string FormatSecondaryValue() => Type switch { BlockType.Tax => "$ {Rent}", BlockType.Chance => Rent >= 0 ? $"+${Rent}" : $"-${-Rent}", BlockType.Reves => $"{Rent} casas", _ => Rent.ToString() };
-    private string GetSecondaryTooltipText() => Type switch { BlockType.Tax => $"Taxa fixa: $ {Rent}", BlockType.Chance => $"Valor sorte aplicado: {(Rent >= 0 ? "+" : "-")}${Math.Abs(Rent)}", BlockType.Reves => $"Volta {Rent} casas ao cair aqui", _ => string.Empty };
+    private string FormatSecondaryValue() => Type switch {
+        BlockType.Tax => $"$ {Rent}",
+        BlockType.Chance => Rent >= 0 ? $"$ {Rent}" : $"-$ {Math.Abs(Rent)}",
+        BlockType.Reves => $"{Rent} casas",
+        _ => Rent.ToString()
+    };
+    private string GetSecondaryTooltipText() => Type switch {
+        BlockType.Tax => $"Taxa fixa: $ {Rent}",
+        BlockType.Chance => Rent >= 0 ? $"Valor sorte aplicado: $ {Rent}" : $"Valor sorte aplicado: -$ {Math.Abs(Rent)}",
+        BlockType.Reves => $"Volta {Rent} casas ao cair aqui",
+        _ => string.Empty
+    };
 }

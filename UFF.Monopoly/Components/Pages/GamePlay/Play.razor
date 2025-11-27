@@ -7,6 +7,7 @@
 @using UFF.Monopoly.Repositories
 @using UFF.Monopoly.Entities
 @using UFF.Monopoly.Components.Pages.BoardBuilders
+@using UFF.Monopoly.Components.Shared
 
 <div class="mt-0 d-flex align-items-md-center justify-content-center full-center-wrapper play-container" style="min-height:100vh;">
     <div class="board-shell d-inline-block" style="position:relative;">
@@ -88,8 +89,10 @@
                         </BlockActionContent>
                     }
                 </BlockModal>
-                <SimpleModal Show="@_showLoserModal" Title="Derrota" Message="@($"O jogador {_loserName} foi eliminado.")" BaseZ="22000" OnClose="@(EventCallback.Factory.Create(this, () => CloseLoserModal()))" />
-                <SimpleModal Show="@_showWinnerModal" Title="Vencedor" Message="@($"Parabéns! {_winnerName} venceu o jogo.")" BaseZ="23000" OnClose="@(EventCallback.Factory.Create(this, () => CloseWinnerModal()))" />
+
+                <VictoryDefeatPopup Show="@_showLoserModal" IsVictory="false" IsEveryoneDefeated="@_everyoneDefeated" LoserName="@_loserName" BaseZ="22000" OnRestartGame="EventCallback.Factory.Create(this, RestartGameAsync)" OnBackToMenu="EventCallback.Factory.Create(this, BackToMenuAsync)" />
+                <VictoryDefeatPopup Show="@_showWinnerModal" IsVictory="true" IsEveryoneDefeated="false" WinnerName="@_winnerName" BaseZ="23000" OnRestartGame="EventCallback.Factory.Create(this, RestartGameAsync)" OnBackToMenu="EventCallback.Factory.Create(this, BackToMenuAsync)" />
+
                 @if (_game is not null && !_showDiceOverlay && _hudLocked)
                 {
                     <PlayersPanel Players="@_game.Players"
