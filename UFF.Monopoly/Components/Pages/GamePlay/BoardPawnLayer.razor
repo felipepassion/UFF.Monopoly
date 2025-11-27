@@ -25,24 +25,42 @@
     [Parameter] public List<int> PawnIndexes { get; set; } = new();
     [Parameter] public string DefaultPawnUrl { get; set; } = "/images/pawns/PawnsB1.png";
     [Parameter] public Func<int,string>? PawnUrlResolver { get; set; }
+    [Parameter] public double GutterX { get; set; } = 0.0;
+    [Parameter] public double GutterY { get; set; } = 0.0;
 
     private string GetPawnUrlForPlayer(int playerIndex)
         => PawnUrlResolver?.Invoke(playerIndex) ?? (playerIndex < PawnIndexes.Count ? $"images/pawns/PawnsB{PawnIndexes[playerIndex]}.png" : DefaultPawnUrl);
 
     private (string top, string left, int z) GetTokenOffsetPositionByBoardIndex(int boardIndex, int playerIndex)
     {
+        if (Perimeter.Count == 0)
+            return ("0px", "0px", 1100);
+
         var (r, c) = Perimeter[Math.Clamp(boardIndex, 0, Perimeter.Count - 1)];
-        var baseTop = (int)(r * CellSize * BoardScale);
-        var baseLeft = (int)(c * CellSize * BoardScale);
-        var cellScaled = (int)(CellSize * BoardScale);
-        int offsetX = 0, offsetY = 0;
+
+        // Use doubles for precise spacing; avoid premature integer truncation that breaks sparse boards
+        var cellScaled = CellSize * BoardScale;
+        var stepX = cellScaled + GutterX;
+        var stepY = cellScaled + GutterY;
+
+        // Center tokens within the cell even when gutters are large
+        var baseTop = (r * stepY) + (cellScaled * 0.25);
+        var baseLeft = (c * stepX) + (cellScaled * 0.25);
+
+        double offsetX = 0, offsetY = 0;
         switch (playerIndex)
         {
-            case 1: offsetX = (int)(cellScaled * 0.28); break;
-            case 2: offsetY = (int)(cellScaled * 0.28); break;
-            case 3: offsetX = (int)(cellScaled * 0.28); offsetY = (int)(cellScaled * 0.28); break;
+            case 1: offsetX = cellScaled * 0.28; break;
+            case 2: offsetY = cellScaled * 0.28; break;
+            case 3: offsetX = cellScaled * 0.28; offsetY = cellScaled * 0.28; break;
         }
-        if (offsetX > 0) offsetX += 12; if (offsetY > 0) offsetY += 6;
-        return ($"{baseTop + offsetY}px", $"{baseLeft + offsetX}px", playerIndex >= 2 ? 1200 : 1100);
+
+        // Nudge offsets to avoid overlap; scale nudges with cell size to remain consistent on sparse layouts
+        if (offsetX > 0) offsetX += Math.Max(6, cellScaled * 0.04);
+        if (offsetY > 0) offsetY += Math.Max(3, cellScaled * 0.02);
+
+        var topPx = Math.Round(baseTop + offsetY);
+        var leftPx = Math.Round(baseLeft + offsetX);
+        return ($"{topPx}px", $"{leftPx}px", playerIndex >= 2 ? 1200 : 1100);
     }
 }

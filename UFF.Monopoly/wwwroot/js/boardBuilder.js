@@ -31,3 +31,9 @@ window.addEventListener('resize', () => {
         if(el.id) window.boardBuilder.repositionPopup(el.id);
     });
 });
+
+// Returns current viewport dimensions
+window.boardBuilder.getViewport = function(){
+    return { width: window.innerWidth || document.documentElement.clientWidth || 1024,
+             height: window.innerHeight || document.documentElement.clientHeight || 768 };
+};

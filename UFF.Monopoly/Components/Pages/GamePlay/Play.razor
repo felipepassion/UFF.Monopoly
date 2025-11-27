@@ -8,9 +8,7 @@
 @using UFF.Monopoly.Entities
 @using UFF.Monopoly.Components.Pages.BoardBuilders
 
-<h3 class="mb-2">Partida local</h3>
-
-<div class="mt-2 d-flex align-items-md-center justify-content-center full-center-wrapper play-container">
+<div class="mt-0 d-flex align-items-md-center justify-content-center full-center-wrapper play-container" style="min-height:100vh;">
     <div class="board-shell d-inline-block" style="position:relative;">
         @if (_loading)
         {
@@ -29,11 +27,9 @@
                 }
                 <div class="round-badge">Rodada: @_game.RoundCount</div>
                 <div class="turn-badge">Vez: @_game.Players.ElementAtOrDefault(_game.CurrentPlayerIndex)?.Name</div>
-                @* Exibir chat sempre que não houver overlay de dados *@
                 @if (!_showDiceOverlay)
                 {
                     <img src="@_mouthImageUrl" style="@_centerCharStyle" alt="personagem" />
-                    @* Esconde botão de acelerar enquanto houver mensagens na fila ou texto sendo digitado *@
                     <button style="@_speedBtnStyle" @onclick="OnChatClicked" title="Apressar texto">&gt;&gt;</button>
                     <div style="@_chatContainerStyle" @onclick="OnChatClicked">
                         <div style="@_chatTextStyle">@_chatMessage</div>
@@ -50,7 +46,9 @@
                                 Perimeter="@Perimeter"
                                 PawnIndexes="@_pawnsForPlayers"
                                 DefaultPawnUrl="@PawnUrl"
-                                PawnUrlResolver="@_pawnUrlResolver" />
+                                PawnUrlResolver="@_pawnUrlResolver"
+                                GutterX="@_gutterX"
+                                GutterY="@_gutterY" />
                 @if (_showDiceOverlay)
                 {
                     var diceImgSize = Math.Max(24, (int)(CellSize * 0.6 * _boardScale)) + "px";

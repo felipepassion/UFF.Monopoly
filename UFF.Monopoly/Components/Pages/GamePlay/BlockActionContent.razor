@@ -10,26 +10,28 @@
     {
         var statePb = Block as PropertyBlock;
         var displayName = TemplateEntity?.Name ?? Block.Name;
-        var currentLevel = statePb?.BuildingLevel ?? 0;
+        var buildingType = statePb?.BuildingType ?? TemplateEntity?.BuildingType ?? BuildingType.None;
+        var currentLevel = statePb?.BuildingLevel ?? Math.Clamp(1, 1, 4); // default preview level when not built
         var nextLevel = currentLevel + 1;
         var maxLevel = 4;
         BuildingEvolutionDescriptions.EvolutionInfo? nextInfo = null;
-        if (statePb is not null && statePb.BuildingType != BuildingType.None && nextLevel >= 1 && nextLevel <= maxLevel)
+        if (buildingType != BuildingType.None && buildingType != BuildingType.Special && nextLevel >= 1 && nextLevel <= maxLevel)
         {
-            nextInfo = BuildingEvolutionDescriptions.Get(statePb.BuildingType, Math.Clamp(nextLevel, 1, 4));
+            nextInfo = BuildingEvolutionDescriptions.Get(buildingType, Math.Clamp(nextLevel, 1, 4));
         }
         BuildingEvolutionDescriptions.EvolutionInfo? currentInfo = null;
-        if (statePb is not null && statePb.BuildingType != BuildingType.None && currentLevel >= 1 && currentLevel <= maxLevel)
+        if (buildingType != BuildingType.None && buildingType != BuildingType.Special && currentLevel >= 1 && currentLevel <= maxLevel)
         {
-            currentInfo = BuildingEvolutionDescriptions.Get(statePb.BuildingType, Math.Clamp(currentLevel, 1, 4));
+            currentInfo = BuildingEvolutionDescriptions.Get(buildingType, Math.Clamp(currentLevel, 1, 4));
         }
+        var terrenoTitle = buildingType switch { BuildingType.House => "Terreno (Casa)", BuildingType.Company => "Terreno (Empresa)", BuildingType.Hotel => "Terreno (Hotél)", _ => (Block.Type == BlockType.Company ? "Companhia" : "Propriedade") };
         <div class="popup-info animate-pop">
             <div class="header d-flex align-items-center gap-3">
                 <div class="thumb">
                     @ChildContent
                 </div>
                 <div class="title-area">
-                    <div class="name h5 mb-1">@(Block.Type == BlockType.Company ? "Companhia" : "Propriedade")</div>
+                    <div class="name h5 mb-1">@terrenoTitle</div>
                     <div class="display-name h6 mb-0">@displayName</div>
                 </div>
             </div>
@@ -55,7 +57,7 @@
                 }
             </div>
 
-            @if (statePb is not null && statePb.BuildingType != BuildingType.None)
+            @if (buildingType != BuildingType.None && buildingType != BuildingType.Special)
             {
                 <div class="details mt-3">
                     <div class="level-line d-flex align-items-center gap-2">
@@ -70,7 +72,7 @@
                     </div>
 
                     <EvolutionStrip
-                                    BuildingType="@statePb.BuildingType"
+                                    BuildingType="@buildingType"
                                     CurrentLevel="@currentLevel"
                                     NextLevel="@nextLevel"
                                     MaxLevel="@maxLevel"
@@ -78,7 +80,7 @@
                                     NextInfo="@nextInfo"
                                     GetBuildingImage="@GetBuildingImage" />
 
-                    <div class="mt-2"><span class="label">Tipo construção</span> <span class="value">@statePb.BuildingType</span></div>
+                    <div class="mt-2"><span class="label">Tipo construção</span> <span class="value">@buildingType</span></div>
                     @if (currentInfo is not null)
                     {
                         <div class="evo-desc small text-muted mt-2">Atual: <em>@currentInfo.Name</em> - @currentInfo.Description</div>

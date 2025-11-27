@@ -1,11 +1,15 @@
 using Microsoft.AspNetCore.Components;
-using System.Text.RegularExpressions;
+using Microsoft.JSInterop;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace UFF.Monopoly.Components.Pages.GamePlay;
 
 public partial class Play : ComponentBase, IAsyncDisposable
 {
+    private double _gutterX = 0.0;
+    private double _gutterY = 0.0;
+
     private readonly Random _rand = new();
     private readonly string[] _mouthFrames = { "/images/mr_monopoly/mr_monopoly_1.png", "/images/mr_monopoly/mr_monopoly_2.png", "/images/mr_monopoly/mr_monopoly_3.png", "/images/mr_monopoly/mr_monopoly_4.png" };
     private string _mouthImageUrl = "/images/mr_monopoly/mr_monopoly_1.png"; private int _mouthFrameIndex;
