@@ -12,6 +12,14 @@
                 var isCurrent = (i == CurrentPlayerIndex);
                 var bankrupt = p.IsBankrupt;
                 var pawnUrl = GetPawnUrl(p);
+                var moneyVal = GetDisplayedMoney(p);
+                var dir = GetChangeDir(p.Id);
+                var moneyClass = dir switch
+                {
+                    > 0 => "money scale-up gain",
+                    < 0 => "money scale-up loss",
+                    _ => ( _moneyScaleUp.TryGetValue(p.Id, out var fx) && fx ? "money scale-up" : "money" )
+                };
                 <div class="player-card @(isCurrent ? "current" : string.Empty) @(bankrupt ? "bankrupt" : string.Empty)">
                     <div class="player-card-row">
                         <img src="@pawnUrl" alt="pawn" class="pawn-icon" />
@@ -22,7 +30,7 @@
                         }
                     </div>
                     <div class="player-card-row values-row">
-                        <div class="money" title="Dinheiro">$ @p.Money</div>
+                        <div class="@moneyClass" title="Dinheiro">$ @moneyVal</div>
                         <div class="asset" title="Patrimônio total">Patrimônio: @p.AssetScore</div>
                     </div>
                 </div>
@@ -51,6 +59,80 @@
     [Parameter] public EventCallback OnRollDice { get; set; }
     [Parameter] public EventCallback OnEndTurn { get; set; }
 
+    private readonly Dictionary<Guid, int> _displayedMoney = new();
+    private readonly Dictionary<Guid, bool> _moneyScaleUp = new();
+    private readonly Dictionary<Guid, int> _moneyChangeDir = new(); // 1=gain, -1=loss, 0=none
+    private CancellationTokenSource? _animCts;
+
+    protected override void OnParametersSet()
+    {
+        if (Players is null) return;
+        foreach (var p in Players)
+        {
+            if (!_displayedMoney.TryGetValue(p.Id, out var shown))
+            {
+                _displayedMoney[p.Id] = p.Money;
+                _moneyChangeDir[p.Id] = 0;
+                continue;
+            }
+            if (shown != p.Money)
+            {
+                var dir = Math.Sign(p.Money - shown);
+                _moneyChangeDir[p.Id] = dir;
+                StartMoneyAnimation(p.Id, shown, p.Money);
+            }
+        }
+    }
+
+    private void StartMoneyAnimation(Guid playerId, int from, int to)
+    {
+        try { _animCts?.Cancel(); } catch { }
+        _animCts = new CancellationTokenSource();
+        var token = _animCts.Token;
+        _moneyScaleUp[playerId] = true; // trigger scale up effect
+        _ = AnimateAsync(playerId, from, to, token);
+    }
+
+    private async Task AnimateAsync(Guid playerId, int from, int to, CancellationToken token)
+    {
+        const int durationMs = 500; // total duration
+        const int stepMs = 30; // frame interval
+        var steps = Math.Max(1, durationMs / stepMs);
+        var delta = to - from;
+        for (int i = 1; i <= steps; i++)
+        {
+            if (token.IsCancellationRequested) return;
+            var val = from + (int)Math.Round(delta * (i / (double)steps));
+            _displayedMoney[playerId] = val;
+            StateHasChanged();
+            try { await Task.Delay(stepMs, token); } catch { return; }
+        }
+        _displayedMoney[playerId] = to;
+        await Task.Delay(180);
+        _moneyScaleUp[playerId] = false; // remove scale after brief time
+        _moneyChangeDir[playerId] = 0; // back to normal color
+        StateHasChanged();
+    }
+
+    private int GetDisplayedMoney(Player p)
+        => _displayedMoney.TryGetValue(p.Id, out var val) ? val : p.Money;
+
+    private int GetChangeDir(Guid id)
+        => _moneyChangeDir.TryGetValue(id, out var d) ? d : 0;
+
     private string GetPawnUrl(Player p)
         => PawnUrlResolver?.Invoke(p.PawnIndex) ?? $"images/pawns/PawnsB{p.PawnIndex}.png";
 }
+
+<style>
+/* scale-up effect on money when it changes */
+@@keyframes moneyPulse { from { transform: scale(1); } 40% { transform: scale(1.12); } to { transform: scale(1); } }
+.money { transition: color .25s ease; }
+.money.scale-up { animation: moneyPulse .45s ease-out; }
+
+/* Color flash animations for gain/loss */
+@@keyframes moneyGainColor { 0% { color: #4caf50; } 70% { color: #4caf50; } 100% { color: inherit; } }
+@@keyframes moneyLossColor { 0% { color: #e74c3c; } 70% { color: #e74c3c; } 100% { color: inherit; } }
+.money.gain { animation: moneyGainColor .6s ease-out; }
+.money.loss { animation: moneyLossColor .6s ease-out; }
+</style>

@@ -12,13 +12,34 @@ public partial class Play : ComponentBase, IAsyncDisposable
     private bool _showBotActionToast; private string _botActionMessage = string.Empty; private bool _botHasActedThisModal;
 
     private void PrepareModalForLanding(Player currentPlayer)
-    { if (_game is null) return; var landed = _game.Board.FirstOrDefault(b => b.Position == currentPlayer.CurrentPosition); ResetPendingSpecial(); if (landed is not null) { if (landed.Type == BlockType.Tax) ConfigureTax(landed, currentPlayer); else if (landed.Type == BlockType.Chance) ConfigureChance(); else if (landed.Type == BlockType.Reves) ConfigureReves(); } _modalPlayer = currentPlayer; _modalBlock = landed; _modalTemplateEntity = _templatesByPosition.TryGetValue(currentPlayer.CurrentPosition, out var tpl) ? tpl : null; _pawnAnimPosition = -1; _modalFromMove = true; _showBlockModal = true; }
+    {
+        if (_game is null) return;
+        var landed = _game.Board.FirstOrDefault(b => b.Position == currentPlayer.CurrentPosition);
+        ResetPendingSpecial();
+
+        // Configure pending actions based on landing block
+        if (landed is not null)
+        {
+            if (landed.Type == BlockType.Tax) ConfigureTax(landed, currentPlayer);
+            else if (landed.Type == BlockType.Chance) ConfigureChance();
+            else if (landed.Type == BlockType.Reves) ConfigureReves();
+        }
+
+        _modalPlayer = currentPlayer;
+        _modalBlock = landed;
+        _modalTemplateEntity = _templatesByPosition.TryGetValue(currentPlayer.CurrentPosition, out var tpl) ? tpl : null;
+        _pawnAnimPosition = -1;
+        _modalFromMove = true;
+        _showBlockModal = true;
+    }
 
     private async Task CloseBlockModal()
     {
         _showBlockModal = false;
         if (_modalFromMove && _game is not null && _modalPlayer is not null)
         {
+            // Apply stacked rewards/effects: first, if player passed Go, it's already credited to money.
+            // We only need to show it; BlockEventContent reads Game.GoSalary and the Go block type.
             await ApplyPendingActionAsync();
             if (_modalPlayer.Money < 0) { await RegisterLoserAsync(_modalPlayer); CleanupModal(); ResetPendingSpecial(); return; }
             await BotAutoActionsIfNeeded();
@@ -39,7 +60,37 @@ public partial class Play : ComponentBase, IAsyncDisposable
     private void ConfigureReves() { var takeMoneyOptions = new[] { 100, 200 }; _pendingActionKind = PendingActionKind.Reves; if (_rand.NextDouble() < 0.5) { _pendingAmount = takeMoneyOptions[_rand.Next(takeMoneyOptions.Length)]; } else { _pendingBackSteps = _rand.Next(2, 7); } }
 
     private async Task ApplyPendingActionAsync()
-    { if (_game is null || _modalPlayer is null || _pendingActionKind == PendingActionKind.None) return; var player = _modalPlayer; var landed = _game.Board.FirstOrDefault(b => b.Position == player.CurrentPosition); switch (_pendingActionKind) { case PendingActionKind.Tax: player.Money = Math.Max(0, player.Money - _pendingAmount); if (landed is not null) landed.Rent = _pendingAmount; EnqueueGroup("evento_tax", new DialogueContext { Player = player.Name, Amount = _pendingAmount }, true, immediate: true); break; case PendingActionKind.Chance: player.Money += _pendingAmount; EnqueueGroup("evento_chance", new DialogueContext { Player = player.Name, Amount = _pendingAmount }, true, immediate: true); break; case PendingActionKind.Reves: if (_pendingBackSteps > 0) { await AnimateBackwardAsync(GetPlayerIndex(player.Id), _pendingBackSteps); EnqueueGroup("evento_reves", new DialogueContext { Player = player.Name, Steps = _pendingBackSteps }, true, immediate: true); } else if (_pendingAmount > 0) { player.Money = Math.Max(0, player.Money - _pendingAmount); EnqueueGroup("evento_reves", new DialogueContext { Player = player.Name, Amount = _pendingAmount }, true, immediate: true); } break; } await GameRepo.SaveGameAsync(GameId, _game); ResetPendingSpecial(); AdvanceDialogueIfIdle(); }
+    {
+        if (_game is null || _modalPlayer is null || _pendingActionKind == PendingActionKind.None) return;
+        var player = _modalPlayer; var landed = _game.Board.FirstOrDefault(b => b.Position == player.CurrentPosition);
+        switch (_pendingActionKind)
+        {
+            case PendingActionKind.Tax:
+                player.Money = Math.Max(0, player.Money - _pendingAmount);
+                if (landed is not null) landed.Rent = _pendingAmount;
+                EnqueueGroup("evento_tax", new DialogueContext { Player = player.Name, Amount = _pendingAmount }, true, immediate: true);
+                break;
+            case PendingActionKind.Chance:
+                player.Money += _pendingAmount;
+                EnqueueGroup("evento_chance", new DialogueContext { Player = player.Name, Amount = _pendingAmount }, true, immediate: true);
+                break;
+            case PendingActionKind.Reves:
+                if (_pendingBackSteps > 0)
+                {
+                    await AnimateBackwardAsync(GetPlayerIndex(player.Id), _pendingBackSteps);
+                    EnqueueGroup("evento_reves", new DialogueContext { Player = player.Name, Steps = _pendingBackSteps }, true, immediate: true);
+                }
+                else if (_pendingAmount > 0)
+                {
+                    player.Money = Math.Max(0, player.Money - _pendingAmount);
+                    EnqueueGroup("evento_reves", new DialogueContext { Player = player.Name, Amount = _pendingAmount }, true, immediate: true);
+                }
+                break;
+        }
+        await GameRepo.SaveGameAsync(GameId, _game);
+        ResetPendingSpecial();
+        AdvanceDialogueIfIdle();
+    }
 
     private async Task OnBuyPropertyAsync() { if (_modalBlock is null || _modalPlayer is null) return; if (_game!.TryBuyProperty(_modalPlayer, _modalBlock)) { await GameRepo.SaveGameAsync(GameId, _game); EnqueueGroup("acao_compra", new DialogueContext { Player = _modalPlayer.Name, Block = _modalBlock.Name }, true, immediate: true); SyncOwnersToBoardSpaces(); } StateHasChanged(); }
     private async Task OnUpgradeAsync() { if (_modalBlock is PropertyBlock pb && _modalPlayer is not null && CanUpgradeAllowed(pb)) { if (pb.Upgrade(_modalPlayer)) { if (pb.BuildingType != BuildingType.None && pb.BuildingLevel > 0) { var evo = BuildingEvolutionDescriptions.Get(pb.BuildingType, Math.Clamp(pb.BuildingLevel,1,4)); pb.Name = evo.Name; } await GameRepo.SaveGameAsync(GameId, _game); SyncOwnersToBoardSpaces(); StateHasChanged(); EnqueueGroup("acao_upgrade", new DialogueContext { Player = _modalPlayer.Name, Block = pb.Name, Amount = pb.BuildingLevel }, true, immediate: true); } StateHasChanged(); } }

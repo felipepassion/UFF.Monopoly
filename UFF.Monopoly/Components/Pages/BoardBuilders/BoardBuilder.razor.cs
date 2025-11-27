@@ -267,9 +267,9 @@ public partial class BoardBuilder : ComponentBase
 
     internal string GetCellBackground(BlockTemplateEntity b) => string.IsNullOrWhiteSpace(b.Color) ? GetTypeColor(b.Type) : b.Color;
 
-    internal string GetTypeColor(BlockType t) => t switch { BlockType.Go => "#27ae60", BlockType.Property => "#3498db", BlockType.Company => "#2ecc71", BlockType.Tax => "#e74c3c", BlockType.Jail => "#f1c40f", BlockType.GoToJail => "#d35400", BlockType.Chance => "#8e44ad", BlockType.Reves => "#f39c12", BlockType.FreeParking => "#16a085", _ => "#95a5a6" };
+    internal string GetTypeColor(BlockType t) => t switch { BlockType.Go => "#27ae60", BlockType.Property => "#3498db", BlockType.Company => "#2ecc71", BlockType.Tax => "#e74c3c", BlockType.GoToJail => "#d35400", BlockType.Chance => "#8e44ad", BlockType.Reves => "#f39c12", BlockType.FreeParking => "#16a085", _ => "#95a5a6" };
 
-    internal string GetDefaultImageForType(BlockType t) => t switch { BlockType.Property => "/images/board/buildings/house1.png", BlockType.Company => "/images/board/buildings/company1.png", BlockType.GoToJail => "/images/blocks/go_to_jail.svg", BlockType.Jail => "/images/blocks/visitar_prisao.svg", BlockType.Tax => "/images/blocks/taxa.png", BlockType.Go => "/images/blocks/volte-casas.svg", BlockType.Chance => "/images/blocks/sorte.png", BlockType.Reves => "/images/blocks/reves.png", BlockType.FreeParking => "/images/board/blocks/freeparking.png", _ => "/images/board/buildings/house1.png" };
+    internal string GetDefaultImageForType(BlockType t) => t switch { BlockType.Property => "/images/board/buildings/house1.png", BlockType.Company => "/images/board/buildings/company1.png", BlockType.GoToJail => "/images/blocks/go_to_jail.svg", BlockType.Tax => "/images/blocks/taxa.png", BlockType.Go => "/images/blocks/volte-casas.svg", BlockType.Chance => "/images/blocks/sorte.png", BlockType.Reves => "/images/blocks/reves.png", BlockType.FreeParking => "/images/board/blocks/freeparking.png", _ => "/images/board/buildings/house1.png" };
 
     internal string GetCategoryName(BuildingType cat) => cat switch { BuildingType.House => "Casas", BuildingType.Hotel => "Hotéis", BuildingType.Company => "Empresas", BuildingType.Special => "Prédios Especiais", _ => cat.ToString() };
     internal string GetCategoryColor(BuildingType cat) => cat switch { BuildingType.House => GetTypeColor(BlockType.Property), BuildingType.Hotel => GetTypeColor(BlockType.Property), BuildingType.Company => GetTypeColor(BlockType.Company), BuildingType.Special => GetTypeColor(BlockType.FreeParking), _ => "#95a5a6" };
@@ -364,7 +364,7 @@ public partial class BoardBuilder : ComponentBase
         Nav.NavigateTo($"/play/{CurrentBoardId}");
     }
 
-    internal string TranslateBlockType(BlockType t) => t switch { BlockType.Go => "Início", BlockType.Property => "Propriedade", BlockType.Company => "Companhia", BlockType.Tax => "Taxa", BlockType.Jail => "Visitar Prisão", BlockType.GoToJail => "Vá para Prisão", BlockType.Chance => "Sorte", BlockType.Reves => "Revés", BlockType.FreeParking => "Parada Livre", _ => t.ToString() };
+    internal string TranslateBlockType(BlockType t) => t switch { BlockType.Go => "Início", BlockType.Property => "Propriedade", BlockType.Company => "Companhia", BlockType.Tax => "Taxa", BlockType.GoToJail => "Vá para Prisão", BlockType.Chance => "Sorte", BlockType.Reves => "Revés", BlockType.FreeParking => "Parada Livre", _ => t.ToString() };
 
     // === Random board generation with basic balance rules ===
     internal void GenerateRandomBoard()
@@ -417,7 +417,6 @@ public partial class BoardBuilder : ComponentBase
         }
 
         SetBlock(corners[0], BlockType.Go, "Início");
-        SetBlock(corners[1], BlockType.Jail, "Visitar Prisão", 0);
         SetBlock(corners[2], BlockType.FreeParking, "Parada Livre", 0);
         SetBlock(corners[3], BlockType.GoToJail, "Vá para Prisão", 3); // default turns
 

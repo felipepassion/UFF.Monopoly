@@ -22,9 +22,9 @@
             <div>Revés: você pagará <strong>R$ @PendingAmount</strong> à banca.</div>
         }
     }
-    else if (Block.Type == BlockType.Go)
+    else if (Block.Type == BlockType.Go && PassedGo)
     {
-        <div>Você chegou ao início / passou por ele e recebeu <strong>R$ @GoSalary</strong>.</div>
+        <div>Você passou pelo início e recebeu <strong>R$ @GoSalary</strong>.</div>
     }
     else if (Block.Type == BlockType.GoToJail)
     {
@@ -42,4 +42,5 @@
     [Parameter] public int PendingAmount { get; set; }
     [Parameter] public int PendingBackSteps { get; set; }
     [Parameter] public int GoSalary { get; set; }
+    [Parameter] public bool PassedGo { get; set; }
 }

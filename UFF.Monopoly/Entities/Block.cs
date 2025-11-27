@@ -1,4 +1,4 @@
-﻿namespace UFF.Monopoly.Entities;
+namespace UFF.Monopoly.Entities;
 
 public class Block
 {
@@ -31,9 +31,9 @@ public class Block
                 // Aqui não paga para evitar efeitos duplicados.
                 break;
             case BlockType.GoToJail:
-                game.SendToJail(player);
-                break;
-            case BlockType.Jail:
+                // Use configured turns stored in Rent (default 1 if not set)
+                var turns = Math.Max(1, Rent);
+                game.SendToJail(player, turns);
                 break;
             case BlockType.Chance:
                 // Chance é tratada pela UI (pendente) para mostrar mensagem antes de aplicar.
