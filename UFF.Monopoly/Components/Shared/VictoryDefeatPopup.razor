@@ -1,0 +1,48 @@
+@namespace UFF.Monopoly.Components.Shared
+
+@if (Show)
+{
+    <div class="vdp-backdrop">
+        <div class="vdp-modal" style="z-index:@BaseZ" @onclick="StopPropagation">
+            <div class="vdp-header">
+                <h3>@(IsVictory ? "Vitória" : IsEveryoneDefeated ? "Fim de Jogo" : "Derrota")</h3>
+            </div>
+            <div class="vdp-body">
+                @if (IsVictory)
+                {
+                    <p class="vdp-message">Parabéns! @WinnerName venceu o jogo. 🎉</p>
+                    <p class="vdp-sub">Todos os outros jogadores ficaram sem dinheiro.</p>
+                }
+                else if (IsEveryoneDefeated)
+                {
+                    <p class="vdp-message">Todos perderam. 😢</p>
+                    <p class="vdp-sub">Nenhum jogador humano manteve dinheiro — os bots dominaram.</p>
+                }
+                else
+                {
+                    <p class="vdp-message">O jogador @LoserName foi eliminado. 😢</p>
+                    <p class="vdp-sub">Suas finanças zeraram. Força na próxima!</p>
+                }
+            </div>
+            <div class="vdp-footer">
+                <button class="vdp-btn" @onclick="Restart">Reiniciar</button>
+                <button class="vdp-btn alt" @onclick="BackToMenu">Voltar ao Menu</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool Show { get; set; }
+    [Parameter] public bool IsVictory { get; set; }
+    [Parameter] public bool IsEveryoneDefeated { get; set; }
+    [Parameter] public string WinnerName { get; set; } = string.Empty;
+    [Parameter] public string LoserName { get; set; } = string.Empty;
+    [Parameter] public int BaseZ { get; set; } = 20000;
+    [Parameter] public EventCallback OnRestartGame { get; set; }
+    [Parameter] public EventCallback OnBackToMenu { get; set; }
+
+    private void Restart() => OnRestartGame.InvokeAsync();
+    private void BackToMenu() => OnBackToMenu.InvokeAsync();
+    private void StopPropagation(MouseEventArgs e) { }
+}

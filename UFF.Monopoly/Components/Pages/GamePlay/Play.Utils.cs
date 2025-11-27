@@ -27,6 +27,12 @@ public partial class Play : ComponentBase, IAsyncDisposable
         await LoadBoardLayoutAsync(boardId.Value);
         await LoadDialogueJsonAsync();
         _game = await GameRepo.GetGameAsync(GameId);
+        // Reinício automático se jogo salvo já tem alguém com saldo 0 ou negativo / falido
+        if (_game is not null && _game.Players.Any(p => p.Money <= 0 || p.IsBankrupt))
+        {
+            var restarted = await TryAutoRestartAsync();
+            if (restarted) return; // navegação para novo jogo; interrompe init atual
+        }
         if (_game is not null)
         { _pawnAnimPosition = _game.Players.FirstOrDefault()?.CurrentPosition ?? 0; _pawnsForPlayers = _game.Players.Select(p => Math.Clamp(p.PawnIndex, 1, 6)).ToList(); }
         if (!_pawnsForPlayers.Any()) ParsePawnsQuery();
@@ -43,6 +49,21 @@ public partial class Play : ComponentBase, IAsyncDisposable
         AdvanceDialogueIfIdle();
         _loading = false; StateHasChanged();
         _ = TryAutoRollForBotAsync();
+    }
+
+    private async Task<bool> TryAutoRestartAsync()
+    {
+        if (_game is null) return false;
+        if (!boardId.HasValue) return false;
+        // Manter mesma lista de nomes e pawns ao reiniciar
+        var names = _game.Players.Select(p => p.Name).ToList();
+        var pawnIndices = _game.Players.Select(p => p.PawnIndex).ToList();
+        var (newGameId, newGame) = await GameRepo.CreateNewGameAsync(boardId.Value, names, pawnIndices);
+        // Monta query de pawns para manter seleção visual
+        var pawnsQuery = string.Join(',', pawnIndices);
+        var humanCount = GetHumanPlayersCount();
+        Navigation.NavigateTo($"/play/{newGameId}?boardId={boardId.Value}&humanCount={humanCount}&pawns={pawnsQuery}");
+        return true;
     }
 
     private void SyncOwnersToBoardSpaces()

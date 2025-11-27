@@ -9,6 +9,11 @@
         @if (Space.OwnerPlayerIndex.HasValue)
         {
             <div class="owner-overlay" style="background:@GetOwnerColor(Space.OwnerPlayerIndex.Value);"></div>
+            @if (PawnUrlResolver is not null)
+            {
+                var pawnUrl = PawnUrlResolver.Invoke(Space.OwnerPlayerIndex.Value);
+                <img src="@pawnUrl" alt="dono" class="owner-center-img" />
+            }
         }
     </div>
 </div>
@@ -21,6 +26,9 @@
     public EventCallback<BoardSpaceDto> OnClick { get; set; }
 
     [CascadingParameter] public string[]? OwnerColors { get; set; }
+
+    // Resolvedor de URL do peão do jogador dono
+    [Parameter] public Func<int, string>? PawnUrlResolver { get; set; }
 
     private string BuildStyle()
     {
