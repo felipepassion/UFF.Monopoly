@@ -1,4 +1,7 @@
 <Solution>
+  <Folder Name="/_solution items/">
+    <File Path="README.md" />
+  </Folder>
   <Project Path="UFF.Monopoly.DesktopApp/UFF.Monopoly.DesktopApp.csproj" Id="05b98681-d4ff-47a3-bbe7-dfa18664e58a" />
   <Project Path="UFF.Monopoly/UFF.Monopoly.csproj" />
 </Solution>

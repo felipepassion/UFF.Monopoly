@@ -18,22 +18,21 @@
                 <div class="modal-body">
                     <div class="property-modal-body">
                         <div class="property-icon position-relative">
-                            <img src="@GetIconForBlock(Block)" alt="icon" class="icon-img" />
+                            <img src="@GetPreviewImage(Block)" alt="icon" class="icon-img large-icon" />
                             @if (Block is PropertyBlock pb && pb.BuildingLevel > 0)
                             {
                                 <div class="evolution-flash lv-@pb.BuildingLevel"></div>
                             }
                         </div>
                         <div class="property-info">
-                            <div class="prop-line name">@Block.Name</div>
+                            <div class="prop-line name fw-semibold">@Block.Name</div>
                             <div class="prop-line price">Preço: R$ @Block.Price</div>
-                            <div class="prop-line rent">Aluguel: R$ @Block.Rent</div>
+                            <div class="prop-line rent">Aluguel: R$ @(Block is PropertyBlock pb2 ? pb2.CalculateRent() : Block.Rent)</div>
                         </div>
                     </div>
                     @ChildContent
                 </div>
                 <div class="modal-footer d-flex justify-content-end gap-2">
-                 
                     @if (!IsBotTurn)
                     {
                         <button class="btn btn-secondary" @onclick="OnClose">Fechar</button>
@@ -59,10 +58,19 @@
     [Parameter] public RenderFragment? ChildContent { get; set; }
     [CascadingParameter] public bool IsBotTurn { get; set; } // injetado a partir da página
 
+    private string GetPreviewImage(Block b)
+    {
+        // Usa imagem atual do bloco se já definida (garante especiais e evolução)
+        if (!string.IsNullOrWhiteSpace(b.ImageUrl)) return b.ImageUrl;
+        return GetIconForBlock(b);
+    }
+
     private string GetIconForBlock(Block b)
     {
         if (b is PropertyBlock pb)
         {
+            // Usa imagem evoluída se disponível
+            if (!string.IsNullOrWhiteSpace(pb.ImageUrl)) return pb.ImageUrl;
             if (pb.BuildingType == BuildingType.Company) return "/images/blocks/property_predio.svg";
             if (pb.BuildingType == BuildingType.Hotel) return "/images/board/buildings/hotel1.png";
             if (pb.BuildingType == BuildingType.House) return "/images/board/buildings/house1.png";
@@ -79,8 +87,12 @@
 .animate-pop { animation: popFade .22s ease-out; }
 @@keyframes popFade { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: scale(1); } }
 
-.property-modal .property-modal-body { display:flex; gap:1rem; align-items:center; }
-.property-modal .icon-img { width:72px; height:72px; object-fit:contain; border-radius:.5rem; }
+.property-modal .property-modal-body { display:flex; gap:1.25rem; align-items:center; }
+.property-modal .icon-img { width:72px; height:72px; object-fit:contain; border-radius:.75rem; }
+.property-modal .icon-img.large-icon { width:118px; height:118px; padding:4px; background:linear-gradient(145deg,#0f1c24,#1e2e38); box-shadow:0 6px 18px -4px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.08); }
+.property-modal .property-info { display:flex; flex-direction:column; gap:.35rem; }
+.property-modal .prop-line { font-size:.95rem; }
+.property-modal .prop-line.name { font-size:1.1rem; }
 
 /* Ensure footer buttons wrap nicely */
 .property-modal .modal-footer { flex-wrap: wrap; }

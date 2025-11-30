@@ -90,7 +90,8 @@ public partial class Play : ComponentBase, IAsyncDisposable
         // Target a fixed ratio for chat height relative to interior height, clamp by cell size
         // Works for sparse boards (small Rows/Cols) and dense boards alike
         var minChatH = Math.Max(cellScaled, (int)(cellScaled * 1.2));
-        var maxChatH = 200; // absolute max height requested
+        var baseMaxChatH = 200; // absolute desired cap
+        var maxChatH = Math.Max(baseMaxChatH, minChatH); // ensure valid clamp range (prevents ArgumentException when min > max)
         var targetRatio = 0.42; // baseline proportion of interior height
         var rawChatH = (int)(interiorHeight * targetRatio);
         var chatHeight = Math.Clamp(rawChatH, minChatH, maxChatH);
@@ -100,7 +101,7 @@ public partial class Play : ComponentBase, IAsyncDisposable
         var chatTop = interiorTop + interiorHeight - chatHeight - bottomMargin;
         if (chatTop < interiorTop) chatTop = interiorTop; // guard when boards are very short
 
-        _chatContainerStyle = $"position:absolute;left:{sideOffset}px;right:{sideOffset}px;top:{chatTop}px;height:{chatHeight}px;max-height:200px;background:url('/images/mr_monopoly/conversation-container.png') center/100% 100% no-repeat;z-index:1200;pointer-events:none;";
+        _chatContainerStyle = $"position:absolute;left:{sideOffset}px;right:{sideOffset}px;top:{chatTop}px;height:{chatHeight}px;max-height:{maxChatH}px;background:url('/images/mr_monopoly/conversation-container.png') center/100% 100% no-repeat;z-index:1200;pointer-events:none;";
 
         // Chat text paddings and font size adjustments (slightly smaller font, a bit more top/left padding)
         var textPadLeft = (int)(cellScaled * 0.25) + 14; // +4 extra left padding
