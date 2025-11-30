@@ -125,49 +125,50 @@ DecisionContext:
 PlayerId
 PlayerName
 Cash
-MinReserve (ex: teto de multa possível próxima ou percentual do patrimônio)
-OwnedProperties (lista + grupos completos + quase completos)
-OpponentThreats (top N propriedades adversárias de maior aluguel)
-UpcomingRiskEstimate (estimativa de risco nos próximos K blocos)
-CurrentBlock (se em modal)
-BlockPrice / UpgradeCost (se aplicável)
+MinReserve
+OwnedProperties
+OpponentThreats
+UpcomingRiskEstimate
+CurrentBlock
+BlockPrice / UpgradeCost
 RoundNumber
 HasRolledThisTurn
 ModalIsFromMove
-GameIsAnimating / ChatActive (impacta timing, não a lógica econômica)
+GameIsAnimating / ChatActive
 ```
 DecisionResult:
 ```
 Type (Roll|Buy|Upgrade|EndTurn|Skip|None)
-TargetBlockId (opcional)
+TargetBlockId
 Priority (0..100)
-Reason (string curta)
+Reason
 SuggestedDelayMs
 IsCancelable
 ```
+
 ## Diagramas (Mermaid)
 
 ### Visão geral do fluxo de turno do bot
 ```mermaid
 flowchart TD
-    A[StartBotTurnIfNeeded] --> B{Current player is bot?}
+    A[Start Bot Turn] --> B{Current player is bot}
     B -- No --> Z[Exit]
-    B -- Yes --> C[BuildDecisionContext]
-    C --> D[EvaluateTurnStart]
+    B -- Yes --> C[Build Decision Context]
+    C --> D[Evaluate Turn Start]
     D -->|Roll| E[Queue Roll]
     D -->|Skip| F[Queue Skip]
     D -->|EndTurn| G[Queue EndTurn]
-    E --> H[ProcessNextBotDecision]
+    E --> H[Process Next]
     H --> I[Execute Roll]
-    I --> J{Opened Modal?}
-    J -- Yes --> K[EvaluateModal]
+    I --> J{Opened Modal}
+    J -- Yes --> K[Evaluate Modal]
     K --> L[Queue Buy/Upgrade + EndTurn]
     L --> H
     J -- No --> M[Queue EndTurn]
     M --> H
     G --> H
     F --> H
-    H --> N{Queue Empty?}
+    H --> N{Queue Empty}
     N -- Yes --> Z
     N -- No --> H
 ```
@@ -175,12 +176,12 @@ flowchart TD
 ### Fluxo do modal de propriedade
 ```mermaid
 flowchart TD
-    A[Modal Opened] --> B[BuildDecisionContext(with Block)]
-    B --> C[EvaluateModal]
-    C --> D{Buy allowed?}
+    A[Modal Opened] --> B[Build Decision Context - with Block]
+    B --> C[Evaluate Modal]
+    C --> D{Buy allowed}
     D -- Yes --> E[Queue Buy]
     D -- No --> F[Skip]
-    C --> G{Upgrade allowed?}
+    C --> G{Upgrade allowed}
     G -- Yes --> H[Queue Upgrade]
     G -- No --> I[Skip]
     E --> J[Execute Buy]
@@ -188,21 +189,21 @@ flowchart TD
     J --> L[Close Modal]
     K --> L[Close Modal]
     L --> M[Queue EndTurn]
-    M --> N[ProcessNextBotDecision]
+    M --> N[Process Next]
 ```
 
 ### Scheduler simplificado
 ```mermaid
 flowchart TD
-    A[EnqueueDecisions] --> B[Queue]
-    B --> C[ProcessNext]
-    C --> D{Has item?}
+    A[Enqueue Decisions] --> B[Queue]
+    B --> C[Process Next]
+    C --> D{Has item}
     D -- No --> Z[Exit]
     D -- Yes --> E[Dequeue]
-    E --> F[Delay (SuggestedDelayMs)]
-    F --> G{Canceled?}
+    E --> F[Delay]
+    F --> G{Canceled}
     G -- Yes --> C
-    G -- No --> H[Execute Decision]
+    G -- No --> H[Execute]
     H --> C
 ```
 
@@ -212,11 +213,11 @@ sequenceDiagram
     participant UI as Play (Blazor)
     participant S as BotDecisionService
     UI->>S: EvaluateTurnStart(ctx)
-    S-->>UI: DecisionResult(Roll/Skip/EndTurn)
-    UI->>UI: Enqueue + ProcessNext
+    S-->>UI: DecisionResult (Roll/Skip/EndTurn)
+    UI->>UI: Enqueue + Process
     UI->>S: EvaluateModal(ctx)
-    S-->>UI: [DecisionResult(Buy), DecisionResult(Upgrade), DecisionResult(EndTurn)]
-    UI->>UI: Execute Buy/Upgrade, Close Modal, EndTurn
+    S-->>UI: [Buy, Upgrade, EndTurn]
+    UI->>UI: Execute, Close Modal, EndTurn
     UI->>S: EvaluateTurnStart (next player)
 ```
 
