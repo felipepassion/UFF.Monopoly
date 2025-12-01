@@ -25,27 +25,44 @@
     background-position: center;
 }
 
-/* Variações de moldura por família (imagens dedicadas com sufixo) */
-.block-moldure.frame-house {
-    background-image: url('/images/blocks/template_card_house.png');
-}
-.block-moldure.frame-hotel {
-    background-image: url('/images/blocks/template_card_hotel.png');
-}
-.block-moldure.frame-company {
-    background-image: url('/images/blocks/template_card_company.png');
-}
-.block-moldure.frame-special {
-    background-image: url('/images/blocks/template_card_special.png');
-}
+    /* Variações de moldura por família (imagens dedicadas com sufixo) */
+    .block-moldure.frame-house {
+        background-image: url('/images/blocks/template_card_house.png');
+    }
 
-/* Special frames for powerups/debuffs (imagens dedicadas) */
-.block-moldure.frame-powerup {
-    background-image: url('/images/blocks/template_card_powerup.png');
-}
-.block-moldure.frame-debuff {
-    background-image: url('/images/blocks/template_card_debuff.png');
-}
+    .block-moldure.frame-hotel {
+        background-image: url('/images/blocks/template_card_hotel.png');
+    }
+
+    .block-moldure.frame-company {
+        background-image: url('/images/blocks/template_card_company.png');
+    }
+
+    .block-moldure.frame-special {
+        background-image: url('/images/blocks/template_card_special.png');
+    }
+
+    /* Special frames for powerups/debuffs (imagens dedicadas) */
+    .block-moldure.frame-powerup {
+        background-image: url('/images/blocks/template_card_powerup.png');
+    }
+
+    .block-moldure.frame-debuff {
+        background-image: url('/images/blocks/template_card_debuff.png');
+    }
+
+    .block-moldure.frame-gold {
+        background-image: url('/images/blocks/template_card_gold.png');
+    }
+
+    .block-moldure.frame-go {
+        background-image: url('/images/blocks/template_card_go.png');
+    }
+
+    .block-moldure.frame-freeparking {
+        background-image: url('/images/blocks/template_card_debuff.png');
+    }
+
 
 /* Title bar area that matches the template top band */
 .moldure-title {
@@ -90,8 +107,8 @@
     display: grid;
     place-items: center;
     overflow: hidden;
-    width:90%;
-    height:80%;
+    width: 90%;
+    height: 80%;
 }
 
     /* A imagem do bloco centralizada e ligeiramente maior para evitar vazamentos */

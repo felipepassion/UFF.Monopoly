@@ -27,9 +27,9 @@ public partial class Play : ComponentBase, IAsyncDisposable
 
     private async Task ApplyPendingActionAsync() { if (_game is null || _modalPlayer is null || _pendingActionKind == PendingActionKind.None) return; var player = _modalPlayer; var landed = _game.Board.FirstOrDefault(b => b.Position == player.CurrentPosition); switch (_pendingActionKind) { case PendingActionKind.Tax: player.Money = Math.Max(0, player.Money - _pendingAmount); if (landed is not null) landed.Rent = _pendingAmount; EnqueueGroup("evento_tax", new DialogueContext { Player = player.Name, Amount = _pendingAmount }, true, immediate: true); break; case PendingActionKind.Chance: player.Money += _pendingAmount; if (landed is not null) landed.Rent = _pendingAmount; EnqueueGroup("evento_chance", new DialogueContext { Player = player.Name, Amount = _pendingAmount }, true, immediate: true); break; case PendingActionKind.Reves: if (_pendingBackSteps > 0) { await AnimateBackwardAsync(GetPlayerIndex(player.Id), _pendingBackSteps); EnqueueGroup("evento_reves", new DialogueContext { Player = player.Name, Steps = _pendingBackSteps }, true, immediate: true); } else if (_pendingAmount > 0) { player.Money = Math.Max(0, player.Money - _pendingAmount); EnqueueGroup("evento_reves", new DialogueContext { Player = player.Name, Amount = _pendingAmount }, true, immediate: true); } break; } await GameRepo.SaveGameAsync(GameId, _game); ResetPendingSpecial(); AdvanceDialogueIfIdle(); }
 
-    private async Task OnBuyPropertyAsync() { if (_modalBlock is null || _modalPlayer is null) return; if (_game!.TryBuyProperty(_modalPlayer, _modalBlock)) { await GameRepo.SaveGameAsync(GameId, _game); EnqueueGroup("acao_compra", new DialogueContext { Player = _modalPlayer.Name, Block = _modalBlock.Name }, true, immediate: true); SyncOwnersToBoardSpaces(); } StateHasChanged(); }
+    private async Task OnBuyPropertyAsync() { if (_modalBlock is null || _modalPlayer is null) return; if (_game!.TryBuyProperty(_modalPlayer, _modalBlock)) { await GameRepo.SaveGameAsync(GameId, _game); EnqueueGroup("acao_compra", new DialogueContext { Player = _modalPlayer.Name, Block = _modalBlock.Name }, true, immediate: true); SyncOwnersToBoardSpaces(); await ShowActionToastAsync($"{_modalPlayer.Name} comprou {_modalBlock.Name}"); } StateHasChanged(); }
     private async Task OnUpgradeAsync() { if (_modalBlock is PropertyBlock pb && _modalPlayer is not null && CanUpgradeAllowed(pb)) { if (pb.Upgrade(_modalPlayer)) { if (pb.BuildingType != BuildingType.None && pb.BuildingLevel > 0) { var evo = BuildingEvolutionDescriptions.Get(pb.BuildingType, Math.Clamp(pb.BuildingLevel,1,4)); pb.Name = evo.Name; } await GameRepo.SaveGameAsync(GameId, _game); SyncOwnersToBoardSpaces(); StateHasChanged(); EnqueueGroup("acao_upgrade", new DialogueContext { Player = _modalPlayer.Name, Block = pb.Name, Amount = pb.BuildingLevel }, true, immediate: true); } StateHasChanged(); } }
-    private async Task OnSellPropertyAsync() { if (_modalBlock is PropertyBlock pb && pb.Owner is not null) { var owner = pb.Owner; owner.Money += pb.Price / 2; owner.OwnedProperties.Remove(pb); pb.Owner = null; pb.IsMortgaged = false; await GameRepo.SaveGameAsync(GameId, _game!); EnqueueGroup("acao_venda", new DialogueContext { Player = owner.Name, Block = pb.Name }, true, immediate: true); StateHasChanged(); } }
+    private async Task OnSellPropertyAsync() { if (_modalBlock is PropertyBlock pb && pb.Owner is not null) { var owner = pb.Owner; owner.Money += pb.Price / 2; owner.OwnedProperties.Remove(pb); pb.Owner = null; pb.IsMortgaged = false; await GameRepo.SaveGameAsync(GameId, _game!); EnqueueGroup("acao_venda", new DialogueContext { Player = owner.Name, Block = pb.Name }, true, immediate: true); await ShowActionToastAsync($"{owner.Name} vendeu {pb.Name}"); StateHasChanged(); } }
     private bool CanUpgradeAllowed(PropertyBlock pb) { if (_game is null || _modalPlayer is null) return false; if (pb.Owner != _modalPlayer) return false; if (_modalPlayer.CurrentPosition != pb.Position) return false; if (pb.BuildingType == BuildingType.None) return false; if (!pb.CanUpgrade()) return false; var nextCost = pb.BuildingPrices[pb.BuildingLevel]; if (_modalPlayer.Money < nextCost) return false; return true; }
     private int GetNextUpgradeCost(PropertyBlock pb) => pb.CanUpgrade() ? pb.BuildingPrices[pb.BuildingLevel] : 0;
 
@@ -41,4 +41,15 @@ public partial class Play : ComponentBase, IAsyncDisposable
 
     private async Task RestartGameAsync() { if (boardId.HasValue) Navigation.NavigateTo($"/local?boardId={boardId.Value}"); else Navigation.NavigateTo("/local"); await Task.CompletedTask; }
     private Task BackToMenuAsync() { Navigation.NavigateTo("/"); return Task.CompletedTask; }
+
+    // Animated toast helper: shows message, holds, then hides with CSS animation
+    private async Task ShowActionToastAsync(string message, int durationMs = 2000)
+    {
+        _botActionMessage = message;
+        _showBotActionToast = true;
+        StateHasChanged();
+        try { await Task.Delay(durationMs); } catch { }
+        _showBotActionToast = false;
+        StateHasChanged();
+    }
 }

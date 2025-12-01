@@ -84,27 +84,37 @@ public partial class Play : ComponentBase, IAsyncDisposable
             case DecisionType.Buy:
                 if (_modalBlock is not null && _modalPlayer is not null)
                 {
-                    _game!.TryBuyProperty(_modalPlayer, _modalBlock);
-                    SyncOwnersToBoardSpaces(); StateHasChanged(); await GameRepo.SaveGameAsync(GameId, _game);
+                    // pequena pausa antes da ação para humanizar
+                    try { await Task.Delay(300); } catch { }
+                    if (_game!.TryBuyProperty(_modalPlayer, _modalBlock))
+                    {
+                        SyncOwnersToBoardSpaces(); StateHasChanged(); await GameRepo.SaveGameAsync(GameId, _game);
+                        // toast de compra
+                        await ShowActionToastAsync($"{_modalPlayer.Name} comprou {_modalBlock.Name}", 1800);
+                    }
+                    // pequena pausa para deixar o usuário perceber a compra
+                    try { await Task.Delay(350); } catch { }
                 }
                 // sempre fechar modal após ação
                 if (_showBlockModal) { await CloseBlockModal(); }
-                // e prosseguir para fim de turno
-                _botQueue.Enqueue(DecisionResult.Simple(DecisionType.EndTurn, "Após compra", 3, 400));
+                // e prosseguir para fim de turno com pequena folga
+                _botQueue.Enqueue(DecisionResult.Simple(DecisionType.EndTurn, "Após compra", 3, 500));
                 break;
             case DecisionType.Upgrade:
                 if (_modalBlock is PropertyBlock pb && _modalPlayer is not null && pb.Owner == _modalPlayer && CanUpgradeAllowed(pb))
                 {
+                    try { await Task.Delay(280); } catch { }
                     if (pb.Upgrade(_modalPlayer))
                     {
                         if (pb.BuildingType != BuildingType.None && pb.BuildingLevel > 0)
                         { var evo = BuildingEvolutionDescriptions.Get(pb.BuildingType, Math.Clamp(pb.BuildingLevel, 1, 4)); pb.Name = evo.Name; }
                         _modalPlayer.LastBuildTurn = _game!.RoundCount;
                         SyncOwnersToBoardSpaces(); StateHasChanged(); await GameRepo.SaveGameAsync(GameId, _game);
+                        try { await Task.Delay(320); } catch { }
                     }
                 }
                 if (_showBlockModal) { await CloseBlockModal(); }
-                _botQueue.Enqueue(DecisionResult.Simple(DecisionType.EndTurn, "Após upgrade", 3, 400));
+                _botQueue.Enqueue(DecisionResult.Simple(DecisionType.EndTurn, "Após upgrade", 3, 500));
                 break;
             case DecisionType.EndTurn:
                 // garantir que modal esteja fechado

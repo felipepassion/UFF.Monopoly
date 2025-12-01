@@ -12,10 +12,11 @@
 .turn-btn[disabled] { opacity: .55; cursor: not-allowed; }
 @keyframes fadeScaleIn { from { opacity:0; transform:translateX(-50%) scale(.85); } to { opacity:1; transform:translateX(-50%) scale(1); } }
 
-.bot-toast-wrapper { position: fixed; right: 28px; bottom: 28px; z-index: 4500; }
-
-.modal-backdrop.show { z-index: 50000 !important; }
-.modal.d-block { z-index: 50010 !important; }
+.bot-toast-wrapper{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:26000;pointer-events:none}
+.bot-toast-wrapper .bot-toast{background:#0d6efd;color:#fff;border-radius:10px;padding:.5rem .75rem;box-shadow:0 10px 25px rgba(0,0,0,.25);opacity:0;transform:translateY(12px);animation:toastIn .25s ease-out forwards}
+.bot-toast-wrapper .bot-toast.hide{animation:toastOut .25s ease-in forwards}
+@keyframes toastIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@keyframes toastOut{from{opacity:1;transform:translateY(0)}to{opacity:0;transform:translateY(12px)}}
 
 /* Centro imagem background dentro do board - remover escurecimento e manter atrás do conteúdo */
 .board-center-bg{ position:absolute; inset:0; z-index:0; opacity:1; filter:none; pointer-events:none; }

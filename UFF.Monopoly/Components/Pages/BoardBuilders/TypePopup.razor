@@ -1,10 +1,10 @@
-﻿@using UFF.Monopoly.Entities
+@using UFF.Monopoly.Entities
 @using UFF.Monopoly.Data.Entities
 @inherits ComponentBase
 @if (CurrentBlock is not null && Visible)
 {
     <div class="type-popup-overlay" @onclick="Close"></div>
-    <div id="@_popupId" class="type-popup shadow rounded-2" style="top:@(Y)px; left:@(X)px;" tabindex="0" @onkeydown="HandleShortcut" @onclick:stopPropagation="true" @ref="_popupRef">
+    <div id="@_popupId" class="type-popup shadow rounded-2" style="top:@(Y)px; left:@(X)px;" @onclick:stopPropagation="true" @ref="_popupRef">
         <div class="type-popup-header d-flex justify-content-between align-items-center">
             <div class="title small">Tipo</div>
             <button type="button" class="btn-close btn-close-white" aria-label="Fechar" @onclick="Close"></button>
@@ -145,7 +145,7 @@
             _didReposition = false;
     }
 
-    private string GetTooltipStyle() => $"left:{_tipX}px; top:{_tipY}px; position:fixed; z-index:2000;";
+    private string GetTooltipStyle() => $"left:{_tipX}px; top:{_tipY}px; position:fixed; z-index:3000; pointer-events:auto;";
 
     private void OnTypeClick(BlockType t) { if (t == BlockType.Property) return; OnSelectType?.Invoke(t); }
     private void QuickSelect(BuildingType cat, int lvl) { OnQuickPropertySelect?.Invoke(cat, lvl); CloseTip(); Close(); }
@@ -204,7 +204,4 @@
         StateHasChanged();
     }
     private void CancelTipPrice() { _editingTipPrice = false; _tipPriceEditValue = _tipPrice; StateHasChanged(); }
-
-    private void HandleShortcut(KeyboardEventArgs e)
-    { if (e.Key.Length == 1 && int.TryParse(e.Key, out var num) && num is >= 1 and <= 4) { QuickSelect(BuildingType.House, num); } if (e.Key == "Escape") CloseTip(); }
 }

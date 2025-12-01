@@ -169,7 +169,7 @@ public partial class BoardBuilder : ComponentBase
             if (Blocks[idx].Type == BlockType.Tax) Blocks[idx].Name = "Taxa";
             else if (Blocks[idx].Type == BlockType.Chance) Blocks[idx].Name = "Sorte";
             else if (Blocks[idx].Type == BlockType.Reves) Blocks[idx].Name = "Revés";
-            else if (Blocks[idx].Type == BlockType.GoToJail) Blocks[idx].Name = "Vá para Prisão";
+            else if (Blocks[idx].Type == BlockType.GoToJail) Blocks[idx].Name = "Prisão";
         }
         _specialModal = (false, -1, null); StateHasChanged();
     }
@@ -364,7 +364,7 @@ public partial class BoardBuilder : ComponentBase
         Nav.NavigateTo($"/play/{CurrentBoardId}");
     }
 
-    internal string TranslateBlockType(BlockType t) => t switch { BlockType.Go => "Início", BlockType.Property => "Propriedade", BlockType.Company => "Companhia", BlockType.Tax => "Taxa", BlockType.GoToJail => "Vá para Prisão", BlockType.Chance => "Sorte", BlockType.Reves => "Revés", BlockType.FreeParking => "Parada Livre", _ => t.ToString() };
+    internal string TranslateBlockType(BlockType t) => t switch { BlockType.Go => "Início", BlockType.Property => "Propriedade", BlockType.Company => "Companhia", BlockType.Tax => "Taxa", BlockType.GoToJail => "Prisão", BlockType.Chance => "Sorte", BlockType.Reves => "Revés", BlockType.FreeParking => "Parada Livre", _ => t.ToString() };
 
     // === Random board generation with basic balance rules ===
     internal void GenerateRandomBoard()
@@ -418,7 +418,7 @@ public partial class BoardBuilder : ComponentBase
 
         SetBlock(corners[0], BlockType.Go, "Início");
         SetBlock(corners[2], BlockType.FreeParking, "Parada Livre", 0);
-        SetBlock(corners[3], BlockType.GoToJail, "Vá para Prisão", 3); // default turns
+        SetBlock(corners[3], BlockType.GoToJail, "Prisão", 3); // default turns
 
         int specialsBudget(int min, int max) => Math.Clamp((int)Math.Round(total * 0.08), min, max);
         int chanceCount = specialsBudget(2, 4);
@@ -457,7 +457,7 @@ public partial class BoardBuilder : ComponentBase
         PlaceMany(BlockType.Chance, chanceCount, "Sorte", 2); // default positive move/value
         PlaceMany(BlockType.Reves, revesCount, "Revés", 2); // default backward steps
         PlaceMany(BlockType.Tax, taxCount, "Taxa", 150); // default tax value
-        if (goToJailExtra > 0) PlaceMany(BlockType.GoToJail, goToJailExtra, "Vá para Prisão", 3);
+        if (goToJailExtra > 0) PlaceMany(BlockType.GoToJail, goToJailExtra, "Prisão", 3);
 
         void PlaceCompanies(int count)
         {

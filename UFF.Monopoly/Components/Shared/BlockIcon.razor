@@ -43,18 +43,30 @@
                 <div class="building-level-unit @(this.BuildingType == BuildingType.House ? "house-unit" : "hotel-unit")"></div>
             }
         </div>
+    }
 
+    @if (!IsGoCard())
+    {
         <div class="icon-info-bar @PriceThresholds.GetPriceClass(Price)" title="@GetTitleText()">
-            @if (ShouldShowSecondaryTag())
+            @if (IsPropertyCard())
             {
-                <span class="info-rent">@GetSecondaryTagLabel(): @FormatSecondaryValue()</span>
+                <span class="info-rent">R$ @Price</span>
             }
-            else if (IsPropertyCard())
+            else if (IsRevesCard())
             {
-                <span class="info-price">R$ @Price</span>
+                <span class="info-rent">Volte @Rent casas</span>
             }
-            else
+            else if(IsTaxCard())
             {
+                <span class="info-rent">-@Rent</span>
+            }
+            else if (IsChanceCard())
+            {
+                <span class="info-rent">+R$@Rent</span>
+            }
+            else if (IsGoToJailCard())
+            {
+                <span class="info-rent">@Rent turnos</span>
             }
         </div>
     }
@@ -197,12 +209,17 @@
 
     private bool ShouldShowSecondaryTag() => ShowRentTag && (Type is BlockType.Tax or BlockType.Chance or BlockType.Reves) && Rent != 0;
     private bool IsPropertyCard() => Type is BlockType.Property or BlockType.Company;
+    private bool IsChanceCard() => Type is BlockType.Chance;
+    private bool IsTaxCard() => Type is BlockType.Tax;
+    private bool IsRevesCard() => Type is BlockType.Reves;
+    private bool IsGoCard() => Type is BlockType.Go;
+    private bool IsGoToJailCard() => Type is BlockType.GoToJail;
     private string GetTitleText() => IsPropertyCard() ? $"{Name} ($ {Price})" : Name;
     private string GetSecondaryTagLabel() => Type switch { BlockType.Tax => "Taxa", BlockType.Chance => "Sorte", BlockType.Reves => "Revés", _ => "" };
     private string FormatSecondaryValue() => Type switch
     {
-        BlockType.Tax => "$ {Rent}",
-        BlockType.Chance => Rent >= 0 ? "$ {Rent}" : "-$ " + Math.Abs(Rent),
+        BlockType.Tax => $"R$ {Rent}",
+        BlockType.Chance => Rent >= 0 ? $"R$ {Rent}" : $"-R$ {Math.Abs(Rent)}",
         BlockType.Reves => $"{Rent} casas",
         _ => Rent.ToString()
     };
@@ -211,6 +228,7 @@
         BlockType.Tax => $"Taxa fixa: $ {Rent}",
         BlockType.Chance => Rent >= 0 ? $"Valor sorte aplicado: $ {Rent}" : $"Valor sorte aplicado: -$ {Math.Abs(Rent)}",
         BlockType.Reves => $"Volta {Rent} casas ao cair aqui",
+        BlockType.GoToJail => $"Prisão por {Rent} turno(s)",
         _ => string.Empty
     };
 
@@ -235,7 +253,9 @@
         return Type switch
         {
             BlockType.Tax or BlockType.Reves or BlockType.GoToJail => "frame-debuff", // debuffs
-            BlockType.Chance or BlockType.Go or BlockType.FreeParking => "frame-powerup", // buffs
+            BlockType.Chance => "frame-gold", // gold
+            BlockType.Go => "frame-go", // gold
+            BlockType.FreeParking => "frame-freeparking", // buffs
             _ => "frame-powerup" // demais tratamos como buff
         };
     }
