@@ -108,15 +108,15 @@ public class PropertyBlock : Block
         BuildingLevel++;
         ImageUrl = BuildingType switch
         {
-            BuildingType.House => $"/images/board/buildings/house{BuildingLevel}.png",
-            BuildingType.Hotel => $"/images/board/buildings/hotel{BuildingLevel}.png",
-            BuildingType.Company => $"/images/board/buildings/company{BuildingLevel}.png",
+            BuildingType.House => $"/images/blocks/house{BuildingLevel}.png",
+            BuildingType.Hotel => $"/images/blocks/hotel{BuildingLevel}.png",
+            BuildingType.Company => $"/images/blocks/company{BuildingLevel}.png",
             BuildingType.Special => BuildingLevel switch
             {
-                1 => "/images/board/buildings/special_circus.png",
-                2 => "/images/board/buildings/special_shopping.png",
-                3 => "/images/board/buildings/special_stadium.png",
-                4 => "/images/board/buildings/special_airport.png",
+                1 => "/images/blocks/special_circus.png",
+                2 => "/images/blocks/special_shopping.png",
+                3 => "/images/blocks/special_stadium.png",
+                4 => "/images/blocks/special_airport.png",
                 _ => ImageUrl
             },
             _ => ImageUrl
@@ -135,10 +135,10 @@ public class PropertyBlock : Block
         BuildingType = type;
         ImageUrl = type switch
         {
-            BuildingType.House => "/images/board/buildings/house1.png",
-            BuildingType.Hotel => "/images/board/buildings/hotel1.png",
-            BuildingType.Company => "/images/board/buildings/company1.png",
-            BuildingType.Special => "/images/board/buildings/special_circus.png",
+            BuildingType.House => "/images/blocks/house1.png",
+            BuildingType.Hotel => "/images/blocks/hotel1.png",
+            BuildingType.Company => "/images/blocks/company1.png",
+            BuildingType.Special => "/images/blocks/special_circus.png",
             _ => ImageUrl
         };
         if (BuildingType != BuildingType.None)

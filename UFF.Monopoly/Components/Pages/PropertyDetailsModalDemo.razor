@@ -1,0 +1,47 @@
+@page "/property-modal-demo"
+
+@using UFF.Monopoly.Components.Shared
+
+<PageTitle>Demo Property Modal</PageTitle>
+
+<h3>Demo PropertyDetailsModal</h3>
+
+<button @onclick="OpenModal">Abrir Modal</button>
+
+<PropertyDetailsModal Model="DemoModel"
+                      IsOpen="IsOpen"
+                      OnClose="CloseModal"
+                      OnBuy="HandleBuy" />
+
+@if (!string.IsNullOrEmpty(LastAction))
+{
+    <p><strong>Ação:</strong> @LastAction</p>
+}
+
+@code {
+    private bool IsOpen;
+    private string? LastAction;
+
+    private PropertyDetailsModal.PropertyDetailsModel DemoModel = new(
+        "Circo",
+        "/images/blocks/special_circus.png",
+        100m,
+        8m
+    );
+
+    private void OpenModal() => IsOpen = true;
+    private Task CloseModal()
+    {
+        IsOpen = false;
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    private Task HandleBuy(PropertyDetailsModal.PropertyDetailsModel model)
+    {
+        LastAction = $"Comprou {model.Name} por {model.Price}";
+        IsOpen = false;
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+}

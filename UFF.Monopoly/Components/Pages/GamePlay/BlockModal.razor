@@ -6,9 +6,9 @@
 {
     <div class="modal-backdrop show" style="z-index:@(BaseZ)"></div>
     <div class="modal d-block" tabindex="-1" style="z-index:@(BaseZ + 1)">
-        <div class="modal-dialog modal-lg modal-center" style="min-width:600px;">
-            <div class="modal-content p-2 modal-surface property-modal animate-pop">
-                <div class="modal-header border-bottom">
+        <div class="modal-dialog modal-xl modal-center" style="min-width:680px; max-width:1100px;">
+            <div class="modal-content p-3 p-md-4 modal-surface property-modal animate-pop">
+                <div class="modal-header">
                     <h5 class="modal-title">@Block.Name</h5>
                     @if (!IsBotTurn)
                     {
@@ -16,26 +16,30 @@
                     }
                 </div>
                 <div class="modal-body">
-                    <div class="property-modal-body">
+                    <div class="property-modal-body centered">
                         <div class="property-icon position-relative">
-                            <img src="@GetPreviewImage(Block)" alt="icon" class="icon-img large-icon" />
+                            <img src="@GetPreviewImage(Block).Replace(".png","_detalhada.png")" alt="icon" class="icon-img hero-icon" />
                             @if (Block is PropertyBlock pb && pb.BuildingLevel > 0)
                             {
                                 <div class="evolution-flash lv-@pb.BuildingLevel"></div>
                             }
                         </div>
                         <div class="property-info">
-                            <div class="prop-line name fw-semibold">@Block.Name</div>
-                            <div class="prop-line price">Preço: R$ @Block.Price</div>
-                            <div class="prop-line rent">Aluguel: R$ @(Block is PropertyBlock pb2 ? pb2.CalculateRent() : Block.Rent)</div>
+                            <div class="prop-line name fw-semibold display-name">@Block.Name</div>
+                            <div class="prop-stats">
+                                <span class="stat-chip">Preço: R$ @Block.Price</span>
+                                <span class="stat-chip">Aluguel: R$ @(Block is PropertyBlock pb2 ? pb2.CalculateRent() : Block.Rent)</span>
+                            </div>
                         </div>
                     </div>
-                    @ChildContent
+                    <div class="property-description centered">
+                        @ChildContent
+                    </div>
                 </div>
                 <div class="modal-footer d-flex justify-content-end gap-2">
                     @if (!IsBotTurn)
                     {
-                        <button class="btn btn-secondary" @onclick="OnClose">Fechar</button>
+                        <button class="btn btn-secondary btn-lg" @onclick="OnClose">Fechar</button>
                     }
                     @if (IsBotTurn)
                     {
@@ -72,9 +76,9 @@
             // Usa imagem evoluída se disponível
             if (!string.IsNullOrWhiteSpace(pb.ImageUrl)) return pb.ImageUrl;
             if (pb.BuildingType == BuildingType.Company) return "/images/blocks/property_predio.svg";
-            if (pb.BuildingType == BuildingType.Hotel) return "/images/board/buildings/hotel1.png";
-            if (pb.BuildingType == BuildingType.House) return "/images/board/buildings/house1.png";
-            if (pb.BuildingType == BuildingType.Special) return "/images/board/buildings/special_circus.png";
+            if (pb.BuildingType == BuildingType.Hotel) return "/images/blocks/hotel1.png";
+            if (pb.BuildingType == BuildingType.House) return "/images/blocks/house1.png";
+            if (pb.BuildingType == BuildingType.Special) return "/images/blocks/special_circus.png";
             return "/images/blocks/property_basic.svg";
         }
         if (b.Type == BlockType.Company) return "/images/blocks/property_predio.svg";
@@ -83,16 +87,56 @@
 }
 
 <style>
-/* Popup animation and layout tweaks */
+/* Popup animation */
 .animate-pop { animation: popFade .22s ease-out; }
 @@keyframes popFade { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: scale(1); } }
 
-.property-modal .property-modal-body { display:flex; gap:1.25rem; align-items:center; }
-.property-modal .icon-img { width:72px; height:72px; object-fit:contain; border-radius:.75rem; }
-.property-modal .icon-img.large-icon { width:118px; height:118px; padding:4px; background:linear-gradient(145deg,#0f1c24,#1e2e38); box-shadow:0 6px 18px -4px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.08); }
-.property-modal .property-info { display:flex; flex-direction:column; gap:.35rem; }
-.property-modal .prop-line { font-size:.95rem; }
-.property-modal .prop-line.name { font-size:1.1rem; }
+/* Center the dialog vertically */
+.modal-center { display:flex; align-items:center; min-height: calc(100vh - 3rem); }
+
+/* Modal surface makeover */
+.property-modal.modal-surface {
+    border-radius: 22px;
+    background:
+        radial-gradient(1200px 400px at 10% -10%, rgba(104,197,255,.08), transparent 40%),
+        radial-gradient(800px 300px at 120% 120%, rgba(140,255,199,.06), transparent 40%),
+        linear-gradient(180deg, #0f1a22 0%, #0c151b 100%);
+    border: 1px solid rgba(255,255,255,.10);
+    box-shadow: 0 28px 80px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.05) inset;
+}
+
+/* Softer header divider and larger title */
+.property-modal .modal-header { border-bottom: 1px solid rgba(255,255,255,.08) !important; }
+.property-modal .modal-title { font-size: 1.35rem; letter-spacing:.2px; }
+
+/* Body stacked and centered */
+.property-modal .property-modal-body.centered { display:flex; flex-direction:column; align-items:center; text-align:center; gap:1.1rem; }
+
+/* Big hero image - guaranteed large */
+.property-modal .icon-img { object-fit: contain; border-radius: 1rem; display:block; }
+.property-modal .icon-img.hero-icon {
+    width: clamp(320px, 40vw, 560px);
+    height: clamp(320px, 40vw, 560px);
+    padding: 10px;
+    background: linear-gradient(145deg,#0f1c24,#1e2e38);
+    box-shadow: 0 20px 44px -8px rgba(0,0,0,.78), 0 0 0 1px rgba(255,255,255,.1);
+}
+
+/* Name and stats */
+.property-modal .property-info { display:flex; flex-direction:column; gap:.6rem; }
+.property-modal .display-name { font-size: clamp(1.4rem, 2.4vw, 2rem); letter-spacing:.2px; }
+.property-modal .prop-stats { display:flex; gap:.6rem; justify-content:center; flex-wrap:wrap; }
+.property-modal .stat-chip {
+    font-size: 1.05rem;
+    padding: .5rem .85rem;
+    background: rgba(255,255,255,.08);
+    border: 1px solid rgba(255,255,255,.14);
+    border-radius: .85rem;
+}
+
+/* Description (ChildContent) spacing and size */
+.property-modal .property-description { margin-top: 1rem; font-size: 1.15rem; }
+.property-modal .property-description.centered { text-align:center; max-width: 900px; margin-inline:auto; }
 
 /* Ensure footer buttons wrap nicely */
 .property-modal .modal-footer { flex-wrap: wrap; }

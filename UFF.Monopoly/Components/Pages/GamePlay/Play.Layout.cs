@@ -101,7 +101,7 @@ public partial class Play : ComponentBase, IAsyncDisposable
         var chatTop = interiorTop + interiorHeight - chatHeight - bottomMargin;
         if (chatTop < interiorTop) chatTop = interiorTop; // guard when boards are very short
 
-        _chatContainerStyle = $"position:absolute;left:{sideOffset}px;right:{sideOffset}px;top:{chatTop}px;height:{chatHeight}px;max-height:{maxChatH}px;background:url('/images/mr_monopoly/conversation-container.png') center/100% 100% no-repeat;z-index:1200;pointer-events:none;";
+        _chatContainerStyle = $"position:absolute;left:{sideOffset}px;right:{sideOffset}px;top:{chatTop}px;height:{chatHeight}px;max-height:{maxChatH}px;background:url('/images/mr_monopoly/conversation-container.png') center/100% 100% no-repeat;z-index:1200;pointer-events:none;border-radius:12px";
 
         // Chat text paddings and font size adjustments (slightly smaller font, a bit more top/left padding)
         var textPadLeft = (int)(cellScaled * 0.25) + 14; // +4 extra left padding

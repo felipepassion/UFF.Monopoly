@@ -26,7 +26,7 @@
                 {
                     <div class="board-center-bg"><img src="@_boardCenterImageUrl" alt="bg" /></div>
                 }
-@*                 <div class="round-badge">Rodada: @_game.RoundCount</div>
+                @*                 <div class="round-badge">Rodada: @_game.RoundCount</div>
  *@                <div class="turn-badge">Vez: @_game.Players.ElementAtOrDefault(_game.CurrentPlayerIndex)?.Name</div>
                 @if (!_showDiceOverlay)
                 {
@@ -114,5 +114,3 @@
         }
     </div>
 </div>
-
-@code { }

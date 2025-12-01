@@ -10,13 +10,101 @@
     padding: 4px;
     box-sizing: border-box;
     /* dimensionamento dinâmico igual ao builder */
-    --cell-size: var(--cell-size, 60px);
-    --infobar-h: clamp(18px, calc(var(--cell-size) / 4.2), 42px);
+    /* --cell-size is provided by parent; consumers use fallbacks */
+    --infobar-h: clamp(18px, calc(var(--cell-size, 60px) / 4.2), 42px);
 }
 
-.block-icon-img {
+/* Moldura com imagem de fundo do template */
+.block-moldure {
+    position: relative;
     width: 100%;
-    height: calc(100% - var(--infobar-h) - 6px);
+    aspect-ratio: var(--frame-ratio, 2 / 3); /* template_card_1: 768x1152 */
+    background-image: url('/images/blocks/template_card_1.png');
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
+    background-position: center;
+}
+
+/* Variações de moldura por família (imagens dedicadas com sufixo) */
+.block-moldure.frame-house {
+    background-image: url('/images/blocks/template_card_house.png');
+}
+.block-moldure.frame-hotel {
+    background-image: url('/images/blocks/template_card_hotel.png');
+}
+.block-moldure.frame-company {
+    background-image: url('/images/blocks/template_card_company.png');
+}
+.block-moldure.frame-special {
+    background-image: url('/images/blocks/template_card_special.png');
+}
+
+/* Special frames for powerups/debuffs (imagens dedicadas) */
+.block-moldure.frame-powerup {
+    background-image: url('/images/blocks/template_card_powerup.png');
+}
+.block-moldure.frame-debuff {
+    background-image: url('/images/blocks/template_card_debuff.png');
+}
+
+/* Title bar area that matches the template top band */
+.moldure-title {
+    position: absolute;
+    left: 6.9%;
+    right: 6.9%;
+    top: 3%;
+    height: 12%;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    padding: 0 10px;
+    box-sizing: border-box;
+    color: white;
+    text-shadow: 0 1px 0 rgba(255,255,255,.25);
+    font-weight: 800;
+    letter-spacing: .3px;
+}
+
+    .moldure-title .title-text {
+        font-size: clamp(0, calc(var(--cell-size, 60px) / 2), 18px);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .moldure-title .title-badge {
+        width: clamp(14px, calc(var(--cell-size, 60px) / 3.8), 24px);
+        height: clamp(14px, calc(var(--cell-size, 60px) / 3.8), 24px);
+        border-radius: 50%;
+        background: rgba(0,0,0,.1);
+        box-shadow: inset 0 0 0 2px rgba(0,0,0,.25), inset 0 2px 0 rgba(255,255,255,.25);
+    }
+
+/* Área útil dentro da moldura onde o conteúdo deve ficar centralizado.  */
+.moldure-content {
+    position: absolute;
+    left: var(--content-left, 5%);
+    right: var(--content-right, 6.9%);
+    top: var(--content-top, 16%);
+    bottom: var(--content-bottom, 7.2%);
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    width:90%;
+    height:80%;
+}
+
+    /* A imagem do bloco centralizada e ligeiramente maior para evitar vazamentos */
+    .moldure-content > .block-icon-img {
+        width: 110%;
+        height: 110%;
+        object-fit: cover;
+        object-position: center;
+    }
+
+.block-icon-img {
+    width: 110%;
+    height: 110%;
     object-fit: contain;
     transition: transform .15s ease, filter .15s ease;
 }
@@ -49,23 +137,27 @@
 
 .icon-info-bar {
     position: absolute;
-    left: 6px;
-    right: 6px;
-    bottom: 6px;
+    left: 10%;
+    right: 10%;
+    bottom: -10%;
     display: flex;
     align-items: center;
     gap: 4px;
     padding: 4px 6px;
+    justify-content: center;
+    z-index: 99;
+    width: 80%;
     min-height: var(--infobar-h);
-    font-size: calc(var(--cell-size) / 8.5);
+    font-size: calc(var(--cell-size, 60px) / 8.5);
     line-height: 1;
     font-weight: 600;
     border-radius: 6px;
-    background: rgba(0,0,0,.55);
+    background: rgba(0, 0, 0, .55);
     color: #fff;
+    opacity: .7;
     backdrop-filter: blur(2px);
-    box-shadow: 0 2px 6px -2px rgba(0,0,0,.6), inset 0 0 0 1px rgba(255,255,255,.08);
-    text-shadow: 0 1px 1px rgba(0,0,0,.6);
+    box-shadow: 0 2px 6px -2px rgba(0, 0, 0, .6), inset 0 0 0 1px rgba(255, 255, 255, .08);
+    text-shadow: 0 1px 1px rgba(0, 0, 0, .6);
 }
 
     .icon-info-bar .info-price {
@@ -74,7 +166,7 @@
 
     .icon-info-bar .info-name {
         flex: 1;
-        max-width: calc(var(--cell-size) - 38px);
+        max-width: calc(var(--cell-size, 60px) - 38px);
         overflow: hidden;
         text-overflow: ellipsis
     }
@@ -103,7 +195,7 @@
     max-width: 90vw;
     width: fit-content;
     background: linear-gradient(145deg,#101b24,#182a35);
-    background-color:rgb(79, 62, 62, 0,55);
+    background-color: rgb(79, 62, 62, 0,55);
     border: 1px solid rgba(255,255,255,.12);
     padding: 14px 16px;
     border-radius: 14px;

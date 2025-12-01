@@ -1,7 +1,112 @@
-.modal-surface{ background:var(--surface); border:1px solid rgba(255,255,255,0.04);} .modal-center .modal-content{ border-radius:12px; } .property-modal{ background:var(--surface); border:1px solid rgba(255,255,255,0.06); } .property-modal .modal-header{ padding:10px 12px; } .property-modal .modal-body{ padding:12px; } .property-modal .modal-footer{ padding:10px 12px; } .property-modal .property-modal-body{ display:flex; align-items:center; gap:12px; } .property-modal .property-icon{ width:64px; height:64px; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.25); border-radius:8px; position:relative; overflow:hidden; } .property-modal .property-icon img{ max-width:100%; max-height:100%; object-fit:contain; }
-.property-modal .property-icon .evolution-flash{ position:absolute; inset:0; background:radial-gradient(circle at 50% 50%, rgba(255,255,255,0.35), rgba(255,255,255,0) 70%); animation:evoPulse 1.4s ease-in-out infinite; mix-blend-mode:screen; pointer-events:none; }
-.property-modal .property-icon .evolution-flash.lv-2{ animation-duration:1.2s; }
-.property-modal .property-icon .evolution-flash.lv-3{ animation-duration:1s; }
-.property-modal .property-icon .evolution-flash.lv-4{ animation-duration:0.8s; background:radial-gradient(circle at 50% 50%, rgba(255,255,255,0.55), rgba(255,255,255,0) 65%); }
-@keyframes evoPulse{0%{transform:scale(.9);opacity:.6}50%{transform:scale(1.05);opacity:1}100%{transform:scale(.9);opacity:.6}}
-.property-modal .property-info{ display:flex; flex-direction:column; gap:6px; } .property-modal .prop-line.name{ font-size:16px; font-weight:600; } .property-modal .prop-line.price{ font-size:14px; } .property-modal .prop-line.rent{ font-size:14px; opacity:.9; } .modal-center{ display:flex; align-items:center; justify-content:center; }
+.modal-surface {
+    background: var(--surface);
+    border: 1px solid rgba(255,255,255,0.04);
+}
+
+.modal-center .modal-content {
+    border-radius: 12px;
+}
+
+.property-modal {
+    background: var(--surface);
+    border: 1px solid rgba(255,255,255,0.06);
+}
+
+    .property-modal .modal-header {
+        padding: 10px 12px;
+    }
+
+    .property-modal .modal-body {
+        padding: 12px;
+    }
+
+    .property-modal .modal-footer {
+        padding: 10px 12px;
+    }
+
+    .property-modal .property-modal-body {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .property-modal .property-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0,0,0,0.25);
+        border-radius: 8px;
+        position: relative;
+        overflow: hidden;
+    }
+
+        .property-modal .property-icon img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        .property-modal .property-icon .evolution-flash {
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at 50% 50%, rgba(255,255,255,0.35), rgba(255,255,255,0) 70%);
+            animation: evoPulse 1.4s ease-in-out infinite;
+            mix-blend-mode: screen;
+            pointer-events: none;
+        }
+
+            .property-modal .property-icon .evolution-flash.lv-2 {
+                animation-duration: 1.2s;
+            }
+
+            .property-modal .property-icon .evolution-flash.lv-3 {
+                animation-duration: 1s;
+            }
+
+            .property-modal .property-icon .evolution-flash.lv-4 {
+                animation-duration: 0.8s;
+                background: radial-gradient(circle at 50% 50%, rgba(255,255,255,0.55), rgba(255,255,255,0) 65%);
+            }
+
+@keyframes evoPulse {
+    0% {
+        transform: scale(.9);
+        opacity: .6
+    }
+
+    50% {
+        transform: scale(1.05);
+        opacity: 1
+    }
+
+    100% {
+        transform: scale(.9);
+        opacity: .6
+    }
+}
+
+.property-modal .property-info {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.property-modal .prop-line.name {
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.property-modal .prop-line.price {
+    font-size: 14px;
+}
+
+.property-modal .prop-line.rent {
+    font-size: 14px;
+    opacity: .9;
+}
+
+.modal-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}

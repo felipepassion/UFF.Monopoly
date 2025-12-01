@@ -25,22 +25,39 @@
     </div>
 }
 
-<div class="block-icon-wrapper" @onmouseover="ShowTip" @onmouseout="HideTip" @onclick:stopPropagation="true" @onclick="OnClickInternal">
-    <img src="@ImageUrl" alt="@AltText" class="block-icon-img @( _animateImageChange ? "img-change" : string.Empty)" />
-    @*     <div class="icon-info-bar @PriceThresholds.GetPriceClass(Price)" title="@GetTitleText()">
-        @if (ShouldShowSecondaryTag())
-        {
-            <span class="info-rent">@GetSecondaryTagLabel(): @FormatSecondaryValue()</span>
-        }
-        else if (IsPropertyCard())
-        {
-            <span class="info-price">@Price</span>
-        }
-        else
-        {
-        }
-    </div> *@
 
+<div class="block-icon-wrapper" @onmouseover="ShowTip" @onmouseout="HideTip" @onclick:stopPropagation="true" @onclick="OnClickInternal">
+    <div class="block-moldure @GetFrameClass()">
+        <div class="moldure-title">
+            <div class="title-text" title="@Name">@Name</div>
+        </div>
+        <div class="moldure-content">
+            <img src="@ImageUrl" alt="@AltText" class="block-icon-img @( _animateImageChange ? "img-change" : string.Empty)" />
+        </div>
+    </div>
+    @if (this.Type == BlockType.Property)
+    {
+        <div class="building-level-indicator">
+            @for (int i = 0; i < this.BuildingLevel; i++)
+            {
+                <div class="building-level-unit @(this.BuildingType == BuildingType.House ? "house-unit" : "hotel-unit")"></div>
+            }
+        </div>
+
+        <div class="icon-info-bar @PriceThresholds.GetPriceClass(Price)" title="@GetTitleText()">
+            @if (ShouldShowSecondaryTag())
+            {
+                <span class="info-rent">@GetSecondaryTagLabel(): @FormatSecondaryValue()</span>
+            }
+            else if (IsPropertyCard())
+            {
+                <span class="info-price">R$ @Price</span>
+            }
+            else
+            {
+            }
+        </div>
+    }
 </div>
 
 <style>
@@ -81,6 +98,7 @@
         z-index: 2;
         filter: drop-shadow(0 2px 4px rgba(0,0,0,.55));
     }
+
 
     /* animação de "flutuar" suave */
     @@keyframes floatCard {
@@ -139,6 +157,8 @@
         }
     }
 
+    /* Remover estilo duplicado para moldura e frame variants, agora no CSS escopo */
+    /* ... styles moved to BlockIcon.razor.css ... */
 </style>
 @code {
     [Parameter] public string ImageUrl { get; set; } = string.Empty;
@@ -181,8 +201,8 @@
     private string GetSecondaryTagLabel() => Type switch { BlockType.Tax => "Taxa", BlockType.Chance => "Sorte", BlockType.Reves => "Revés", _ => "" };
     private string FormatSecondaryValue() => Type switch
     {
-        BlockType.Tax => $"$ {Rent}",
-        BlockType.Chance => Rent >= 0 ? $"$ {Rent}" : $"-$ {Math.Abs(Rent)}",
+        BlockType.Tax => "$ {Rent}",
+        BlockType.Chance => Rent >= 0 ? "$ {Rent}" : "-$ " + Math.Abs(Rent),
         BlockType.Reves => $"{Rent} casas",
         _ => Rent.ToString()
     };
@@ -193,4 +213,30 @@
         BlockType.Reves => $"Volta {Rent} casas ao cair aqui",
         _ => string.Empty
     };
+
+    private string GetFrameClass()
+    {
+        // Property/Company families keep their own frames
+        if (Type == BlockType.Property)
+        {
+            return BuildingType switch
+            {
+                BuildingType.House => "frame-house",
+                BuildingType.Hotel => "frame-hotel",
+                BuildingType.Company => "frame-company",
+                BuildingType.Special => "frame-special",
+                _ => string.Empty
+            };
+        }
+        if (Type == BlockType.Company)
+            return "frame-company";
+
+        // Special cards (powerups/debuffs) by BlockType
+        return Type switch
+        {
+            BlockType.Tax or BlockType.Reves or BlockType.GoToJail => "frame-debuff", // debuffs
+            BlockType.Chance or BlockType.Go or BlockType.FreeParking => "frame-powerup", // buffs
+            _ => "frame-powerup" // demais tratamos como buff
+        };
+    }
 }

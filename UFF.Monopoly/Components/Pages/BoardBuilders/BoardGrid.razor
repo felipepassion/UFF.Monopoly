@@ -18,7 +18,7 @@
                 }
                 else
                 {
-                    <div class="grid-cell perimeter position-relative" title="@($"{TranslateBlockType(b.Type)} - {b.Name}")">
+                    <div class="grid-cell perimeter position-relative" style="--cell-size:@(CellSize)px" title="@($"{TranslateBlockType(b.Type)} - {b.Name}")">
                         <BlockIcon ImageUrl="@b.ImageUrl"
                                    Name="@b.Name"
                                    Description="@b.Description"

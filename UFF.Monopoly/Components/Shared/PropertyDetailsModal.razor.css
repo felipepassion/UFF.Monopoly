@@ -1,0 +1,189 @@
+.property-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.68);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    animation: fadeIn .25s ease;
+    z-index: 8000;
+}
+
+.property-modal-wrapper {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: clamp(1.1rem, 3vw, 2.2rem);
+    z-index: 8010;
+}
+
+.property-modal {
+    --surface-bg: linear-gradient(165deg,#101015,#151820 60%,#0e1218);
+    background: var(--surface-bg);
+    color: #e8eaee;
+    width: min(1100px, 96vw);
+    border-radius: 26px;
+    box-shadow: 0 40px 70px -18px rgba(0,0,0,.75), 0 0 0 1px rgba(255,255,255,.06) inset, 0 0 0 2px rgba(255,255,255,.03);
+    padding: 1.2rem 1.4rem 1.4rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.1rem;
+    position: relative;
+    animation: pop .28s cubic-bezier(.16,.7,.3,1);
+    font-family: system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+}
+
+.property-modal:focus-within { outline: 2px solid #1fa2ff33; outline-offset: 2px; }
+
+.header { text-align: center; padding-top:.25rem; }
+.header .title { margin:0; font-size: clamp(1.6rem, 3vw, 2.2rem); font-weight:650; letter-spacing:.4px; }
+
+.close-btn {
+    position: absolute;
+    top: .9rem;
+    right: .9rem;
+    background: rgba(255,255,255,.06);
+    color: #b7bdc6;
+    border: none;
+    width: 42px;
+    height: 42px;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    border-radius: 14px;
+    cursor: pointer;
+    transition: background .18s, color .18s, transform .22s, box-shadow .22s;
+}
+.close-btn:hover { background: rgba(255,255,255,.12); color:#fff; box-shadow:0 6px 22px -10px rgba(0,0,0,.6); }
+.close-btn:active { transform: scale(.92); }
+
+.content { display:flex; flex-direction:column; gap:1.1rem; }
+
+.card-grid { display:grid; grid-template-columns: 1fr; gap: 1rem; }
+
+.prop-card {
+    background: linear-gradient(180deg, rgba(255,255,255,.02), transparent 60%), rgba(255,255,255,.02);
+    border: 1px solid rgba(255,255,255,.10);
+    border-radius: 22px;
+    padding: clamp(.9rem, 2vw, 1.15rem);
+    display:flex;
+    flex-direction: column;
+    gap: .85rem;
+    box-shadow: 0 18px 48px -16px rgba(0,0,0,.6);
+}
+
+.prop-card.main { align-items: stretch; }
+
+.media-shell {
+    width: 100%;
+    aspect-ratio: 4 / 3; /* imagem grande em 4:3 */
+    background: linear-gradient(145deg,#14161c,#1a1f26);
+    border-radius: 18px;
+    position: relative;
+    overflow:hidden;
+    box-shadow: 0 24px 60px -18px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.07), 0 0 0 6px rgba(255,255,255,.02);
+}
+.media-shell img {
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    object-fit:contain;
+    padding: clamp(1rem, 3vw, 2rem);
+    filter: drop-shadow(0 14px 28px rgba(0,0,0,.55));
+}
+.media-shell .shine {
+    position:absolute; inset:-20% -10% auto -10%; height:60%;
+    background: radial-gradient(60% 60% at 20% 30%, rgba(255,255,255,.22), rgba(255,255,255,0) 70%);
+    pointer-events:none;
+    mix-blend-mode: screen;
+    opacity:.25;
+}
+
+.meta { display:flex; justify-content:center; gap:1rem; }
+.meta-line { display:flex; gap:.5rem; align-items:center; background: rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12); padding:.6rem .9rem; border-radius: 12px; }
+.meta-label { color:#b9c0c8; font-size:.95rem; letter-spacing:.3px; text-transform:uppercase; }
+.meta-value { font-weight:700; letter-spacing:.3px; font-size:1.1rem; }
+
+.actions { display:flex; justify-content:center; gap:.8rem; margin-top:.2rem; }
+
+.footer { display:flex; justify-content:flex-end; gap:.8rem; flex-wrap:wrap; }
+
+.btn {
+    --btn-bg: #222;
+    --btn-border: rgba(255,255,255,.14);
+    background: var(--btn-bg);
+    color:#eaeaea;
+    border:1px solid var(--btn-border);
+    padding:.9rem 1.35rem;
+    font-size:1.05rem;
+    font-weight:700;
+    letter-spacing:.3px;
+    border-radius: 16px;
+    cursor:pointer;
+    position:relative;
+    overflow:hidden;
+    transition: background .25s, transform .25s, box-shadow .25s, filter .25s;
+    min-width: 200px;
+}
+.btn:before { content:""; position:absolute; inset:0; background:linear-gradient(145deg,rgba(255,255,255,.06),transparent 60%); opacity:0; transition:opacity .35s; }
+.btn:hover:before { opacity:1; }
+.btn:hover { transform: translateY(-3px); box-shadow:0 10px 28px -8px rgba(0,0,0,.55); }
+.btn:active { transform: translateY(0); box-shadow:none; }
+
+.btn.primary { --btn-bg: linear-gradient(160deg,#0a5,#0b6,#098); border: none; color:#fff; }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn.primary:disabled { filter: grayscale(.6); opacity:.55; cursor:not-allowed; }
+
+.btn.secondary { --btn-bg: #1d2128; }
+.btn.secondary:hover { background:#252a33; }
+
+/* Puff + flash quando o botão principal está ativo */
+.prop-card:has(.btn.primary:active) .media-shell { animation: puffScale .55s cubic-bezier(.16,.7,.3,1); }
+.prop-card:has(.btn.primary:active) .media-shell::after {
+    content:""; position:absolute; inset:0; background: radial-gradient(60% 60% at 50% 50%, rgba(255,255,255,.45), rgba(255,255,255,0) 70%);
+    animation: plimplim .55s ease-out; pointer-events:none;
+}
+
+/* Estados visuais opcionais (podem ser aplicados via classes no Razor) */
+.prop-card.is-evolving .media-shell { animation: puffScale .6s cubic-bezier(.16,.7,.3,1); }
+.prop-card.is-max-level { box-shadow: 0 22px 60px -18px rgba(0,0,0,.75), 0 0 0 1px rgba(255,255,255,.10) inset; }
+.prop-card.is-max-level .media-shell { animation: glowPulse 2.2s ease-in-out infinite; }
+
+/* Especiais pela identificação do nome (Circo, Aeroporto, Estádio, Shopping) */
+/* data-name é atribuído no Razor do card */
+.prop-card[data-name*="Circo" i],
+.prop-card[data-name*="Aeroporto" i],
+.prop-card[data-name*="Estádio" i],
+.prop-card[data-name*="Estadio" i],
+.prop-card[data-name*="Shopping" i] {
+    border-color: rgba(140,255,220,.35);
+    box-shadow: 0 24px 64px -18px rgba(0,0,0,.75), 0 0 22px 0 rgba(80,220,200,.25) inset;
+}
+.prop-card[data-name*="Circo" i] .media-shell,
+.prop-card[data-name*="Aeroporto" i] .media-shell,
+.prop-card[data-name*="Estádio" i] .media-shell,
+.prop-card[data-name*="Estadio" i] .media-shell,
+.prop-card[data-name*="Shopping" i] .media-shell {
+    animation: glowPulse 2.4s ease-in-out infinite;
+    background: radial-gradient(800px 300px at -20% -20%, rgba(140,255,220,.10), transparent 40%),
+                linear-gradient(145deg,#161a22,#1b2230);
+}
+
+/* Responsividade */
+@media (min-width: 860px) {
+    .card-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 700px) {
+    .property-modal { padding: 1.05rem 1.05rem 1.25rem; border-radius:22px; }
+    .prop-card { border-radius:20px; }
+    .btn { flex:1 1 auto; min-width:160px; }
+}
+
+/* Animações */
+@keyframes pop { from { transform: scale(.96) translateY(12px); opacity:0; } to { transform: scale(1) translateY(0); opacity:1; } }
+@keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+@keyframes puffScale { 0% { transform: scale(1); } 40% { transform: scale(1.04); } 100% { transform: scale(1); } }
+@keyframes plimplim { 0% { opacity:.0; } 20% { opacity:.75; } 60% { opacity:.25; } 100% { opacity:0; } }
+@keyframes glowPulse { 0% { box-shadow: 0 24px 60px -18px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.07), 0 0 0 6px rgba(180,255,230,.06);} 50% { box-shadow: 0 28px 64px -18px rgba(0,0,0,.75), 0 0 0 1px rgba(160,255,240,.18), 0 0 0 10px rgba(120,255,220,.10);} 100% { box-shadow: 0 24px 60px -18px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.07), 0 0 0 6px rgba(180,255,230,.06);} }

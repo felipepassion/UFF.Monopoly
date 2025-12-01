@@ -1,0 +1,68 @@
+@inherits ComponentBase
+
+@if (IsOpen && Model is not null)
+{
+    <div class="property-modal-backdrop" @onclick="HandleBackdropClick"></div>
+    <div class="property-modal-wrapper">
+        <div class="property-modal modal-state-single" role="dialog" aria-modal="true" aria-label="Detalhes da propriedade">
+            <button type="button" class="close-btn" aria-label="Fechar" @onclick="Close">
+                <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+            </button>
+
+            <header class="header">
+                <h2 class="title">@Model.Name</h2>
+            </header>
+
+            <section class="content">
+                <div class="card-grid">
+                    <article class="prop-card main" data-name="@Model.Name">
+                        <div class="media-shell">
+                            <img src="@Model.ImageUrl" alt="Imagem da propriedade @Model.Name" onerror="this.src='/images/blocks/property_basic.svg'" />
+                            <div class="shine" aria-hidden="true"></div>
+                        </div>
+
+                        <div class="meta">
+                            <div class="meta-line">
+                                <span class="meta-label">Preco</span>
+                                <span class="meta-value">@FormatCurrency(Model.Price)</span>
+                            </div>
+                        </div>
+
+                        <div class="actions">
+                            <button class="btn primary" @onclick="Buy" disabled="@(Model.Price <= 0)">Comprar (@FormatCurrency(Model.Price))</button>
+                        </div>
+                    </article>
+                </div>
+            </section>
+
+            <footer class="footer">
+                <button class="btn secondary" @onclick="Close">Fechar</button>
+            </footer>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public PropertyDetailsModel? Model { get; set; }
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public EventCallback<PropertyDetailsModel> OnBuy { get; set; }
+
+    public record PropertyDetailsModel(string Name, string ImageUrl, decimal Price, decimal Rent);
+
+    private string FormatCurrency(decimal value) => $"R$ {value:N0}"; // sem casas decimais
+
+    private async Task Close()
+    {
+        if (OnClose.HasDelegate)
+            await OnClose.InvokeAsync();
+    }
+
+    private async Task Buy()
+    {
+        if (Model is not null && OnBuy.HasDelegate)
+            await OnBuy.InvokeAsync(Model);
+    }
+
+    private Task HandleBackdropClick() => Close();
+}
