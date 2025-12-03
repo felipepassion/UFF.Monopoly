@@ -221,12 +221,76 @@ sequenceDiagram
     UI->>S: EvaluateTurnStart (próximo jogador)
 ```
 
-## Resumo
-- Mapear pontos de entrada das decisões e centralizar onde fizer sentido.
-- Definir objetivos e métricas para orientar heurísticas.
-- Separar coleta de estado, avaliação heurística e execução.
-- Proteger caixa antes de comprar/upgrade quando necessário.
-- Evitar triggers duplicados com fila/cancelamento.
-- Adicionar logs leves para validação de heurísticas.
-- Preparar extensibilidade por estratégias.
-- Revisar delays para não conflitar com animações.
+---
+
+## Nova Lógica Fuzzy de Compra, Venda e Espera
+
+Esta versão introduz uma camada fuzzy para decisões econômicas do bot, consolidada no enum `FuzzyAction` em `UFF.Monopoly/Infrastructure/Bot/Fuzzy/FuzzyAction.cs`. As ações crisp resultantes do processo fuzzy são:
+- `Buy`: comprar quando a utilidade esperada e a liquidez permitem.
+- `Sell`: vender ativos para recuperar caixa sob risco elevado.
+- `Wait`: aguardar quando o equilíbrio risco/retorno não favorece ação imediata.
+
+### Triângulo de Decisões (Liquidez × Valor Esperado × Risco)
+O bot avalia três eixos principais e defuzifica para uma ação crisp:
+- Liquidez: caixa atual vs. reserva mínima e custos iminentes.
+- Valor esperado: renda futura (aluguel), sinergia de conjuntos (monopólio), potencial de upgrade.
+- Risco: probabilidade de cair em propriedades caras dos oponentes e multas próximas.
+
+#### Onde isso está no código
+- Enum de ação: `UFF.Monopoly/Infrastructure/Bot/Fuzzy/FuzzyAction.cs`.
+- Avaliação e orquestração: `Play.Bot.cs` (monta contexto e executa decisões) e serviço de decisão do bot (`BotDecisionService`, quando presente).
+- Componentes relacionados: `BlockActionContent.razor` (modal de ações), `Play.Dialogue.cs` (diálogos/UX), `Play.Utils.cs` (utilitários de turno).
+
+### Fluxo Fuzzy Aplicado ao Modal
+1) Coletar contexto (saldo, bloco atual, propriedade/grupo, risco próximo).
+2) Calcular scores: Liquidez, Valor Esperado, Risco.
+3) Defuzificar em `FuzzyAction`: `Buy`, `Sell` ou `Wait`.
+4) Executar ação no pipeline do componente (compra/upgrade/fechamento de modal/encerrar turno).
+
+### Impactos e Modificações
+- Centralização conceitual das decisões: serviço retorna tipo de ação e o componente Blazor agenda execução (evita duplicidade de triggers).
+- Salvaguardas de caixa: reserva mínima antes de `Buy` e preferência por `Sell` sob risco alto.
+- Extensibilidade: novas heurísticas podem ajustar os pesos dos eixos sem alterar UI.
+- Observabilidade: decisões podem ser logadas com razão e prioridade.
+
+### Diagrama: Triângulo Fuzzy de Decisão
+```mermaid
+triangle
+    title Triângulo de Decisão Fuzzy
+    A[Liquidez]
+    B[Valor Esperado]
+    C[Risco]
+```
+
+### Diagrama: Defuzificação para `FuzzyAction`
+```mermaid
+flowchart TD
+    A[Coleta de métricas\n(Liquidez, Valor, Risco)] --> B[Regras fuzzy\n(pesos e limites)]
+    B --> C{Resultado crisp}
+    C -- Alto Valor + Boa Liquidez + Baixo Risco --> D[Buy]
+    C -- Baixa Liquidez + Alto Risco --> E[Sell]
+    C -- Médio em todos os eixos --> F[Wait]
+```
+
+### Diagrama: Integração com o Pipeline do Bot (Blazor)
+```mermaid
+sequenceDiagram
+    participant UI as Play (Blazor)
+    participant S as Serviço de Decisão
+    UI->>S: Monta DecisionContext
+    S-->>UI: FuzzyAction (Buy/Sell/Wait)
+    alt Buy
+        UI->>UI: Executa compra/upgrade
+    else Sell
+        UI->>UI: Realiza venda/desempenho de caixa
+    else Wait
+        UI->>UI: Fecha modal/aguarda e encerra turno
+    end
+    UI->>UI: Atualiza estado e agenda próxima decisão
+```
+
+### Resumo para apresentação
+- `FuzzyAction` adiciona uma política econômica dinâmica (comprar, vender, esperar) com base em três métricas.
+- O componente `Play.Bot.cs` consome essa decisão e evita race conditions via fila/atrasos sugeridos.
+- O triângulo de decisões melhora a coerência: protege liquidez, aproveita oportunidades de monopólio e reduz risco.
+- Arquivos principais: `Infrastructure/Bot/Fuzzy/FuzzyAction.cs`, `Components/Pages/GamePlay/Play.Bot.cs`, `BlockActionContent.razor`, `Play.Dialogue.cs`, `Play.Utils.cs`.

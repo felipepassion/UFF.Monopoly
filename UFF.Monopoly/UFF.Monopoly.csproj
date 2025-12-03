@@ -25,6 +25,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Folder Include="Infrastructure\Fuzzy\" />
     <Folder Include="Repositories\Mapping\" />
     <Folder Include="wwwroot\images\board\grounds\" />
   </ItemGroup>

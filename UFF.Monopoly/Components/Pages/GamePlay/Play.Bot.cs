@@ -6,12 +6,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using System;
+using UFF.Monopoly.Infrastructure.Bot.Fuzzy;
 
 namespace UFF.Monopoly.Components.Pages.GamePlay;
 
 public partial class Play : ComponentBase, IAsyncDisposable
 {
     [Inject] private IBotDecisionService BotDecision { get; set; } = default!;
+    [Inject] private IFuzzyDecisionService FuzzyDecision { get; set; } = default!;
 
     private static bool IsBotPlayer(Player? p) => p?.Name?.StartsWith("Bot ", System.StringComparison.OrdinalIgnoreCase) == true;
     private bool IsCurrentPlayerHuman()
@@ -61,6 +63,13 @@ public partial class Play : ComponentBase, IAsyncDisposable
         try { if (decision.SuggestedDelayMs > 0) await Task.Delay(decision.SuggestedDelayMs, token); } catch { return; }
         if (token.IsCancellationRequested) return;
 
+        // Avoid acting while dialogue is busy to prevent modal churn
+        if (IsDialogueBusy)
+        {
+            try { await WaitForDialogueIdleAsync(150, token); } catch { }
+            if (token.IsCancellationRequested) return;
+        }
+
         await ExecuteBotDecisionAsync(decision);
         if (_botQueue.Count > 0) await ProcessNextBotDecisionAsync();
     }
@@ -84,45 +93,44 @@ public partial class Play : ComponentBase, IAsyncDisposable
             case DecisionType.Buy:
                 if (_modalBlock is not null && _modalPlayer is not null)
                 {
-                    // pequena pausa antes da ação para humanizar
-                    try { await Task.Delay(300); } catch { }
+                    try { await Task.Delay(300, _modalCts?.Token ?? CancellationToken.None); } catch { return; }
+                    if (_modalCts?.IsCancellationRequested == true) return;
                     if (_game!.TryBuyProperty(_modalPlayer, _modalBlock))
                     {
                         SyncOwnersToBoardSpaces(); StateHasChanged(); await GameRepo.SaveGameAsync(GameId, _game);
-                        // toast de compra
                         await ShowActionToastAsync($"{_modalPlayer.Name} comprou {_modalBlock.Name}", 1800);
+                        AddDialogue($"Como diria Zadeh: com um grau alto de pertinência, COMPRAR é nítido! {_modalPlayer.Name} investiu em {_modalBlock.Name}.");
                     }
-                    // pequena pausa para deixar o usuário perceber a compra
-                    try { await Task.Delay(350); } catch { }
+                    try { await Task.Delay(350, _modalCts?.Token ?? CancellationToken.None); } catch { return; }
                 }
-                // sempre fechar modal após ação
                 if (_showBlockModal) { await CloseBlockModal(); }
-                // e prosseguir para fim de turno com pequena folga
                 _botQueue.Enqueue(DecisionResult.Simple(DecisionType.EndTurn, "Após compra", 3, 500));
                 break;
             case DecisionType.Upgrade:
                 if (_modalBlock is PropertyBlock pb && _modalPlayer is not null && pb.Owner == _modalPlayer && CanUpgradeAllowed(pb))
                 {
-                    try { await Task.Delay(280); } catch { }
+                    try { await Task.Delay(280, _modalCts?.Token ?? CancellationToken.None); } catch { return; }
+                    if (_modalCts?.IsCancellationRequested == true) return;
                     if (pb.Upgrade(_modalPlayer))
                     {
                         if (pb.BuildingType != BuildingType.None && pb.BuildingLevel > 0)
                         { var evo = BuildingEvolutionDescriptions.Get(pb.BuildingType, Math.Clamp(pb.BuildingLevel, 1, 4)); pb.Name = evo.Name; }
                         _modalPlayer.LastBuildTurn = _game!.RoundCount;
                         SyncOwnersToBoardSpaces(); StateHasChanged(); await GameRepo.SaveGameAsync(GameId, _game);
-                        try { await Task.Delay(320); } catch { }
+                        try { await Task.Delay(320, _modalCts?.Token ?? CancellationToken.None); } catch { return; }
                     }
                 }
                 if (_showBlockModal) { await CloseBlockModal(); }
                 _botQueue.Enqueue(DecisionResult.Simple(DecisionType.EndTurn, "Após upgrade", 3, 500));
                 break;
             case DecisionType.EndTurn:
-                // garantir que modal esteja fechado
                 if (_showBlockModal) { await CloseBlockModal(); }
+                // wait dialogue before next turn
+                if (IsDialogueBusy) { await WaitForDialogueIdleAsync(200, _turnCts?.Token); }
                 _game!.NextTurn(); HasRolledThisTurn = false; await GameRepo.SaveGameAsync(GameId, _game);
                 _botQueue.Clear();
                 EnqueueGroup("transicao_turno", new DialogueContext { Player = _game.Players[_game.CurrentPlayerIndex].Name }, true);
-                AnnounceHumanTurnIfNeeded(); StateHasChanged(); AdvanceDialogueIfIdle();
+                AnnounceHumanTurnIfNeeded(); StateHasChanged(); /*AdvanceDialogueIfIdle();*/
                 StartBotTurnIfNeeded("after_end_turn");
                 break;
             case DecisionType.Skip:
@@ -141,14 +149,61 @@ public partial class Play : ComponentBase, IAsyncDisposable
     {
         if (!BotDecision.IsBotPlayer(currentPlayer)) return;
         _botHasActedThisModal = false;
-        _ = InvokeAsync(async () => { try { await Task.Delay(400); } catch { } await BotActOnModalAsync(); });
+        _ = InvokeAsync(async () => { try { await Task.Delay(400, _modalCts?.Token ?? CancellationToken.None); } catch { return; } await BotActOnModalAsync(); });
     }
 
     private async Task BotActOnModalAsync()
     {
         if (_game is null || _modalPlayer is null) return;
         if (!BotDecision.IsBotPlayer(_modalPlayer) || _botHasActedThisModal) return;
+        if (!_showBlockModal) return; // modal closed -> skip
         _botHasActedThisModal = true;
+
+        var balance = (double)_modalPlayer.Money;
+        FuzzyDecisionResult fuzzyResult;
+        if (_pendingActionKind == PendingActionKind.Tax && _pendingAmount > 0)
+        { fuzzyResult = FuzzyDecision.ApplyTaxAndDecide(balance, _pendingAmount); }
+        else if (_pendingActionKind == PendingActionKind.Chance && _pendingAmount > 0)
+        { fuzzyResult = FuzzyDecision.ApplyBonusAndDecide(balance, _pendingAmount); }
+        else { fuzzyResult = FuzzyDecision.Evaluate(balance); }
+
+        Console.WriteLine($"[BOT-FUZZY] saldo={balance} x={fuzzyResult.NormalizedBalance:0.##} action={fuzzyResult.Action} scores(B={fuzzyResult.Scores.BuyScore:0.###},S={fuzzyResult.Scores.SellScore:0.###},W={fuzzyResult.Scores.WaitScore:0.###}) exp={fuzzyResult.ExplanationPtBr}");
+
+        // Announce detailed fuzzy reasoning in chat so it's explicit during presentation
+        AddDialogue($"Mr. Monopoly (fuzzy): {fuzzyResult.ExplanationPtBr}");
+
+        switch (fuzzyResult.Action)
+        {
+            case FuzzyAction.Buy:
+                AddDialogue($"Mr. Monopoly: Com esse saldo normalizado ({fuzzyResult.NormalizedBalance:0.##}), a melhor ação é COMPRAR. {(_modalBlock is not null ? $"Olho em {_modalBlock.Name}." : string.Empty)}");
+                break;
+            case FuzzyAction.Sell:
+                AddDialogue("Mr. Monopoly: Saldo baixo sugere VENDER. Prudência!");
+                break;
+            default:
+                AddDialogue("Mr. Monopoly: Preferência atual é ESPERAR e observar.");
+                break;
+        }
+
+        if (!_showBlockModal) return;
+
+        if (fuzzyResult.Action == FuzzyAction.Buy && _modalBlock is not null)
+        {
+            _botQueue.Clear();
+            _botQueue.Enqueue(DecisionResult.Simple(DecisionType.Buy, "Fuzzy: comprar", 6, 500));
+            await ProcessNextBotDecisionAsync();
+            return;
+        }
+        if (fuzzyResult.Action == FuzzyAction.Sell && _modalBlock is not null && _modalPlayer is not null)
+        {
+            try { await Task.Delay(300, _modalCts?.Token ?? CancellationToken.None); } catch { return; }
+            await OnSellPropertyAsync();
+            if (_showBlockModal) { await CloseBlockModal(); }
+            _botQueue.Clear();
+            _botQueue.Enqueue(DecisionResult.Simple(DecisionType.EndTurn, "Fuzzy: vender e encerrar", 4, 500));
+            await ProcessNextBotDecisionAsync();
+            return;
+        }
         var ctx = BuildDecisionContext(_modalBlock);
         var decisions = BotDecision.EvaluateModal(ctx);
         _botQueue.Clear(); EnqueueBotDecisions(decisions);
@@ -159,6 +214,7 @@ public partial class Play : ComponentBase, IAsyncDisposable
     {
         if (_game is null || _modalPlayer is null) return;
         if (!BotDecision.IsBotPlayer(_modalPlayer) || _botHasActedThisModal) return;
+        if (!_showBlockModal) return; // modal closed
         _botHasActedThisModal = true;
         var ctx = BuildDecisionContext(_modalBlock);
         var decisions = BotDecision.EvaluateModal(ctx);

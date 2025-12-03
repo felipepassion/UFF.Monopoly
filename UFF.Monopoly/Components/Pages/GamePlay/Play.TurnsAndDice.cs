@@ -21,11 +21,11 @@ public partial class Play : ComponentBase, IAsyncDisposable
         _isAnimating = true; HasRolledThisTurn = true; var (die1, die2, total) = _game.RollDice(); EnqueueGroup("rolagem", new DialogueContext { Player = currentPlayer.Name }, true);
         await ShowDiceAnimationAsync(die1, die2); await AnimateForwardAsync(total); _preMovePlayerMoney = currentPlayer.Money; await _game.MoveCurrentPlayerAsync(total);
         AddDialogueTemplate("{PLAYER} avança {STEPS} casas.", new DialogueContext { Player = currentPlayer.Name, Steps = total }); await GameRepo.SaveGameAsync(GameId, _game);
-        PrepareModalForLanding(currentPlayer); _isAnimating = false; StateHasChanged(); TriggerBotModalIfNeeded(currentPlayer); AdvanceDialogueIfIdle();
+        PrepareModalForLanding(currentPlayer); _isAnimating = false; StateHasChanged(); TriggerBotModalIfNeeded(currentPlayer); /*AdvanceDialogueIfIdle();*/
     }
 
     private async Task EndTurn()
-    { if (_game is null || !CanEndTurn) return; HasRolledThisTurn = false; _game.NextTurn(); EnqueueGroup("transicao_turno", new DialogueContext { Player = _game.Players[_game.CurrentPlayerIndex].Name }, true); await GameRepo.SaveGameAsync(GameId, _game); AnnounceHumanTurnIfNeeded(); StateHasChanged(); AdvanceDialogueIfIdle(); await TryAutoRollForBotAsync(); }
+    { if (_game is null || !CanEndTurn) return; HasRolledThisTurn = false; if (IsDialogueBusy) { await WaitForDialogueIdleAsync(200, _turnCts?.Token); } _game.NextTurn(); EnqueueGroup("transicao_turno", new DialogueContext { Player = _game.Players[_game.CurrentPlayerIndex].Name }, true); await GameRepo.SaveGameAsync(GameId, _game); AnnounceHumanTurnIfNeeded(); StateHasChanged(); /*AdvanceDialogueIfIdle();*/ await TryAutoRollForBotAsync(); }
 
     private async Task ShowDiceAnimationAsync(int finalDie1, int finalDie2)
     {

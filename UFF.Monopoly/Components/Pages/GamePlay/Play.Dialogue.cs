@@ -26,6 +26,55 @@ public partial class Play : ComponentBase, IAsyncDisposable
     private int _lastAnnouncedRound = -1;
     private int _lastAnnouncedPlayerIndex = -1;
 
+    // Cancellation tied to modal/turn lifetimes
+    private CancellationTokenSource? _modalCts;
+    private CancellationTokenSource? _turnCts;
+
+    // JS interop for dialogue advance
+    private DotNetObjectReference<Play>? _dotNetRef;
+    private bool _jsDialogueInitialized;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        // Initialize JS handlers to allow advancing dialogue via keyboard/click anywhere
+        try
+        {
+            _dotNetRef = DotNetObjectReference.Create(this);
+            await JSRuntime.InvokeVoidAsync("MonopolyDialogue.init", _dotNetRef);
+            _jsDialogueInitialized = true;
+        }
+        catch { _jsDialogueInitialized = false; }
+    }
+
+    [JSInvokable]
+    public async Task OnAdvanceRequestedAsync()
+    {
+        // Route JS events to the chat advance logic
+        //await OnChatClicked();
+    }
+
+    // Dialogue busy indicator
+    private bool IsDialogueBusy => _isTypingChat || _dialogueQueue.Count > 0;
+    private async Task WaitForDialogueIdleAsync(int waitHintMs = 0, CancellationToken? externalToken = null)
+    {
+        var token = externalToken ?? _turnCts?.Token ?? _modalCts?.Token;
+        if (waitHintMs > 0)
+        {
+            try { await Task.Delay(waitHintMs, token ?? CancellationToken.None); } catch { return; }
+        }
+        // Poll quickly until dialogue is fully idle
+        int guardMs = 0;
+        while (IsDialogueBusy)
+        {
+            if (token?.IsCancellationRequested == true) return;
+            try { await Task.Delay(50, token ?? CancellationToken.None); } catch { return; }
+            guardMs += 50;
+            if (guardMs > 5000) break; // avoid stalling forever
+        }
+        Console.WriteLine($"[DIALOGUE] WaitForDialogueIdle done busy={IsDialogueBusy}");
+    }
+
     private async Task LoadDialogueJsonAsync()
     { try { var baseUri = Navigation.BaseUri.TrimEnd('/'); var json = await Http.GetStringAsync($"{baseUri}/dialogues/monopoly-dialogues.json"); _dialogueData = JsonSerializer.Deserialize<DialogueData>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new DialogueData(); } catch { _dialogueData = new DialogueData(); } }
 
@@ -52,10 +101,11 @@ public partial class Play : ComponentBase, IAsyncDisposable
         if (string.IsNullOrWhiteSpace(raw)) return;
         if (!immediate)
         { _dialogueQueue.Enqueue(raw); AdvanceDialogueIfIdle(); return; }
+        // For immediate lines, do not clear queued lines if currently typing; just interrupt typing to finish the line.
         if (_isTypingChat)
         { try { _typingCts?.Cancel(); } catch { } _isTypingChat = false; }
         try { _chatPauseCts?.Cancel(); } catch { }
-        _dialogueQueue.Clear(); _chatFull = raw; _chatDisplay = raw; _mouthFrameIndex = 0; _mouthImageUrl = _mouthFrames[_mouthFrameIndex]; StateHasChanged(); _ = StartChatPauseAsync();
+        _chatFull = raw; _chatDisplay = raw; _mouthFrameIndex = 0; _mouthImageUrl = _mouthFrames[_mouthFrameIndex]; StateHasChanged(); _ = StartChatPauseAsync();
     }
 
     private void AdvanceDialogueIfIdle() { if (_isTypingChat) return; if (_dialogueQueue.Count == 0) return; _chatMessage = _dialogueQueue.Dequeue(); }
@@ -148,4 +198,19 @@ public partial class Play : ComponentBase, IAsyncDisposable
     private class DialogueData { public Dictionary<string, List<DialogueLine>> Groups { get; set; } = new(); }
     private class DialogueLine { public string Id { get; set; } = string.Empty; public string Text { get; set; } = string.Empty; }
     private class DialogueContext { public string? Player { get; set; } public string? Block { get; set; } public int? Amount { get; set; } public int? Steps { get; set; } public int? Days { get; set; } }
+
+    public async ValueTask DisposeAsync()
+    {
+        try { _typingCts?.Cancel(); } catch { }
+        try { _chatPauseCts?.Cancel(); } catch { }
+        // Dispose JS handlers
+        try
+        {
+            if (_jsDialogueInitialized)
+                await JSRuntime.InvokeVoidAsync("MonopolyDialogue.dispose");
+        }
+        catch { }
+        _dotNetRef?.Dispose();
+        await Task.CompletedTask;
+    }
 }

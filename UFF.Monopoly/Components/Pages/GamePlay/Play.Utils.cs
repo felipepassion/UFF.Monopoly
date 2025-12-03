@@ -100,6 +100,4 @@ public partial class Play : ComponentBase, IAsyncDisposable
 
     private void ParsePawnsQuery()
     { _pawnsForPlayers.Clear(); if (string.IsNullOrWhiteSpace(pawns)) return; foreach (var p in pawns.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)) if (int.TryParse(p, out var v)) _pawnsForPlayers.Add(Math.Clamp(v, 1, 6)); }
-
-    public async ValueTask DisposeAsync() { try { _typingCts?.Cancel(); } catch { } try { _chatPauseCts?.Cancel(); } catch { } await Task.CompletedTask; }
 }

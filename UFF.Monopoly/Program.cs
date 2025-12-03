@@ -10,6 +10,7 @@ using UFF.Monopoly.Repositories;
 using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage;
 using UFF.Monopoly.Hubs;
 using UFF.Monopoly.Infrastructure.Bot;
+using UFF.Monopoly.Infrastructure.Bot.Fuzzy;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -53,6 +54,9 @@ builder.Services.AddHttpClient();
 builder.Services.AddSingleton<IGameRepository, EfGameRepository>();
 builder.Services.AddScoped<IUserProfileService, UserProfileService>();
 builder.Services.AddSingleton<IBotDecisionService, BotDecisionService>();
+
+// Fuzzy decision service for bot runtime
+builder.Services.AddSingleton<IFuzzyDecisionService, FuzzyDecisionService>();
 
 // SignalR
 builder.Services.AddSignalR();

@@ -1,5 +1,6 @@
 using UFF.Monopoly.Entities;
 using System.Collections.Generic;
+using UFF.Monopoly.Infrastructure.Bot.Fuzzy;
 
 namespace UFF.Monopoly.Infrastructure.Bot;
 
@@ -9,6 +10,13 @@ namespace UFF.Monopoly.Infrastructure.Bot;
 /// </summary>
 public class BotDecisionService : IBotDecisionService
 {
+    private readonly IFuzzyDecisionService _fuzzy;
+
+    public BotDecisionService(IFuzzyDecisionService fuzzy)
+    {
+        _fuzzy = fuzzy;
+    }
+
     /// <inheritdoc />
     public int ThinkingDelayMs => 1200;
     /// <inheritdoc />
@@ -78,13 +86,34 @@ public class BotDecisionService : IBotDecisionService
         { list.Add(DecisionResult.Simple(DecisionType.None, "Modal sem contexto")); return list; }
         if (!IsBotPlayer(ctx.CurrentPlayer)) { list.Add(DecisionResult.Simple(DecisionType.None, "Não é bot")); return list; }
 
+        // Consultar decisão fuzzy baseada no saldo atual (sem simulações). Apenas para priorização.
+        var fuzzy = _fuzzy.Evaluate(ctx.CurrentPlayer.Money);
+
         // Compra
         if (ShouldBuy(ctx.CurrentBlock, ctx.CurrentPlayer, ctx.Game))
-            list.Add(DecisionResult.Simple(DecisionType.Buy, "Heurística básica de compra", 8, PurchaseDelayMs, target: ctx.CurrentBlock));
+        {
+            var reason = "Heurística básica de compra";
+            var prio = 8;
+            if (fuzzy.Action == UFF.Monopoly.Infrastructure.Bot.Fuzzy.FuzzyAction.Buy)
+            { reason = $"Fuzzy favorece compra (x={fuzzy.NormalizedBalance:0.##})"; prio = 10; }
+            else if (fuzzy.Action == UFF.Monopoly.Infrastructure.Bot.Fuzzy.FuzzyAction.Wait)
+            { reason = $"Fuzzy sugere esperar (x={fuzzy.NormalizedBalance:0.##})"; prio = 6; }
+            else if (fuzzy.Action == UFF.Monopoly.Infrastructure.Bot.Fuzzy.FuzzyAction.Sell)
+            { reason = $"Fuzzy desfavorece compra (x={fuzzy.NormalizedBalance:0.##})"; prio = 3; }
+            list.Add(DecisionResult.Simple(DecisionType.Buy, reason, prio, PurchaseDelayMs, target: ctx.CurrentBlock));
+        }
 
         // Upgrade
         if (ctx.CurrentBlock is PropertyBlock pb && ShouldUpgrade(pb, ctx.CurrentPlayer, ctx.Game))
-            list.Add(DecisionResult.Simple(DecisionType.Upgrade, "Heurística básica de upgrade", 6, UpgradeDelayMs, target: ctx.CurrentBlock));
+        {
+            var reason = "Heurística básica de upgrade";
+            var prio = 6;
+            if (fuzzy.Action == UFF.Monopoly.Infrastructure.Bot.Fuzzy.FuzzyAction.Buy)
+            { reason = $"Fuzzy favorece investir (x={fuzzy.NormalizedBalance:0.##})"; prio = 8; }
+            else if (fuzzy.Action == UFF.Monopoly.Infrastructure.Bot.Fuzzy.FuzzyAction.Sell)
+            { reason = $"Fuzzy sugere cautela (x={fuzzy.NormalizedBalance:0.##})"; prio = 4; }
+            list.Add(DecisionResult.Simple(DecisionType.Upgrade, reason, prio, UpgradeDelayMs, target: ctx.CurrentBlock));
+        }
 
         // Caso nenhuma ação viável
         if (list.Count == 0)
