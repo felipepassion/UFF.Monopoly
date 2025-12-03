@@ -1,4 +1,4 @@
-# Modo ASK – Refinamento da Lógica de Decisão do Bot
+Refinamento da Lógica de Decisão do Bot
 
 ## Índice Geral
 - [Contexto do Projeto](#1-perguntas--contexto-do-projeto)
