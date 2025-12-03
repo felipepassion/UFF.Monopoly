@@ -1,0 +1,312 @@
+@page "/room/{RoomId}"
+@using Microsoft.AspNetCore.SignalR.Client
+@using UFF.Monopoly.Models
+@using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage
+
+@inject NavigationManager Nav
+@inject ProtectedLocalStorage LocalStore
+@inject IWebHostEnvironment Env
+
+<div class="room-bg">
+    <div class="room-container">
+        @if (_awaitingName)
+        {
+            <div class="name-modal" @onkeydown:stopPropagation @onkeyup:stopPropagation>
+                <div class="card">
+                    <div class="title">Insira seu nome de exibição</div>
+                    <input class="input" @bind="_displayName" @bind:event="oninput" placeholder="Seu nome" @onkeydown:stopPropagation @onkeyup:stopPropagation />
+                    <button class="btn" @onclick="ConfirmName">Confirmar</button>
+                </div>
+            </div>
+        }
+        <div class="left-panel">
+            <div class="players-header">
+                <span>Jogadores (@_room?.Players.Count ?? 0 / @_maxDisplay)</span>
+            </div>
+            <div class="players-list">
+                @if (_room is not null)
+                {
+                    @foreach (var p in _room.Players)
+                    {
+                        var isMe = !p.IsBot && p.ConnectionId == _myConnectionId;
+                        <div class="player-row">
+                            <span class="name">@p.DisplayName @(p.IsBot ? "(Bot)" : "")</span>
+                            <span class="ready">Pronto: @(p.IsReady ? "Sim" : "Não")</span>
+                            @if (isMe)
+                            {
+                                <button class="btn small" disabled="@_loadingReady" @onclick="ToggleReady">
+                                    @if (_loadingReady)
+                                    {
+                                        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                        <span> Alternando...</span>
+                                    }
+                                    else
+                                    {
+                                        <span>@(p.IsReady ? "Desmarcar" : "Pronto")</span>
+                                    }
+                                </button>
+                            }
+                            @if (_isHost && p.IsBot)
+                            {
+                                <button class="btn small danger" disabled="@_loadingBot" @onclick="(() => RemoveBot(p.ConnectionId))">
+                                    @if (_loadingBot && _removingBotId == p.ConnectionId)
+                                    {
+                                        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                        <span> Removendo...</span>
+                                    }
+                                    else
+                                    {
+                                        <span>Remover</span>
+                                    }
+                                </button>
+                            }
+                        </div>
+                    }
+                    @if (_isHost && (_room?.Players.Count ?? 0) < _maxDisplay)
+                    {
+                        <div class="player-row">
+                            <button class="btn" disabled="@_loadingBot" @onclick="AddBot">
+                                @if (_loadingBot && _addingBot)
+                                {
+                                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                    <span> Adicionando...</span>
+                                }
+                                else
+                                {
+                                    <span>Adicionar Bot</span>
+                                }
+                            </button>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+
+        <div class="right-panel">
+            <div class="room-info">
+                <div class="title">@_room?.Name</div>
+                <div class="meta">Anfitrião: @_room?.HostName</div>
+            </div>
+            <div class="chat">
+                <div class="chat-list">
+                    @foreach (var m in _chat)
+                    {
+                        <div class="msg"><b>@m.Sender:</b> @m.Text</div>
+                    }
+                </div>
+                <div class="chat-input">
+                    <input class="input" @bind="_chatText" @bind:event="oninput" placeholder="Digite uma mensagem" />
+                    <button class="btn" disabled="@(_awaitingName || _sendingChat)" @onclick="SendChat">
+                        @if (_sendingChat)
+                        {
+                            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                            <span> Enviando...</span>
+                        }
+                        else
+                        {
+                            <span>Enviar</span>
+                        }
+                    </button>
+                </div>
+            </div>
+            <div class="actions">
+                <button class="btn" @onclick="Leave">Sair</button>
+                <button class="btn" disabled>Iniciar jogo</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .room-bg { min-height: 100vh; background-image: url('@(BackgroundUrl)'); background-position: center; background-size: cover; background-repeat: no-repeat; position: relative; }
+    .room-bg::before{ content: ""; position: absolute; inset: 0; background: rgba(0,0,0,.25); }
+    .room-bg > * { position: relative; z-index: 1; }
+</style>
+
+@code {
+    [Parameter] public string? RoomId { get; set; }
+
+    private HubConnection? _hub;
+    private bool _hubConnected;
+    private LobbyRoom? _room;
+    private int _maxDisplay = 4;
+
+    private string _myConnectionId = string.Empty;
+    private bool _isHost => _room?.HostConnectionId == _myConnectionId;
+
+    private List<RoomChatMessage> _chat = new();
+    private string _chatText = string.Empty;
+    private string _displayName = string.Empty;
+    private bool _awaitingName = true;
+
+    private bool _sendingChat = false;
+    private bool _loadingReady = false;
+    private bool _loadingBot = false;
+    private bool _addingBot = false;
+    private string? _removingBotId = null;
+
+    private string? BackgroundUrl;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var rnd = Random.Shared;
+        var candidates = EnumerateBackgroundUrls().ToList();
+        BackgroundUrl = candidates.Count > 0 ? candidates[rnd.Next(candidates.Count)] : "/images/mr_monopoly/bg_niteroi_inativo.png";
+
+        var idRes = await LocalStore.GetAsync<string>("displayName");
+        _displayName = idRes.Success && !string.IsNullOrWhiteSpace(idRes.Value) ? idRes.Value! : string.Empty;
+        _awaitingName = string.IsNullOrWhiteSpace(_displayName);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        if (_awaitingName) { StateHasChanged(); return; }
+        await EnsureHubConnectedAndSubscribeAsync();
+        StateHasChanged();
+    }
+
+    private async Task ConfirmName()
+    {
+        if (string.IsNullOrWhiteSpace(_displayName)) return;
+        await LocalStore.SetAsync("displayName", _displayName);
+        _awaitingName = false;
+        await EnsureHubConnectedAndSubscribeAsync();
+        StateHasChanged();
+    }
+
+    private async Task EnsureHubConnectedAndSubscribeAsync()
+    {
+        if (_hubConnected && _hub is not null) return;
+        if (_hub is not null) { try { await _hub.DisposeAsync(); } catch { } }
+
+        _hub = new HubConnectionBuilder()
+            .WithUrl(Nav.ToAbsoluteUri("/hubs/lobby"))
+            .WithAutomaticReconnect()
+            .Build();
+
+        _hub.On<LobbyRoom>("RoomUpdated", room =>
+        {
+            if (room.Id == RoomId)
+            {
+                _room = room;
+                _chat = room.Chat.ToList();
+                _loadingReady = false; _loadingBot = false; _addingBot = false; _removingBotId = null; _sendingChat = false;
+                StateHasChanged();
+            }
+        });
+        _hub.On<string, RoomChatMessage>("RoomChatMessage", (roomId, msg) =>
+        {
+            if (roomId == RoomId)
+            {
+                _chat.Add(msg);
+                _sendingChat = false;
+                StateHasChanged();
+            }
+        });
+
+        _hub.Reconnected += async id =>
+        {
+            _myConnectionId = _hub?.ConnectionId ?? string.Empty;
+            if (!string.IsNullOrWhiteSpace(RoomId))
+            {
+                await _hub!.InvokeAsync("SubscribeRoom", RoomId, _displayName);
+            }
+            return;
+        };
+        _hub.Closed += async error =>
+        {
+            _hubConnected = false;
+            await Task.CompletedTask;
+        };
+
+        await _hub.StartAsync();
+        _hubConnected = true;
+        _myConnectionId = _hub.ConnectionId ?? string.Empty;
+
+        if (!string.IsNullOrWhiteSpace(RoomId))
+        {
+            await _hub.InvokeAsync("SubscribeRoom", RoomId, _displayName);
+        }
+    }
+
+    private async Task ToggleReady()
+    {
+        if (RoomId is null) return;
+        _loadingReady = true;
+        StateHasChanged();
+        await (_hub?.InvokeAsync("ToggleReady", RoomId) ?? Task.CompletedTask);
+        // Fallback: if server event is delayed, reset after short delay
+        _ = Task.Run(async () => { await Task.Delay(2000); _loadingReady = false; InvokeAsync(StateHasChanged); });
+    }
+
+    private async Task AddBot()
+    {
+        if (RoomId is null) return;
+        _loadingBot = true; _addingBot = true;
+        StateHasChanged();
+        await (_hub?.InvokeAsync("AddBot", RoomId, "Bot") ?? Task.CompletedTask);
+        _ = Task.Run(async () => { await Task.Delay(2000); _loadingBot = false; _addingBot = false; InvokeAsync(StateHasChanged); });
+    }
+
+    private async Task RemoveBot(string botConnId)
+    {
+        if (RoomId is null) return;
+        _loadingBot = true; _removingBotId = botConnId;
+        StateHasChanged();
+        await (_hub?.InvokeAsync("RemoveBot", RoomId, botConnId) ?? Task.CompletedTask);
+        _ = Task.Run(async () => { await Task.Delay(2000); _loadingBot = false; _removingBotId = null; InvokeAsync(StateHasChanged); });
+    }
+
+    private async Task SendChat()
+    {
+        if (_awaitingName) return;
+        if (RoomId is null || string.IsNullOrWhiteSpace(_chatText)) return;
+        var sender = string.IsNullOrWhiteSpace(_displayName) ? "Jogador" : _displayName;
+        _sendingChat = true;
+        StateHasChanged();
+        await (_hub?.InvokeAsync("SendRoomMessage", RoomId, sender, _chatText) ?? Task.CompletedTask);
+        _chatText = string.Empty;
+        _ = Task.Run(async () => { await Task.Delay(2000); _sendingChat = false; InvokeAsync(StateHasChanged); });
+    }
+
+    private async Task Leave()
+    {
+        if (RoomId is null) return;
+        await (_hub?.InvokeAsync("LeaveRoom", RoomId) ?? Task.CompletedTask);
+        try { if (_hub is not null) await _hub.DisposeAsync(); } catch { }
+        _hubConnected = false;
+        Nav.NavigateTo("/lobby");
+    }
+
+    private IEnumerable<string> EnumerateBackgroundUrls()
+    {
+        var dirs = new[]
+        {
+            "images/mr_monopoly/stages bg images",
+            "images/mr_monopoly/bgimages",
+            "images/bgimages",
+            "images/backgrounds"
+        };
+        foreach (var dir in dirs)
+        {
+            var contents = Env.WebRootFileProvider.GetDirectoryContents(dir);
+            if (!contents.Exists) continue;
+            foreach (var f in contents)
+            {
+                if (f.IsDirectory) continue;
+                if (!IsImage(f.Name)) continue;
+                var encodedDir = string.Join('/', dir.Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Select(Uri.EscapeDataString));
+                var encodedFile = Uri.EscapeDataString(f.Name);
+                yield return $"/{encodedDir}/{encodedFile}";
+            }
+        }
+    }
+
+    private static bool IsImage(string name)
+        => name.EndsWith(".png", StringComparison.OrdinalIgnoreCase)
+        || name.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase)
+        || name.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase)
+        || name.EndsWith(".webp", StringComparison.OrdinalIgnoreCase)
+        || name.EndsWith(".gif", StringComparison.OrdinalIgnoreCase);
+}

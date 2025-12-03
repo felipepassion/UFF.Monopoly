@@ -34,6 +34,15 @@
         <div class="moldure-content">
             <img src="@ImageUrl" alt="@AltText" class="block-icon-img @( _animateImageChange ? "img-change" : string.Empty)" />
         </div>
+        @if (HasLevelStars())
+        {
+            <div class="level-stars-overlay" aria-label="Nível da carta">
+                @for (int i = 0; i < GetStarCount(); i++)
+                {
+                    <img src="/images/blocks/star_lvl_.png" alt="★" class="level-star" />
+                }
+            </div>
+        }
     </div>
     @if (this.Type == BlockType.Property)
     {
@@ -257,6 +266,26 @@
             BlockType.Go => "frame-go", // gold
             BlockType.FreeParking => "frame-freeparking", // buffs
             _ => "frame-powerup" // demais tratamos como buff
+        };
+    }
+
+    private bool HasLevelStars()
+    {
+        // Only Property, Company types show levels
+        if (!(Type == BlockType.Property || Type == BlockType.Company)) return false;
+        // Specials always show (5), others if level > 0
+        if (BuildingType == BuildingType.Special) return true;
+        return BuildingLevel > 0;
+    }
+
+    private int GetStarCount()
+    {
+        if (Type != BlockType.Property && Type != BlockType.Company) return 0;
+        return BuildingType switch
+        {
+            BuildingType.Special => 5,
+            BuildingType.House or BuildingType.Hotel or BuildingType.Company => Math.Max(0, BuildingLevel),
+            _ => 0
         };
     }
 }

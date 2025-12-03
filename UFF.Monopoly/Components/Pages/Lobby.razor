@@ -1,0 +1,255 @@
+@page "/lobby"
+@using Microsoft.AspNetCore.SignalR.Client
+@using UFF.Monopoly.Models
+@using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage
+
+@inject NavigationManager Nav
+@inject ProtectedLocalStorage LocalStore
+@inject IWebHostEnvironment Env
+
+<div class="lobby-bg">
+    <div class="lobby-root">
+        @if (_awaitingName)
+        {
+            <div class="name-modal" @onkeydown:stopPropagation @onkeyup:stopPropagation>
+                <div class="card">
+                    <div class="title">Insira seu nome de exibição</div>
+                    <input class="input" @bind="_displayName" @bind:event="oninput" placeholder="Seu nome" @onkeydown:stopPropagation @onkeyup:stopPropagation />
+                    <button class="btn" @onclick="ConfirmName">Confirmar</button>
+                </div>
+            </div>
+        }
+        <header class="lobby-header">
+            <div class="title">Lobby Online</div>
+            <div class="status">@_connectionStatus</div>
+        </header>
+
+        <main class="lobby-main">
+            <section class="panel rooms">
+                <div class="panel-title">Salas</div>
+                <div class="actions">
+                    <button class="btn refresh" disabled="@(_awaitingName || _loading)" @onclick="RequestLobby">
+                        @if (_loading)
+                        {
+                            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                            <span> Carregando...</span>
+                        }
+                        else
+                        {
+                            <span>Atualizar</span>
+                        }
+                    </button>
+                </div>
+                <div class="room-list">
+                    @if (_rooms.Count == 0)
+                    {
+                        <div class="empty">Nenhuma sala criada. Crie uma à direita.</div>
+                    }
+                    else
+                    {
+                        @foreach (var r in _rooms)
+                        {
+                            var max = Math.Min(4, r.MaxPlayers);
+                            <div class="room-card">
+                                <div class="room-title">@r.Name</div>
+                                <div class="room-meta">
+                                    <span>Anfitrião: @r.HostName</span>
+                                    <span>@r.Players.Count / @max jogadores</span>
+                                </div>
+                                <div class="room-actions">
+                                    <button class="btn join" disabled="@(_awaitingName || _loadingJoin || r.Players.Count >= max)" @onclick="() => JoinRoom(r.Id)">
+                                        @if (_loadingJoin && _joiningRoomId == r.Id)
+                                        {
+                                            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                            <span> Entrando...</span>
+                                        }
+                                        else
+                                        {
+                                            <span>Entrar</span>
+                                        }
+                                    </button>
+                                </div>
+                            </div>
+                        }
+                    }
+                </div>
+            </section>
+
+            <section class="panel create">
+                <div class="panel-title">Criar sala</div>
+                <div class="form">
+                    <label>Nome da sala</label>
+                    <input class="input" @bind="_newRoomName" placeholder="Minha sala" />
+                    <label>Máximo de jogadores (até 4)</label>
+                    <input class="input" type="number" @bind="_maxPlayers" min="2" max="4" />
+                    <label>Seu nome de exibição</label>
+                    <input class="input" @bind="_displayName" placeholder="Jogador" />
+                    <button class="btn create" disabled="@(_awaitingName || _loadingCreate)" @onclick="CreateRoom">
+                        @if (_loadingCreate)
+                        {
+                            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                            <span> Criando...</span>
+                        }
+                        else
+                        {
+                            <span>Criar</span>
+                        }
+                    </button>
+                </div>
+
+                <div class="start-area">
+                    <button class="btn start" disabled>Iniciar jogo</button>
+                    <div class="hint">Adicione bots na sala para praticar solo. Iniciar solo envia para o modo local.</div>
+                </div>
+            </section>
+        </main>
+    </div>
+</div>
+
+<style>
+    .lobby-bg { min-height: 100vh; background-image: url('@(BackgroundUrl)'); background-position: center; background-size: cover; background-repeat: no-repeat; position: relative; }
+    .lobby-bg::before{ content: ""; position: absolute; inset: 0; background: rgba(0,0,0,.25); }
+    .lobby-bg > * { position: relative; z-index: 1; }
+</style>
+
+@code {
+    private HubConnection? _hub;
+    private bool _hubConnected;
+    private string _connectionStatus = "Desconectado";
+    private List<LobbyRoom> _rooms = new();
+
+    private string _newRoomName = string.Empty;
+    private int _maxPlayers = 4;
+    private string _displayName = string.Empty;
+    private bool _awaitingName = true;
+
+    private bool _loading = false;
+    private bool _loadingCreate = false;
+    private bool _loadingJoin = false;
+    private string? _joiningRoomId = null;
+
+    private string? BackgroundUrl;
+
+    protected override Task OnInitializedAsync()
+    {
+        var rnd = Random.Shared;
+        var candidates = EnumerateBackgroundUrls().ToList();
+        BackgroundUrl = candidates.Count > 0 ? candidates[rnd.Next(candidates.Count)] : "/images/mr_monopoly/bg_niteroi_inativo.png";
+        return Task.CompletedTask;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        // Safe JS interop: read local storage after first render
+        var idRes = await LocalStore.GetAsync<string>("displayName");
+        _displayName = idRes.Success && !string.IsNullOrWhiteSpace(idRes.Value) ? idRes.Value! : string.Empty;
+        _awaitingName = string.IsNullOrWhiteSpace(_displayName);
+        StateHasChanged();
+        if (_awaitingName) return;
+
+        if (_hubConnected && _hub is not null) return;
+        if (_hub is not null) { try { await _hub.DisposeAsync(); } catch { } }
+
+        _hub = new HubConnectionBuilder()
+            .WithUrl(Nav.ToAbsoluteUri("/hubs/lobby"))
+            .WithAutomaticReconnect()
+            .Build();
+
+        _hub.On<IEnumerable<LobbyRoom>>("LobbyUpdated", rooms =>
+        {
+            _rooms = rooms.OrderBy(r => r.Name).ToList();
+            _loading = false;
+            StateHasChanged();
+        });
+        _hub.On<string, string>("JoinFailed", (roomId, reason) =>
+        {
+            _connectionStatus = $"Falha ao entrar: {reason}";
+            _loadingJoin = false; _joiningRoomId = null;
+            StateHasChanged();
+        });
+        _hub.On<LobbyRoom>("RoomUpdated", room =>
+        {
+            var idx = _rooms.FindIndex(r => r.Id == room.Id);
+            if (idx >= 0) _rooms[idx] = room; else _rooms.Add(room);
+            _rooms = _rooms.OrderBy(r => r.Name).ToList();
+            StateHasChanged();
+        });
+        _hub.On<string>("NavigatedToRoom", roomId =>
+        {
+            _loadingJoin = false; _joiningRoomId = null;
+            Nav.NavigateTo($"/room/{roomId}");
+        });
+
+        _hub.Reconnecting += error => { _connectionStatus = "Reconectando..."; StateHasChanged(); return Task.CompletedTask; };
+        _hub.Reconnected += async id => { _connectionStatus = "Conectado"; StateHasChanged(); await RequestLobby(); };
+        _hub.Closed += error => { _connectionStatus = "Desconectado"; _hubConnected = false; StateHasChanged(); return Task.CompletedTask; };
+
+        await _hub.StartAsync();
+        _hubConnected = true;
+        _connectionStatus = "Conectado";
+        await RequestLobby();
+    }
+
+    private async Task ConfirmName()
+    {
+        if (string.IsNullOrWhiteSpace(_displayName)) return;
+        await LocalStore.SetAsync("displayName", _displayName);
+        _awaitingName = false;
+        StateHasChanged();
+        await OnAfterRenderAsync(true);
+    }
+
+    private Task RequestLobby()
+    {
+        _loading = true;
+        StateHasChanged();
+        return _hub?.InvokeAsync("RequestLobby") ?? Task.CompletedTask;
+    }
+
+    private Task CreateRoom()
+    {
+        _loadingCreate = true;
+        StateHasChanged();
+        return _hub?.InvokeAsync("CreateRoom", _newRoomName, _maxPlayers, _displayName) ?? Task.CompletedTask;
+    }
+
+    private Task JoinRoom(string roomId)
+    {
+        _loadingJoin = true; _joiningRoomId = roomId;
+        StateHasChanged();
+        return _hub?.InvokeAsync("JoinRoom", roomId, _displayName) ?? Task.CompletedTask;
+    }
+
+    private IEnumerable<string> EnumerateBackgroundUrls()
+    {
+        var dirs = new[]
+        {
+            "images/mr_monopoly/stages bg images",
+            "images/mr_monopoly/bgimages",
+            "images/bgimages",
+            "images/backgrounds"
+        };
+        foreach (var dir in dirs)
+        {
+            var contents = Env.WebRootFileProvider.GetDirectoryContents(dir);
+            if (!contents.Exists) continue;
+            foreach (var f in contents)
+            {
+                if (f.IsDirectory) continue;
+                if (!IsImage(f.Name)) continue;
+                var encodedDir = string.Join('/', dir.Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Select(Uri.EscapeDataString));
+                var encodedFile = Uri.EscapeDataString(f.Name);
+                yield return $"/{encodedDir}/{encodedFile}";
+            }
+        }
+    }
+
+    private static bool IsImage(string name)
+        => name.EndsWith(".png", StringComparison.OrdinalIgnoreCase)
+        || name.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase)
+        || name.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase)
+        || name.EndsWith(".webp", StringComparison.OrdinalIgnoreCase)
+        || name.EndsWith(".gif", StringComparison.OrdinalIgnoreCase);
+}

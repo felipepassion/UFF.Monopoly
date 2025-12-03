@@ -7,7 +7,7 @@
 <div class="home-bg d-flex align-items-center justify-content-center">
     <div class="d-flex align-items-center justify-content-center mt-4" style="min-height: calc(100vh - 160px);">
         <div class="d-grid gap-3" style="width:420px;">
-            <button class="btn btn-lg" style="background:var(--primary); color:#00121a; font-weight:700; padding:14px;" >Online(Em breve...)</button>
+            <button class="btn btn-lg" style="background:var(--primary); color:#00121a; font-weight:700; padding:14px;" @onclick="GoLobby">Multiplayer</button>
             <button class="btn btn-lg" style="background:var(--accent); color:#00121a; font-weight:700; padding:14px;" @onclick="GoLocal">Local</button>
         </div>
     </div>
@@ -84,4 +84,5 @@
 
     private void GoMultiplayer() => Nav.NavigateTo("#");
     private void GoLocal() => Nav.NavigateTo("/local");
+    private void GoLobby() => Nav.NavigateTo("/lobby");
 }

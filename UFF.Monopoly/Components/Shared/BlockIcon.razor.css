@@ -97,6 +97,25 @@
         box-shadow: inset 0 0 0 2px rgba(0,0,0,.25), inset 0 2px 0 rgba(255,255,255,.25);
     }
 
+/* Overlay stars below the title, right aligned on the content top band */
+.level-stars-overlay {
+    position: absolute;
+    top: 13%; /* logo abaixo da faixa do título */
+    right: 8%;
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    z-index: 5;
+    pointer-events: none;
+}
+
+    .level-stars-overlay .level-star {
+        width: clamp(10px, calc(var(--cell-size, 60px) / 5.2), 18px);
+        height: clamp(10px, calc(var(--cell-size, 60px) / 5.2), 18px);
+        object-fit: contain;
+        filter: drop-shadow(0 1px 1px rgba(0,0,0,.45));
+    }
+
 /* Área útil dentro da moldura onde o conteúdo deve ficar centralizado.  */
 .moldure-content {
     position: absolute;

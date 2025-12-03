@@ -1,0 +1,22 @@
+.room-container{min-height:calc(100vh - 80px);display:grid;grid-template-columns:500px 1fr;gap:16px;background:linear-gradient(135deg,#0f172a,#3730a3);color:#e2e8f0;padding:16px;position:relative}
+.name-modal{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.45);z-index:10}
+.name-modal .card{background:#0b1220;border:1px solid rgba(255,255,255,0.1);color:#e2e8f0;border-radius:12px;padding:16px;min-width:320px}
+.name-modal .title{font-weight:700;margin-bottom:8px}
+.left-panel,.right-panel{background:rgba(2,6,23,0.55);border:1px solid rgba(255,255,255,0.08);border-radius:16px;box-shadow:0 10px 28px rgba(0,0,0,0.35);padding:16px}
+.players-header{font-weight:700;margin-bottom:8px}
+.players-list{display:grid;gap:8px}
+.player-row{display:grid;grid-template-columns:1fr auto auto auto;align-items:center;gap:8px;background:rgba(255,255,255,0.06);padding:8px;border-radius:8px}
+.player-row .name{font-weight:600}
+.player-row .ready{opacity:.9}
+.btn{background:#1f2937;color:#e5e7eb;border:1px solid rgba(255,255,255,0.08);padding:8px 12px;border-radius:8px;cursor:pointer}
+.btn:hover{background:#111827}
+.btn.small{padding:6px 8px;font-size:12px}
+.btn.small.danger{background:#ef4444;border-color:#dc2626}
+.right-panel .title{font-weight:700;font-size:18px}
+.right-panel .meta{opacity:.9;margin-bottom:8px}
+.chat{display:grid;grid-template-rows:1fr auto;gap:8px;height:380px}
+.chat-list{overflow:auto;display:grid;gap:6px;background:rgba(255,255,255,0.06);padding:8px;border-radius:8px}
+.chat-input{display:grid;grid-template-columns:1fr auto;gap:8px}
+.input{background:#0b1220;border:1px solid rgba(255,255,255,0.1);color:#e2e8f0;padding:8px;border-radius:8px}
+.actions{margin-top:12px;display:flex;gap:8px}
+@media (max-width:1000px){.room-container{grid-template-columns:1fr}}

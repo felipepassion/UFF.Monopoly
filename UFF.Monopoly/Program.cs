@@ -145,7 +145,9 @@ app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
-// Map SignalR hub
+// Map SignalR hubs
+app.MapHub<LobbyHub>("/hubs/lobby");
+app.MapHub<GameplayHub>("/hubs/gameplay");
 app.MapHub<GameHub>("/gamehub");
 
 app.Run();
