@@ -146,64 +146,64 @@ SuggestedDelayMs
 IsCancelable
 ```
 
-## Diagramas (Mermaid) – com mini descrições
+## Diagramas (Mermaid)
 
 ### Visão geral do fluxo de turno do bot
 ```mermaid
 flowchart TD
-    A[Iniciar turno do bot\n(checar jogador atual)] --> B{Jogador atual é bot?}
-    B -- Não --> Z[Fim\n(não processa bot)]
-    B -- Sim --> C[Montar DecisionContext\n(snapshot do estado)]
-    C --> D[Avaliar início do turno\n(EvaluateTurnStart)]
-    D -->|Roll| E[Enfileirar ação Roll\n(rolar dados)]
-    D -->|Skip| F[Enfileirar Skip\n(aguardar UI livre)]
-    D -->|EndTurn| G[Enfileirar EndTurn\n(encerrar turno)]
-    E --> H[Processar próxima decisão]
-    H --> I[Executar Roll\n(rolagem + movimento)]
-    I --> J{Abriu Modal?}
-    J -- Sim --> K[Avaliar Modal\n(EvaluateModal)]
-    K --> L[Enfileirar Buy/Upgrade\n+ EndTurn]
+    A[Start Bot Turn] --> B{Current player is bot}
+    B -- No --> Z[Exit]
+    B -- Yes --> C[Build Decision Context]
+    C --> D[Evaluate Turn Start]
+    D -->|Roll| E[Queue Roll]
+    D -->|Skip| F[Queue Skip]
+    D -->|EndTurn| G[Queue EndTurn]
+    E --> H[Process Next]
+    H --> I[Execute Roll]
+    I --> J{Opened Modal}
+    J -- Yes --> K[Evaluate Modal]
+    K --> L[Queue Buy/Upgrade + EndTurn]
     L --> H
-    J -- Não --> M[Enfileirar EndTurn\n(nada a fazer)]
+    J -- No --> M[Queue EndTurn]
     M --> H
     G --> H
     F --> H
-    H --> N{Fila vazia?}
-    N -- Sim --> Z[Fim]
-    N -- Não --> H
+    H --> N{Queue Empty}
+    N -- Yes --> Z
+    N -- No --> H
 ```
 
 ### Fluxo do modal de propriedade
 ```mermaid
 flowchart TD
-    A[Modal aberto\n(jogador no bloco)] --> B[Montar DecisionContext\n(com bloco atual)]
-    B --> C[Avaliar Modal\n(regras de compra/upgrade)]
-    C --> D{Compra permitida?}
-    D -- Sim --> E[Enfileirar Buy\n(compra planejada)]
-    D -- Não --> F[Ignorar compra]
-    C --> G{Upgrade permitido?}
-    G -- Sim --> H[Enfileirar Upgrade\n(evoluir propriedade)]
-    G -- Não --> I[Ignorar upgrade]
-    E --> J[Executar Buy\n(debitar, atribuir owner)]
-    H --> K[Executar Upgrade\n(aumentar nível/valor)]
-    J --> L[Fechar Modal]
-    K --> L[Fechar Modal]
-    L --> M[Enfileirar EndTurn\n(encerrar turno após ações)]
-    M --> N[Processar próxima decisão]
+    A[Modal Opened] --> B[Build Decision Context - with Block]
+    B --> C[Evaluate Modal]
+    C --> D{Buy allowed}
+    D -- Yes --> E[Queue Buy]
+    D -- No --> F[Skip]
+    C --> G{Upgrade allowed}
+    G -- Yes --> H[Queue Upgrade]
+    G -- No --> I[Skip]
+    E --> J[Execute Buy]
+    H --> K[Execute Upgrade]
+    J --> L[Close Modal]
+    K --> L[Close Modal]
+    L --> M[Queue EndTurn]
+    M --> N[Process Next]
 ```
 
 ### Scheduler simplificado
 ```mermaid
 flowchart TD
-    A[Enfileirar decisões\n(lista priorizada)] --> B[Fila]
-    B --> C[Processar próxima]
-    C --> D{Tem item?}
-    D -- Não --> Z[Fim]
-    D -- Sim --> E[Retirar da fila]
-    E --> F[Aguardar Delay\n(SuggestedDelayMs)]
-    F --> G{Cancelado?\n(turno/modal mudou)}
-    G -- Sim --> C
-    G -- Não --> H[Executar decisão\n(efeitos no jogo/UI)]
+    A[Enqueue Decisions] --> B[Queue]
+    B --> C[Process Next]
+    C --> D{Has item}
+    D -- No --> Z[Exit]
+    D -- Yes --> E[Dequeue]
+    E --> F[Delay]
+    F --> G{Canceled}
+    G -- Yes --> C
+    G -- No --> H[Execute]
     H --> C
 ```
 
@@ -214,12 +214,26 @@ sequenceDiagram
     participant S as BotDecisionService
     UI->>S: EvaluateTurnStart(ctx)
     S-->>UI: DecisionResult (Roll/Skip/EndTurn)
-    UI->>UI: Enfileira e processa
+    UI->>UI: Enqueue + Process
     UI->>S: EvaluateModal(ctx)
     S-->>UI: [Buy, Upgrade, EndTurn]
-    UI->>UI: Executa, fecha modal, encerra turno
-    UI->>S: EvaluateTurnStart (próximo jogador)
+    UI->>UI: Execute, Close Modal, EndTurn
+    UI->>S: EvaluateTurnStart (next player)
 ```
+
+## Resumo do Entendimento (Sem Código)
+- Mapear todos os pontos de entrada das decisões (turno, compra, upgrade, rolagem) e centralizar onde fizer sentido.
+- Definir objetivos claros (priorização de métricas) para orientar heurísticas mais avançadas (ex: avaliação de risco vs retorno).
+- Introduzir camadas ou estratégia: separação entre coleta de estado, avaliação heurística, e execução da ação.
+- Adicionar critérios de proteção financeira (limites mínimos de saldo antes de comprar/upgrade) se necessário.
+- Garantir que triggers assíncronos (animações, chat, timers) não disparem decisões duplicadas.
+- Possível necessidade de logs explicativos leves para depuração e validação de heurísticas.
+- Preparar estrutura para futura extensibilidade (ex: registrar heurísticas como serviços ou estratégias por tipo de decisão).
+- Revisar delays para equilibrar UX e evitar conflito com animações.
+- Focar em clareza e baixa duplicação antes de otimizações de micro-performance.
+
+RESPONDA AS PERGUNTAS ACIMA. DEPOIS USAREMOS O MODO IMPLEMENTAÇÃO.
+
 
 ---
 
