@@ -18,6 +18,8 @@
 - [Resumo](#resumo-para-apresentação)
 - [Mapa do Código (Links)](#mapa-do-código-links)
 
+https://chatgpt.com/canvas/shared/6930473a2d408191a4e3c6be6030e9c5
+
 ## 1) Perguntas – Contexto do Projeto
 1. Quais outros arquivos além de `BotDecisionService` e `IBotDecisionService` participam diretamente da lógica do bot (ex: handlers em `Play.Bot.cs`, serviços de jogo, componentes Blazor)?
 2. O ciclo de turno (início, rolagem de dados, compra, upgrade, fim) está centralizado em uma classe específica? Qual?
