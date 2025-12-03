@@ -281,11 +281,11 @@ flowchart TD
 ### Diagrama: Defuzificação para `FuzzyAction`
 ```mermaid
 flowchart TD
-    A[Coleta de métricas (Liquidez, Valor, Risco)] --> B[Regras fuzzy (pesos e limites)]
+    A[Coleta de metricas] --> B[Regras fuzzy]
     B --> C{Resultado}
-    C -- Alto Valor + Boa Liquidez + Baixo Risco --> D[Buy]
-    C -- Baixa Liquidez + Alto Risco --> E[Sell]
-    C -- Valores médios --> F[Wait]
+    C -- Alto valor e boa liquidez e baixo risco --> D[Buy]
+    C -- Baixa liquidez e alto risco --> E[Sell]
+    C -- Valores medios --> F[Wait]
 ```
 
 ### Diagrama: Integração com o Pipeline do Bot (Blazor)
