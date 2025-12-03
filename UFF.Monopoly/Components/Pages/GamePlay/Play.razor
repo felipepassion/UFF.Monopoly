@@ -21,6 +21,7 @@
         }
         else
         {
+            <CascadingValue Value="@_ownerColors">
             <GameBoard BoardWidthCss="@_boardWidthCss" BoardHeightCss="@_boardHeightCss">
                 @if (!string.IsNullOrWhiteSpace(_boardCenterImageUrl))
                 {
@@ -38,7 +39,7 @@
                 }
                 @foreach (var space in BoardSpaces)
                 {
-                    <BoardSpace Space="space" OnClick="@(EventCallback.Factory.Create<BoardSpaceDto>(this, s => HandleClick(s)))" />
+                    <BoardSpace Space="space" OnClick="@(EventCallback.Factory.Create<BoardSpaceDto>(this, s => HandleClick(s)))" PawnUrlResolver="@_pawnUrlResolver" />
                 }
                 <BoardPawnLayer Game="@_game"
                                 PawnAnimPosition="@_pawnAnimPosition"
@@ -105,6 +106,7 @@
                                   OnEndTurn="EventCallback.Factory.Create(this, EndTurn)" />
                 }
             </GameBoard>
+            </CascadingValue>
             @if (_showBotActionToast)
             {
                 <div class="bot-toast-wrapper animate__animated animate__fadeInUp">

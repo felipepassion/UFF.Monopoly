@@ -1,0 +1,19 @@
+@using UFF.Monopoly.Entities
+@inherits ComponentBase
+
+<div class="popup-header d-flex align-items-center gap-3">
+    <div class="thumb">
+        @ChildContent
+    </div>
+    <div class="title-area flex-grow-1">
+        <div class="name">@DisplayName</div>
+        <div class="display-name small">@Title</div>
+    </div>
+    <button type="button" class="btn btn-sm btn-outline-light close-btn" aria-label="Fechar" disabled>✕</button>
+</div>
+
+@code {
+    [Parameter] public string? DisplayName { get; set; }
+    [Parameter] public string? Title { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

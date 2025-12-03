@@ -1,0 +1,36 @@
+@using UFF.Monopoly.Entities
+@using UFF.Monopoly.Data.Entities
+@inherits ComponentBase
+
+<div class="popup-footer">
+    @if ((Block?.Owner) is null && !IsBotTurn && Player is not null && Block is not null)
+    {
+        <button id="btnBuy" class="btn btn-success me-2" @onclick="OnBuy" disabled="@(Player.Money < Block.Price)">Comprar (R$ @Block.Price)</button>
+    }
+    else if (StatePb?.Owner == Player && !IsBotTurn)
+    {
+        <button id="btnUpgrade" class="btn btn-primary me-2" @onclick="OnUpgrade" disabled="@(!(StatePb is not null && CanUpgradeAllowed))">Evoluir nível @NextLevel (R$ @NextUpgradeCost)</button>
+        <button class="btn btn-outline-danger" @onclick="OnSell">Vender propriedade (50%)</button>
+    }
+    else if (IsBotTurn)
+    {
+        <div class="text-muted small">Bot está jogando...</div>
+    }
+    else
+    {
+        <div class="text-muted">Propriedade de: @Block?.Owner?.Name</div>
+    }
+</div>
+
+@code {
+    [Parameter] public Block? Block { get; set; }
+    [Parameter] public Player? Player { get; set; }
+    [Parameter] public PropertyBlock? StatePb { get; set; }
+    [Parameter] public bool CanUpgradeAllowed { get; set; }
+    [Parameter] public int NextUpgradeCost { get; set; }
+    [Parameter] public int NextLevel { get; set; }
+    [Parameter] public EventCallback OnBuy { get; set; }
+    [Parameter] public EventCallback OnUpgrade { get; set; }
+    [Parameter] public EventCallback OnSell { get; set; }
+    [CascadingParameter] public bool IsBotTurn { get; set; }
+}

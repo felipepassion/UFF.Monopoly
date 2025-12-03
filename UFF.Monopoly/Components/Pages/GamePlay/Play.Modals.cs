@@ -29,12 +29,16 @@ public partial class Play : ComponentBase, IAsyncDisposable
             // Cancel any bot callbacks tied to the modal
             try { _botCts?.Cancel(); } catch { }
             await BotAutoActionsIfNeeded();
-            // Defer NextTurn until dialogue queue finishes
-            if (IsDialogueBusy)
-            { await WaitForDialogueIdleAsync(250, _turnCts?.Token); }
-            _game.NextTurn(); HasRolledThisTurn = false;
-            EnqueueGroup("transicao_turno", new DialogueContext { Player = _game.Players[_game.CurrentPlayerIndex].Name }, true);
-            await GameRepo.SaveGameAsync(GameId, _game);
+            // Only advance turn automatically on human turns
+            if (IsCurrentPlayerHuman())
+            {
+                // Defer NextTurn until dialogue queue finishes
+                if (IsDialogueBusy)
+                { await WaitForDialogueIdleAsync(250, _turnCts?.Token); }
+                _game.NextTurn(); HasRolledThisTurn = false;
+                EnqueueGroup("transicao_turno", new DialogueContext { Player = _game.Players[_game.CurrentPlayerIndex].Name }, true);
+                await GameRepo.SaveGameAsync(GameId, _game);
+            }
         }
         CleanupModal(); ResetPendingSpecial(); StateHasChanged(); AnnounceHumanTurnIfNeeded();
         // Do not advance dialogue forcibly; just let it flow

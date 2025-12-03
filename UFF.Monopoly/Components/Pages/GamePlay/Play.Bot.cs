@@ -159,17 +159,59 @@ public partial class Play : ComponentBase, IAsyncDisposable
         if (!_showBlockModal) return; // modal closed -> skip
         _botHasActedThisModal = true;
 
-        var balance = (double)_modalPlayer.Money;
-        FuzzyDecisionResult fuzzyResult;
-        if (_pendingActionKind == PendingActionKind.Tax && _pendingAmount > 0)
-        { fuzzyResult = FuzzyDecision.ApplyTaxAndDecide(balance, _pendingAmount); }
-        else if (_pendingActionKind == PendingActionKind.Chance && _pendingAmount > 0)
-        { fuzzyResult = FuzzyDecision.ApplyBonusAndDecide(balance, _pendingAmount); }
-        else { fuzzyResult = FuzzyDecision.Evaluate(balance); }
+        // Decisões/diálogos por tipo de carta
+        var currentType = _modalBlock?.Type ?? BlockType.Property;
+        var isEconomicBlock = currentType == BlockType.Property || currentType == BlockType.Company; // inclui especiais via BuildingType em PropertyBlock
 
+        if (!isEconomicBlock)
+        {
+            // Cartas de ação: Tax/Chance/Reves/GoToJail/etc. Não falar fuzzy aqui.
+            switch (currentType)
+            {
+                case BlockType.Tax:
+                    if (_pendingActionKind == PendingActionKind.Tax && _pendingAmount > 0)
+                    {
+                        AddDialogue($"Veeesh! Taxa aplicada: -R$ {_pendingAmount}. Segura o bolso!");
+                    }
+                    break;
+                case BlockType.Chance:
+                    if (_pendingActionKind == PendingActionKind.Chance && _pendingAmount != 0)
+                    {
+                        var sign = _pendingAmount >= 0 ? "+" : "-";
+                        AddDialogue($"Sorte: {sign}R$ {Math.Abs(_pendingAmount)}. Nada de fuzzy aqui, é no susto mesmo!");
+                    }
+                    break;
+                case BlockType.Reves:
+                    if (_pendingActionKind == PendingActionKind.Reves)
+                    {
+                        if (_pendingBackSteps > 0)
+                            AddDialogue($"Veeesh! Você vai ter que voltar {_pendingBackSteps} casas.");
+                        else if (_pendingAmount > 0)
+                            AddDialogue($"Veeesh! Revés: paga R$ {_pendingAmount} à banca.");
+                    }
+                    break;
+                case BlockType.GoToJail:
+                    AddDialogue("Sem conversa: direto para a prisão. Que fase...");
+                    break;
+                default:
+                    // outras cartas neutras
+                    AddDialogue(_modalBlock is not null ? _modalBlock.Description : "Evento especial.");
+                    break;
+            }
+
+            // Após mensagem contextual, deixar serviço decidir ações do modal (se houver) e encerrar.
+            var ctxAction = BuildDecisionContext(_modalBlock);
+            var decsAction = BotDecision.EvaluateModal(ctxAction);
+            _botQueue.Clear(); EnqueueBotDecisions(decsAction);
+            await ProcessNextBotDecisionAsync();
+            return;
+        }
+
+        // Somente para propriedades/empresas: aplicar explicação fuzzy
+        var balance = (double)_modalPlayer.Money;
+        var fuzzyResult = FuzzyDecision.Evaluate(balance);
         Console.WriteLine($"[BOT-FUZZY] saldo={balance} x={fuzzyResult.NormalizedBalance:0.##} action={fuzzyResult.Action} scores(B={fuzzyResult.Scores.BuyScore:0.###},S={fuzzyResult.Scores.SellScore:0.###},W={fuzzyResult.Scores.WaitScore:0.###}) exp={fuzzyResult.ExplanationPtBr}");
 
-        // Announce detailed fuzzy reasoning in chat so it's explicit during presentation
         AddDialogue($"Mr. Monopoly (fuzzy): {fuzzyResult.ExplanationPtBr}");
 
         switch (fuzzyResult.Action)

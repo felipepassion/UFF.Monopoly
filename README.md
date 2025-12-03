@@ -1,5 +1,23 @@
 # Modo ASK – Refinamento da Lógica de Decisão do Bot
 
+## Índice Geral
+- [Contexto do Projeto](#1-perguntas--contexto-do-projeto)
+- [Objetivo do Bot](#2-perguntas--objetivo-do-bot)
+- [Fluxo Atual de Decisões](#3-perguntas--fluxo-atual-de-decisões)
+- [Regras de Negócio](#4-perguntas--regras-de-negócio)
+- [Problemas / Limitações](#5-perguntas--problemas-atuais--bugs--limitações)
+- [Restrições Técnicas](#6-perguntas--restrições-técnicas)
+- [Critérios de Sucesso](#7-perguntas--critérios-de-sucesso)
+- [Diagnóstico do Algoritmo Atual](#diagnóstico-do-algoritmo-atual)
+- [Paralelo: Atual vs Proposta](#paralelo-atual-vs-abordagem-proposta)
+- [Gaps a Endereçar](#principais-gaps-a-endereçar)
+- [Passo 1 – Plano Rápido](#passo-1--plano-rápido)
+- [Passo 2 – Especificação](#passo-2--especificação-da-nova-lógica-pseudocódigofluxo)
+- [Diagramas](#diagramas-mermaid)
+- [Nova Lógica Fuzzy](#nova-lógica-fuzzy-de-compra-venda-e-espera)
+- [Resumo](#resumo-para-apresentação)
+- [Mapa do Código (Links)](#mapa-do-código-links)
+
 ## 1) Perguntas – Contexto do Projeto
 1. Quais outros arquivos além de `BotDecisionService` e `IBotDecisionService` participam diretamente da lógica do bot (ex: handlers em `Play.Bot.cs`, serviços de jogo, componentes Blazor)?
 2. O ciclo de turno (início, rolagem de dados, compra, upgrade, fim) está centralizado em uma classe específica? Qual?
@@ -310,3 +328,47 @@ sequenceDiagram
 - O componente `Play.Bot.cs` consome essa decisão e evita race conditions via fila/atrasos sugeridos.
 - O triângulo de decisões melhora a coerência: protege liquidez, aproveita oportunidades de monopólio e reduz risco.
 - Arquivos principais: `Infrastructure/Bot/Fuzzy/FuzzyAction.cs`, `Components/Pages/GamePlay/Play.Bot.cs`, `BlockActionContent.razor`, `Play.Dialogue.cs`, `Play.Utils.cs`.
+
+---
+
+## Índice Navegável
+- [Visão Geral e Perguntas](#modo-ask--refinamento-da-lógica-de-decisão-do-bot)
+- [Diagnóstico do Algoritmo Atual](#diagnóstico-do-algoritmo-atual)
+- [Paralelo: Atual vs Abordagem Proposta](#paralelo-atual-vs-abordagem-proposta)
+- [Principais Gaps a Endereçar](#principais-gaps-a-endereçar)
+- [Passo 1 – Plano Rápido](#passo-1--plano-rápido)
+- [Passo 2 – Especificação da Nova Lógica](#passo-2--especificação-da-nova-lógica-pseudocódigofluxo)
+- [Diagramas](#diagramas-mermaid)
+  - [Fluxo de turno do bot](#visão-geral-do-fluxo-de-turno-do-bot)
+  - [Fluxo do modal de propriedade](#fluxo-do-modal-de-propriedade)
+  - [Scheduler simplificado](#scheduler-simplificado)
+  - [Interação Componentes vs Serviço](#interação-componentes-vs-serviço)
+- [Nova Lógica Fuzzy (Buy/Sell/Wait)](#nova-lógica-fuzzy-de-compra-venda-e-espera)
+  - [Triângulo Fuzzy](#diagrama-triângulo-fuzzy-de-decisão)
+  - [Defuzificação](#diagrama-defuzificação-para-fuzzyaction)
+  - [Integração Blazor](#diagrama-integração-com-o-pipeline-do-bot-blazor)
+- [Resumo para apresentação](#resumo-para-apresentação)
+- [Mapa do Código (Links)](#mapa-do-código-links)
+
+## Mapa do Código (Links)
+- Enum fuzzy: [`FuzzyAction`](./UFF.Monopoly/Infrastructure/Bot/Fuzzy/FuzzyAction.cs)
+- Componente do jogo (bot): [`Play.Bot.cs`](./UFF.Monopoly/Components/Pages/GamePlay/Play.Bot.cs)
+- Diálogos/UX: [`Play.Dialogue.cs`](./UFF.Monopoly/Components/Pages/GamePlay/Play.Dialogue.cs)
+- Utilitários de turno: [`Play.Utils.cs`](./UFF.Monopoly/Components/Pages/GamePlay/Play.Utils.cs)
+- Modal de ações do bloco: [`BlockActionContent.razor`](./UFF.Monopoly/Components/Pages/GamePlay/BlockActionContent.razor)
+- README (este arquivo): [`README.md`](./README.md)
+
+### Âncoras rápidas de decisão
+- Ir para avaliação de início de turno: [EvaluateTurnStart](#passo-1--plano-rápido)
+- Ir para avaliação de modal: [EvaluateModal](#fluxo-do-modal-de-propriedade)
+- Ir para pós-rolagem: [EvaluatePostRoll](#visão-geral-do-fluxo-de-turno-do-bot)
+- Ver enum de decisão fuzzy: [`FuzzyAction`](./UFF.Monopoly/Infrastructure/Bot/Fuzzy/FuzzyAction.cs)
+
+### Pontos de orquestração no Blazor
+- Auto-roll do bot: procurar em [`Play.Bot.cs`](./UFF.Monopoly/Components/Pages/GamePlay/Play.Bot.cs) por `TryAutoRollForBotAsync`
+- Ações no modal: `TriggerBotModalIfNeeded`, `BotActOnModalAsync` e `BotAutoActionsIfNeeded` em [`Play.Bot.cs`](./UFF.Monopoly/Components/Pages/GamePlay/Play.Bot.cs)
+- Compra/Upgrade internos: `TryBotPurchaseAsync`, `TryBotUpgradeAsync` em [`Play.Bot.cs`](./UFF.Monopoly/Components/Pages/GamePlay/Play.Bot.cs)
+
+### Estratégia e estados
+- Contexto de decisão conceitual: [DecisionContext](#estruturas-conceituais)
+- Resultado de decisão: [DecisionResult](#estruturas-conceituais)

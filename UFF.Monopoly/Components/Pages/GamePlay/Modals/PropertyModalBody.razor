@@ -1,0 +1,75 @@
+@using UFF.Monopoly.Components.Pages.BoardBuilders
+@using UFF.Monopoly.Components.Shared
+@using UFF.Monopoly.Entities
+@using UFF.Monopoly.Data.Entities
+@inherits ComponentBase
+
+<div class="popup-body">
+    <div class="info-grid mt-1">
+        <div>
+            <div class="label">Preço</div>
+            <div class="value">R$ @Block?.Price</div>
+        </div>
+        @if (StatePb is not null && StatePb.BuildingType != BuildingType.None)
+        {
+            <div>
+                <div class="label">Aluguel atual</div>
+                <div class="value">R$ @StatePb.CalculateRent()</div>
+            </div>
+        }
+        else if (Block is not null)
+        {
+            <div>
+                <div class="label">Aluguel fixo</div>
+                <div class="value">R$ @Block.Rent</div>
+            </div>
+        }
+    </div>
+
+    @if (BuildingType != BuildingType.None && BuildingType != BuildingType.Special)
+    {
+        <div class="details mt-2">
+            <div class="level-line d-flex align-items-center gap-2">
+                <span class="label fw-semibold">Nível</span>
+                <span class="badge rounded-pill bg-dark">@CurrentLevel</span>
+                @if (NextInfo is not null && CurrentLevel < MaxLevel)
+                {
+                    <span class="arrow">→</span>
+                    <span class="badge rounded-pill bg-primary" title="Próximo nível">@NextLevel</span>
+                }
+                <span class="max text-muted small">/@MaxLevel</span>
+            </div>
+
+            <EvolutionStrip
+                            BuildingType="@BuildingType"
+                            CurrentLevel="@CurrentLevel"
+                            NextLevel="@NextLevel"
+                            MaxLevel="@MaxLevel"
+                            CurrentInfo="@CurrentInfo"
+                            NextInfo="@NextInfo"
+                            GetBuildingImage="@GetBuildingImage" />
+
+            <div class="mt-2"><span class="label">Tipo construção</span> <span class="value">@BuildingType</span></div>
+            @if (CurrentInfo is not null)
+            {
+                <div class="evo-desc small text-muted mt-2">Atual: <em>@CurrentInfo.Name</em> - @CurrentInfo.Description</div>
+            }
+            @if (NextInfo is not null)
+            {
+                <div class="evo-next small mt-1">Próximo: <em>@NextInfo.Name</em> - @NextInfo.Description</div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public Block? Block { get; set; }
+    [Parameter] public PropertyBlock? StatePb { get; set; }
+    [Parameter] public BuildingType BuildingType { get; set; }
+    [Parameter] public int CurrentLevel { get; set; }
+    [Parameter] public int NextLevel { get; set; }
+    [Parameter] public int MaxLevel { get; set; } = 4;
+    [Parameter] public BuildingEvolutionDescriptions.EvolutionInfo? CurrentInfo { get; set; }
+    [Parameter] public BuildingEvolutionDescriptions.EvolutionInfo? NextInfo { get; set; }
+    [Parameter] public Func<BuildingType, int, string>? GetBuildingImage { get; set; }
+}

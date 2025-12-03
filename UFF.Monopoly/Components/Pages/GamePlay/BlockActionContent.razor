@@ -2,6 +2,7 @@
 @using UFF.Monopoly.Data.Entities
 @using UFF.Monopoly.Components.Pages.BoardBuilders
 @using UFF.Monopoly.Components.Shared
+@using UFF.Monopoly.Components.Pages.GamePlay.Modals
 @inherits ComponentBase
 
 @if (Block is not null && Player is not null)
@@ -25,88 +26,31 @@
             currentInfo = BuildingEvolutionDescriptions.Get(buildingType, Math.Clamp(currentLevel, 1, 4));
         }
         var terrenoTitle = buildingType switch { BuildingType.House => "Terreno (Casa)", BuildingType.Company => "Terreno (Empresa)", BuildingType.Hotel => "Terreno (Hotél)", _ => (Block.Type == BlockType.Company ? "Companhia" : "Propriedade") };
-        <div class="popup-info animate-pop">
-            <div class="header d-flex align-items-center gap-3">
-                <div class="thumb">
-                    @ChildContent
-                </div>
-            </div>
 
-            <div class="info-grid mt-3">
-                <div>
-                    <div class="label">Preço</div>
-                    <div class="value">R$ @Block.Price</div>
-                </div>
-                @if (statePb is not null && statePb.BuildingType != BuildingType.None)
-                {
-                    <div>
-                        <div class="label">Aluguel atual</div>
-                        <div class="value">R$ @statePb.CalculateRent()</div>
-                    </div>
-                }
-                else
-                {
-                    <div>
-                        <div class="label">Aluguel fixo</div>
-                        <div class="value">R$ @Block.Rent</div>
-                    </div>
-                }
-            </div>
+        <div class="popup-info animate-pop" role="dialog" aria-modal="true" aria-label="@terrenoTitle">
+            <PropertyModalHeader DisplayName="@displayName" Title="@terrenoTitle">
+                @ChildContent
+            </PropertyModalHeader>
 
-            @if (buildingType != BuildingType.None && buildingType != BuildingType.Special)
-            {
-                <div class="details mt-3">
-                    <div class="level-line d-flex align-items-center gap-2">
-                        <span class="label fw-semibold">Nível</span>
-                        <span class="badge rounded-pill bg-dark">@currentLevel</span>
-                        @if (nextInfo is not null && currentLevel < maxLevel)
-                        {
-                            <span class="arrow">→</span>
-                            <span class="badge rounded-pill bg-primary" title="Próximo nível">@nextLevel</span>
-                        }
-                        <span class="max text-muted small">/@maxLevel</span>
-                    </div>
+            <PropertyModalBody Block="@Block"
+                               StatePb="@statePb"
+                               BuildingType="@buildingType"
+                               CurrentLevel="@currentLevel"
+                               NextLevel="@nextLevel"
+                               MaxLevel="@maxLevel"
+                               CurrentInfo="@currentInfo"
+                               NextInfo="@nextInfo"
+                               GetBuildingImage="@GetBuildingImage" />
 
-                    <EvolutionStrip
-                                    BuildingType="@buildingType"
-                                    CurrentLevel="@currentLevel"
-                                    NextLevel="@nextLevel"
-                                    MaxLevel="@maxLevel"
-                                    CurrentInfo="@currentInfo"
-                                    NextInfo="@nextInfo"
-                                    GetBuildingImage="@GetBuildingImage" />
-
-                    <div class="mt-2"><span class="label">Tipo construção</span> <span class="value">@buildingType</span></div>
-                    @if (currentInfo is not null)
-                    {
-                        <div class="evo-desc small text-muted mt-2">Atual: <em>@currentInfo.Name</em> - @currentInfo.Description</div>
-                    }
-                    @if (nextInfo is not null)
-                    {
-                        <div class="evo-next small mt-1">Próximo: <em>@nextInfo.Name</em> - @nextInfo.Description</div>
-                    }
-                </div>
-            }
-
-            <div class="actions mt-3">
-                @if ((Block.Owner) is null && !IsBotTurn)
-                {
-                    <button id="btnBuy" class="btn btn-success me-2" @onclick="OnBuy" disabled="@(Player.Money < Block.Price)">Comprar (R$ @Block.Price)</button>
-                }
-                else if (statePb?.Owner == Player && !IsBotTurn)
-                {
-                    <button id="btnUpgrade" class="btn btn-primary me-2" @onclick="OnUpgrade" disabled="@(!(statePb is not null && CanUpgradeAllowed))">Evoluir nível @nextLevel (R$ @NextUpgradeCost)</button>
-                    <button class="btn btn-outline-danger" @onclick="OnSell">Vender propriedade (50%)</button>
-                }
-                else if (IsBotTurn)
-                {
-                    <div class="text-muted small">Bot está jogando...</div>
-                }
-                else
-                {
-                    <div class="text-muted">Propriedade de: @Block.Owner?.Name</div>
-                }
-            </div>
+            <PropertyModalFooter Block="@Block"
+                                 Player="@Player"
+                                 StatePb="@statePb"
+                                 CanUpgradeAllowed="@CanUpgradeAllowed"
+                                 NextUpgradeCost="@NextUpgradeCost"
+                                 NextLevel="@nextLevel"
+                                 OnBuy="@OnBuy"
+                                 OnUpgrade="@OnUpgrade"
+                                 OnSell="@OnSell" />
         </div>
     }
     else
@@ -130,27 +74,105 @@
 }
 
 <style>
-/* Scoped styles to improve visual hierarchy */
-.popup-info { padding: .25rem .5rem 0; max-width: 560px; }
-/* fade+scale animation on updates (buy/evolve) */
-.animate-pop { animation: popFade .22s ease-out; }
-@@keyframes popFade { from { opacity: 0; transform: scale(.98); } to { opacity: 1; transform: scale(1); } }
+    /* Modal container and animation retained */
+    .popup-info {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        gap: .25rem;
+        padding: .5rem .5rem 0;
+        max-width: 640px;
+        max-height: min(72vh, 680px);
+        backdrop-filter: saturate(1.2) blur(3px);
+        background: rgba(24, 26, 27, .75);
+        border: 1px solid rgba(255,255,255,.08);
+        border-radius: .6rem;
+    }
 
-.popup-info .header .thumb { width: 72px; height: 72px; flex: 0 0 auto; border-radius: .5rem; overflow: hidden; background: rgba(255,255,255,.05); }
-.popup-info .title-area .name { font-weight: 600; }
-.popup-info .title-area .display-name { color: var(--bs-light); }
+    .animate-pop {
+        animation: popFade .22s ease-out;
+    }
 
-.popup-info .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem 1rem; }
+    @@keyframes popFade {
+        from {
+            opacity: 0;
+            transform: scale(.98);
+        }
+
+        to {
+            opacity: 1;
+            transform: scale(1);
+        }
+    }
+
+    /* legacy selectors for nested components */
+    .popup-info .header .thumb,
+    .popup-header .thumb {
+        width: 64px;
+        height: 64px;
+        flex: 0 0 auto;
+        border-radius: .5rem;
+        overflow: hidden;
+        background: rgba(255,255,255,.05);
+    }
+
+    .popup-info .title-area .name {
+        font-weight: 600;
+    }
+
+    .popup-info .title-area .display-name {
+        color: var(--bs-light);
+    }
+
+    /* Body scroll and footer stickiness provided by nested components */
+    .popup-body {
+        overflow: auto;
+        padding: .25rem .25rem .5rem;
+    }
+
+    .popup-footer {
+        position: sticky;
+        bottom: 0;
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: .5rem;
+        padding: .5rem .5rem;
+        background: linear-gradient(to bottom, rgba(24,26,27,0.6), rgba(24,26,27,0.85));
+        border-top: 1px solid rgba(255,255,255,.08);
+        box-shadow: 0 -4px 10px rgba(0,0,0,.15);
+        justify-content:center;
+    }
+
+    /* grid */
+    .popup-info .info-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: .5rem .75rem;
+    }
 
     .popup-info .label {
         color: #adb5bd;
         font-size: .9rem;
     }
-.popup-info .value { font-weight: 600; }
 
-.popup-info .level-line .arrow { opacity: .7; }
-.popup-info .max { margin-left: .25rem; }
+    .popup-info .value {
+        font-weight: 600;
+    }
 
-/* actions area resilient width */
-.popup-info .actions { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem; }
+    .popup-info .level-line .arrow {
+        opacity: .7;
+    }
+
+    .popup-info .max {
+        margin-left: .25rem;
+    }
+
+    /* actions area resilient width */
+    .popup-info .actions {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: .5rem;
+    }
 </style>
