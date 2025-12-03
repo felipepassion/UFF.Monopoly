@@ -60,7 +60,7 @@
 - Recursão em `TryAutoRollForBotAsync` para continuar jogando em sequência pode gerar complexidade de rastreamento (embora limitada).
 
 ### Riscos / Problemas
-- Possível race condition: `TriggerBotModalIfNeeded` agenda ação com `InvokeAsync` + delay; antes do início a flag `_botHasActedThisModal` ainda falsa, outro gatilho pode disparar `BotAutoActionsIfNeeded`.
+- Possível race condition: `TriggerBotModalIfNeeded`agenda ação com `InvokeAsync` + delay; antes do início a flag `_botHasActedThisModal` ainda falsa, outro gatilho pode disparar `BotAutoActionsIfNeeded`.
 - Falta de cancelamento: todos os `Task.Delay` são não canceláveis; se estado muda (turno avança, modal fecha) ação pode ainda ocorrer tardiamente.
 - Nenhuma avaliação de risco financeiro (bot pode torrar recursos em upgrades cedo demais).
 - Heurística de upgrade sempre retorna true — não pondera retorno sobre investimento ou completar conjunto.
@@ -269,21 +269,23 @@ O bot avalia três eixos principais e defuzifica para uma ação crisp:
 
 ### Diagrama: Triângulo Fuzzy de Decisão
 ```mermaid
-triangle
-    title Triângulo de Decisão Fuzzy
+flowchart TD
     A[Liquidez]
     B[Valor Esperado]
     C[Risco]
+    A --- B
+    B --- C
+    C --- A
 ```
 
 ### Diagrama: Defuzificação para `FuzzyAction`
 ```mermaid
 flowchart TD
-    A[Coleta de métricas\n(Liquidez, Valor, Risco)] --> B[Regras fuzzy\n(pesos e limites)]
-    B --> C{Resultado crisp}
+    A[Coleta de métricas (Liquidez, Valor, Risco)] --> B[Regras fuzzy (pesos e limites)]
+    B --> C{Resultado}
     C -- Alto Valor + Boa Liquidez + Baixo Risco --> D[Buy]
     C -- Baixa Liquidez + Alto Risco --> E[Sell]
-    C -- Médio em todos os eixos --> F[Wait]
+    C -- Valores médios --> F[Wait]
 ```
 
 ### Diagrama: Integração com o Pipeline do Bot (Blazor)
